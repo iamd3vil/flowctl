@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/cvhariharan/autopilot/internal/flow"
-	"github.com/expr-lang/expr"
 	"github.com/labstack/echo/v4"
 )
 
@@ -31,45 +30,9 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "requested flow not found")
 	}
 
-	var inputReq map[string]interface{}
-	for _, input := range flow.Inputs {
-		val, ok := req[input.Name]
-		if !ok && input.Required && input.Default == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("required field %s missing", input.Name))
-		}
-		valStr := fmt.Sprintf("%v", val)
-
-		if valStr == "" {
-			valStr = input.Default
-		}
-
-		// expr validation
-		env := map[string]interface{}{
-			input.Name: val,
-		}
-
-		program, err := expr.Compile(input.Validation, expr.Env(env))
-		if err != nil {
-			return err
-		}
-
-		output, err := expr.Run(program, env)
-		if err != nil {
-			return err
-		}
-
-		isValid, ok := output.(bool)
-		if !ok {
-			return fmt.Errorf("error validating request: expected boolean response")
-		}
-
-		if !isValid {
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s failed validation", input.Name))
-		}
-
-		// input val is valid
-		inputReq[input.Name] = val
+	if err := flow.ValidateInput(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("error validating input: %v", err))
 	}
 
-	return c.JSON(http.StatusOK, inputReq)
+	return c.NoContent(http.StatusOK)
 }

@@ -56,6 +56,11 @@ func processYAMLFiles(dirPath string) (map[string]flow.Flow, error) {
 		}
 
 		m[f.Meta.ID] = f
+		if err := f.Validate(); err != nil {
+			log.Println(err)
+			delete(m, f.Meta.ID)
+		}
+
 		return nil
 	}); err != nil {
 		return nil, err
