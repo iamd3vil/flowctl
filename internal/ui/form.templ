@@ -4,34 +4,41 @@ import (
     "github.com/cvhariharan/autopilot/internal/flow"
 )
 
-templ Form(inputs []flow.Input) {
+templ Form(f flow.Flow) {
     <html>
         @header("autopilot")
         <body>
-        <div>
-            @renderForm(inputs)
+        <div class="flex h-screen flex-col justify-start items-center">
+            <div class="py-10">
+                <h1 class="font-bold text-5xl">{ f.Meta.Name }</h1>
+                <h3 class="font-light text-xl">{ f.Meta.Description }</h3>
+            </div>
+            @renderForm(f.Inputs)
         </div>
         </body>
     </html>
 }
 
 templ renderForm(inputs []flow.Input) {
+    <form class="max-w-screen-sm py-16 w-screen mx-auto">
     for _, v := range inputs {
         @renderField(v)
     }
-    <button type="submit">Submit</button>
+    <button type="submit" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center">Submit</button>
+    </form>
 }
 
 templ renderField(input flow.Input) {
     switch input.Type {
     case flow.INPUT_TYPE_STRING:
-        <div>
-            <label for={ input.Name }> { input.Label } </label>
+        <div class="mb-5">
+            <label for={ input.Name } class="block mb-2 text-sm font-medium text-gray-900"> { input.Label } </label>
 
             <input
                 type="text"
                 id={ input.Name }
                 placeholder={ input.Description }
+                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             />
         </div>
     }

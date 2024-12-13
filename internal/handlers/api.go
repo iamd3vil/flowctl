@@ -48,5 +48,5 @@ func (h *Handler) HandleForm(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "requested flow not found")
 	}
 
-	return ui.Form(flow.Inputs).Render(c.Request().Context(), c.Response().Writer)
+	return ui.Form(flow).Render(c.Request().Context(), c.Response().Writer)
 }
