@@ -37,16 +37,6 @@ var installCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(installCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// installCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// installCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func readConfig(configPath string) error {
@@ -68,21 +58,34 @@ func readConfig(configPath string) error {
 func initDB(db *sqlx.DB) error {
 	driver, err := postgres.WithInstance(db.DB, &postgres.Config{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create postgres driver instance: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance("file://migrations", "postgres", driver)
 	if err != nil {
-		return fmt.Errorf("could not create migration: %w", err)
+		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
+	// Get current version before attempting migration
+	version, dirty, err := m.Version()
+	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
+		return fmt.Errorf("failed to get migration version: %w", err)
+	}
+
+	// If database is in a dirty state, force the version
+	if dirty {
+		if err := m.Force(int(version)); err != nil {
+			return fmt.Errorf("failed to force migration version: %w", err)
+		}
+	}
+
+	// Attempt to migrate to the latest version
 	if err := m.Up(); err != nil {
-		if !errors.Is(err, migrate.ErrNoChange) {
-			return fmt.Errorf("could not complete migration: %w", err)
+		// ErrNoChange means we're at the latest version - this is fine
+		if errors.Is(err, migrate.ErrNoChange) {
+			return nil
 		}
-		if err := m.Down(); err != nil {
-			return fmt.Errorf("could not revert migration: %w", err)
-		}
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil
