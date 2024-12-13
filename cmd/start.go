@@ -147,7 +147,7 @@ func startWorker() {
 
 	err := listener.Listen("new_flow")
 	if err != nil {
-		log.Fatalf("error starting postgres listener for notifications: %w", err)
+		log.Fatalf("error starting postgres listener for notifications: %v", err)
 	}
 
 	for {

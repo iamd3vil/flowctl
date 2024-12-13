@@ -51,7 +51,7 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 		Input:  inputBytes,
 	})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not queue workflow: %v", err))
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return ui.Result(f).Render(c.Request().Context(), c.Response().Writer)
