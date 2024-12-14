@@ -18,6 +18,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/flow"
 	"github.com/cvhariharan/autopilot/internal/handlers"
 	"github.com/cvhariharan/autopilot/internal/repo"
+	"github.com/cvhariharan/autopilot/internal/runner"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
@@ -175,7 +176,7 @@ func startWorker() {
 	})
 	defer redisClient.Close()
 
-	flowRunner := &tasks.FlowRunner{}
+	flowRunner := tasks.NewFlowRunner(os.Stdout, runner.NewDockerArtifactsManager("./artifacts"))
 
 	asynqSrv := asynq.NewServerFromRedisClient(redisClient, asynq.Config{
 		Concurrency: 8,

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"regexp"
+	"time"
 
 	"github.com/cvhariharan/autopilot/internal/flow"
 	"github.com/cvhariharan/autopilot/internal/runner"
@@ -36,6 +37,10 @@ type FlowRunner struct {
 	artifactManager runner.ArtifactManager
 }
 
+func NewFlowRunner(logger io.Writer, artifactManager runner.ArtifactManager) *FlowRunner {
+	return &FlowRunner{logger: logger, artifactManager: artifactManager}
+}
+
 func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) error {
 	var payload FlowExecutionPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
@@ -47,8 +52,8 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	re := regexp.MustCompile(pattern)
 
 	for _, action := range payload.Workflow.Actions {
-		// jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
-		// defer cancel()
+		jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
+		defer cancel()
 
 		// Iterate over all the flow variables execute variable interpolation if required
 		for i, variable := range action.Variables {
@@ -74,6 +79,20 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 			}
 		}
 
+		err := runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
+			ShowImagePull: true,
+			Stdout:        r.logger,
+			Stderr:        r.logger,
+		}).CreatesArtifacts(action.Artifacts).
+			WithImage(action.Image).
+			WithCmd(action.Script).
+			WithEnv(action.Variables).
+			WithEntrypoint(action.Entrypoint).
+			WithSrc(action.Src).
+			Run(jobCtx)
+		if err != nil {
+			return fmt.Errorf("failed to run docker runner: %w", err)
+		}
 	}
 
 	return nil
