@@ -3,12 +3,14 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"regexp"
 
 	"github.com/cvhariharan/autopilot/internal/flow"
 	"github.com/cvhariharan/autopilot/internal/runner"
+	"github.com/expr-lang/expr"
 	"github.com/hibiken/asynq"
 )
 
@@ -47,9 +49,29 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	for _, action := range payload.Workflow.Actions {
 		// jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
 		// defer cancel()
-		for _, variable := range action.Variables {
-			matches := re.FindString(variable.Value())
-			log.Println(matches)
+
+		// Iterate over all the flow variables execute variable interpolation if required
+		for i, variable := range action.Variables {
+			matches := re.FindAllStringSubmatch(variable.Value(), -1)
+			if len(matches) > 0 {
+				inputExpr := matches[0][1]
+				env := map[string]interface{}{
+					"input": payload.Input,
+				}
+
+				program, err := expr.Compile(inputExpr, expr.Env(env))
+				if err != nil {
+					return fmt.Errorf("failed to compile expression: %w", err)
+				}
+
+				output, err := expr.Run(program, env)
+				if err != nil {
+					return fmt.Errorf("failed to run expression: %w", err)
+				}
+
+				action.Variables[i][action.Variables[i].Name()] = output
+				log.Println(action.Variables[i])
+			}
 		}
 
 	}
