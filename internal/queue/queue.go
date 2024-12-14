@@ -13,7 +13,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const BATCH_INTERVAL = 10 * time.Second
+const DEFAULT_BATCH_INTERVAL = 10 * time.Second
 
 type QueueItem struct {
 	UUID   string
@@ -48,7 +48,7 @@ func (q *Queue) Enqueue(ctx context.Context, f flow.Flow, input map[string]inter
 	return e.ID, err
 }
 
-func (q *Queue) ListenForJobs(ctx context.Context, listener *pq.Listener, count int) (<-chan QueueItem, error) {
+func (q *Queue) ListenForJobs(ctx context.Context, listener *pq.Listener, batchInterval time.Duration, count int) (<-chan QueueItem, error) {
 	if count <= 0 {
 		count = 1
 	}
@@ -59,7 +59,7 @@ func (q *Queue) ListenForJobs(ctx context.Context, listener *pq.Listener, count 
 		return nil, fmt.Errorf("error starting postgres listener for notifications: %w", err)
 	}
 
-	ticker := time.NewTicker(BATCH_INTERVAL)
+	ticker := time.NewTicker(batchInterval)
 
 	go func() error {
 		for {

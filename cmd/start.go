@@ -156,12 +156,13 @@ func startWorker() {
 		})
 	defer listener.Close()
 
-	jchan, err := q.ListenForJobs(context.Background(), listener, 4)
+	jchan, err := q.ListenForJobs(context.Background(), listener, queue.DEFAULT_BATCH_INTERVAL, 4)
 	if err != nil {
 		log.Fatalf("error listening for jobs: %v", err)
 	}
 
 	for job := range jchan {
+
 		log.Println(job)
 	}
 }
