@@ -10,18 +10,21 @@ import (
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 	"github.com/cvhariharan/autopilot/internal/ui"
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
-	flows map[string]flow.Flow
-	store repo.Store
-	q     *asynq.Client
+	flows       map[string]flow.Flow
+	store       repo.Store
+	q           *asynq.Client
+	redisClient redis.UniversalClient
 }
 
-func NewHandler(f map[string]flow.Flow, r repo.Store, q *asynq.Client) *Handler {
-	return &Handler{flows: f, store: r, q: q}
+func NewHandler(f map[string]flow.Flow, r repo.Store, q *asynq.Client, redisClient redis.UniversalClient) *Handler {
+	return &Handler{flows: f, store: r, q: q, redisClient: redisClient}
 }
 
 func (h *Handler) HandleTrigger(c echo.Context) error {
@@ -45,7 +48,8 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 	}
 
 	// Add to queue
-	task, err := tasks.NewFlowExecution(f, req)
+	logID := uuid.NewString()
+	task, err := tasks.NewFlowExecution(f, req, logID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("error creating task: %v", err))
 	}
@@ -53,9 +57,9 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("error enqueuing task: %v", err))
 	}
-	log.Println(info.ID)
+	log.Println(info.ID, logID)
 
-	return ui.Result(f).Render(c.Request().Context(), c.Response().Writer)
+	return ui.Result(logID).Render(c.Request().Context(), c.Response().Writer)
 }
 
 func (h *Handler) HandleForm(c echo.Context) error {

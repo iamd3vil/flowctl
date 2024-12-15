@@ -21,10 +21,11 @@ const (
 type FlowExecutionPayload struct {
 	Workflow flow.Flow
 	Input    map[string]interface{}
+	LogID    string
 }
 
-func NewFlowExecution(f flow.Flow, input map[string]interface{}) (*asynq.Task, error) {
-	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input})
+func NewFlowExecution(f flow.Flow, input map[string]interface{}, logID string) (*asynq.Task, error) {
+	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, LogID: logID})
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +50,9 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
+
+	streamLogger := r.logger.WithID(payload.LogID)
+	defer streamLogger.Close()
 
 	for _, action := range payload.Workflow.Actions {
 		jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
@@ -80,8 +84,8 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 
 		err := runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
 			ShowImagePull: true,
-			Stdout:        r.logger.WithID(action.ID),
-			Stderr:        r.logger.WithID(action.ID),
+			Stdout:        streamLogger,
+			Stderr:        streamLogger,
 		}).CreatesArtifacts(action.Artifacts).
 			WithImage(action.Image).
 			WithCmd(action.Script).
@@ -92,6 +96,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		if err != nil {
 			return fmt.Errorf("failed to run docker runner: %w", err)
 		}
+
 	}
 
 	return nil

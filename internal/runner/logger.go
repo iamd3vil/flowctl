@@ -34,3 +34,10 @@ func (s *StreamLogger) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+func (s *StreamLogger) Close() error {
+	return s.r.XAdd(context.Background(), &redis.XAddArgs{
+		Stream: s.ID,
+		Values: map[string]interface{}{"closed": true},
+	}).Err()
+}

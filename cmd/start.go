@@ -80,12 +80,15 @@ func startServer() {
 		log.Fatal(err)
 	}
 
-	h := handlers.NewHandler(flows, s, asynqClient)
+	h := handlers.NewHandler(flows, s, asynqClient, redisClient)
 
 	e := echo.New()
 	views := e.Group("/view")
 	views.POST("/trigger/:flow", h.HandleTrigger)
 	views.GET("/:flow", h.HandleForm)
+
+	api := e.Group("/api")
+	api.GET("/logs/:flow", h.HandleLogStreaming)
 
 	e.Start(":7000")
 }
