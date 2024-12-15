@@ -176,7 +176,8 @@ func startWorker() {
 	})
 	defer redisClient.Close()
 
-	flowRunner := tasks.NewFlowRunner(os.Stdout, runner.NewDockerArtifactsManager("./artifacts"))
+	flowLogger := runner.NewStreamLogger(redisClient)
+	flowRunner := tasks.NewFlowRunner(flowLogger, runner.NewDockerArtifactsManager("./artifacts"))
 
 	asynqSrv := asynq.NewServerFromRedisClient(redisClient, asynq.Config{
 		Concurrency: 8,
@@ -186,25 +187,4 @@ func startWorker() {
 	mux.HandleFunc(tasks.TypeFlowExecution, flowRunner.HandleFlowExecution)
 
 	log.Fatal(asynqSrv.Run(mux))
-
-	// s := repo.NewPostgresStore(db)
-	// q := queue.NewQueue(s)
-
-	// listener := pq.NewListener(fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", viper.GetString("db.user"), viper.GetString("db.password"), viper.GetString("db.host"), viper.GetInt("db.port"), viper.GetString("db.dbname")), 10*time.Second, time.Minute,
-	// 	func(event pq.ListenerEventType, err error) {
-	// 		if err != nil {
-	// 			log.Printf("Error on listener: %v\n", err)
-	// 		}
-	// 	})
-	// defer listener.Close()
-
-	// jchan, err := q.ListenForJobs(context.Background(), listener, queue.DEFAULT_BATCH_INTERVAL, 4)
-	// if err != nil {
-	// 	log.Fatalf("error listening for jobs: %v", err)
-	// }
-
-	// for job := range jchan {
-
-	// 	log.Println(job)
-	// }
 }

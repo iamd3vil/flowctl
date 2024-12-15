@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"regexp"
 	"time"
@@ -33,11 +32,11 @@ func NewFlowExecution(f flow.Flow, input map[string]interface{}) (*asynq.Task, e
 }
 
 type FlowRunner struct {
-	logger          io.Writer
+	logger          *runner.StreamLogger
 	artifactManager runner.ArtifactManager
 }
 
-func NewFlowRunner(logger io.Writer, artifactManager runner.ArtifactManager) *FlowRunner {
+func NewFlowRunner(logger *runner.StreamLogger, artifactManager runner.ArtifactManager) *FlowRunner {
 	return &FlowRunner{logger: logger, artifactManager: artifactManager}
 }
 
@@ -81,8 +80,8 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 
 		err := runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
 			ShowImagePull: true,
-			Stdout:        r.logger,
-			Stderr:        r.logger,
+			Stdout:        r.logger.WithID(action.ID),
+			Stderr:        r.logger.WithID(action.ID),
 		}).CreatesArtifacts(action.Artifacts).
 			WithImage(action.Image).
 			WithCmd(action.Script).
