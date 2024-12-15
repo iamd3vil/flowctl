@@ -10,10 +10,10 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"github.com/cvhariharan/autopilot/internal/flow"
+	"github.com/cvhariharan/autopilot/internal/models"
 )
 
-func Form(f flow.Flow, errors map[string]string) templ.Component {
+func Form(f models.Flow, errors map[string]string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -84,7 +84,7 @@ func Form(f flow.Flow, errors map[string]string) templ.Component {
 	})
 }
 
-func renderForm(f flow.Flow, errors map[string]string) templ.Component {
+func renderForm(f models.Flow, errors map[string]string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -144,7 +144,7 @@ func renderForm(f flow.Flow, errors map[string]string) templ.Component {
 	})
 }
 
-func renderField(input flow.Input, errMsg string) templ.Component {
+func renderField(input models.Input, errMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -170,7 +170,7 @@ func renderField(input flow.Input, errMsg string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		switch input.Type {
-		case flow.INPUT_TYPE_STRING:
+		case models.INPUT_TYPE_STRING:
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<label for=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

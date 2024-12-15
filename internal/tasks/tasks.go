@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/cvhariharan/autopilot/internal/flow"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/runner"
 	"github.com/expr-lang/expr"
 	"github.com/hibiken/asynq"
@@ -19,12 +19,12 @@ const (
 )
 
 type FlowExecutionPayload struct {
-	Workflow flow.Flow
+	Workflow models.Flow
 	Input    map[string]interface{}
 	LogID    string
 }
 
-func NewFlowExecution(f flow.Flow, input map[string]interface{}, logID string) (*asynq.Task, error) {
+func NewFlowExecution(f models.Flow, input map[string]interface{}, logID string) (*asynq.Task, error) {
 	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, LogID: logID})
 	if err != nil {
 		return nil, err

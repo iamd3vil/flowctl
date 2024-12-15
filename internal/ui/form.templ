@@ -1,11 +1,11 @@
 package ui
 
 import (
-    "github.com/cvhariharan/autopilot/internal/flow"
+    "github.com/cvhariharan/autopilot/internal/models"
 	"fmt"
 )
 
-templ Form(f flow.Flow, errors map[string]string) {
+templ Form(f models.Flow, errors map[string]string) {
     <html>
         @header("autopilot")
         <body>
@@ -20,7 +20,7 @@ templ Form(f flow.Flow, errors map[string]string) {
     </html>
 }
 
-templ renderForm(f flow.Flow, errors map[string]string) {
+templ renderForm(f models.Flow, errors map[string]string) {
     <form hx-post={ fmt.Sprintf("/view/trigger/%s", f.Meta.ID)} hx-target="#trigger" class="max-w-screen-sm py-16 w-screen mx-auto">
     for _, v := range f.Inputs {
         {{ err := "" }}
@@ -33,10 +33,10 @@ templ renderForm(f flow.Flow, errors map[string]string) {
     </form>
 }
 
-templ renderField(input flow.Input, errMsg string) {
+templ renderField(input models.Input, errMsg string) {
     <div class="mb-5">
     switch input.Type {
-    case flow.INPUT_TYPE_STRING:
+    case models.INPUT_TYPE_STRING:
             <label for={ input.Name } class="block mb-2 text-sm font-medium text-gray-900"> { input.Label } </label>
 
             <input

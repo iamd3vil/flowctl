@@ -1,4 +1,4 @@
-package flow
+package models
 
 import (
 	"fmt"

@@ -6,25 +6,25 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cvhariharan/autopilot/internal/flow"
+	"github.com/cvhariharan/autopilot/internal/core"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/labstack/echo/v4"
-	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
-	flows       map[string]flow.Flow
-	store       repo.Store
-	q           *asynq.Client
-	redisClient redis.UniversalClient
+	flows map[string]models.Flow
+	store repo.Store
+	q     *asynq.Client
+	core  *core.Core
 }
 
-func NewHandler(f map[string]flow.Flow, r repo.Store, q *asynq.Client, redisClient redis.UniversalClient) *Handler {
-	return &Handler{flows: f, store: r, q: q, redisClient: redisClient}
+func NewHandler(f map[string]models.Flow, r repo.Store, q *asynq.Client, co *core.Core) *Handler {
+	return &Handler{flows: f, store: r, q: q, core: co}
 }
 
 func (h *Handler) HandleTrigger(c echo.Context) error {
@@ -40,7 +40,7 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 	}
 
 	if err := f.ValidateInput(req); err != nil {
-		var ferr *flow.FlowValidationError
+		var ferr *models.FlowValidationError
 		if errors.As(err, &ferr) {
 			return ui.Form(f, map[string]string{ferr.FieldName: ferr.Msg}).Render(c.Request().Context(), c.Response().Writer)
 		}

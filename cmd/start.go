@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -15,8 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cvhariharan/autopilot/internal/flow"
+	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/handlers"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/runner"
 	"github.com/cvhariharan/autopilot/internal/tasks"
@@ -80,7 +78,9 @@ func startServer() {
 		log.Fatal(err)
 	}
 
-	h := handlers.NewHandler(flows, s, asynqClient, redisClient)
+	co := core.NewCore(s, redisClient)
+
+	h := handlers.NewHandler(flows, s, asynqClient, co)
 
 	e := echo.New()
 	views := e.Group("/view")
@@ -93,8 +93,8 @@ func startServer() {
 	e.Start(":7000")
 }
 
-func processYAMLFiles(dirPath string, store repo.Store) (map[string]flow.Flow, error) {
-	m := make(map[string]flow.Flow)
+func processYAMLFiles(dirPath string, store repo.Store) (map[string]models.Flow, error) {
+	m := make(map[string]models.Flow)
 
 	if err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -121,7 +121,7 @@ func processYAMLFiles(dirPath string, store repo.Store) (map[string]flow.Flow, e
 		}
 		checksum := hex.EncodeToString(h.Sum(nil))
 
-		var f flow.Flow
+		var f models.Flow
 		if err := yaml.Unmarshal(data, &f); err != nil {
 			return fmt.Errorf("error parsing YAML in %s: %v", path, err)
 		}
