@@ -13,7 +13,6 @@ var (
 	upgrader = websocket.Upgrader{}
 )
 
-// HandleLogStreaming uses SSE to stream action logs
 func (h *Handler) HandleLogStreaming(c echo.Context) error {
 	// Upgrade to WebSocket connection
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -25,7 +24,7 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 		ws.Close()
 	}()
 
-	msgCh := h.core.StreamLogs(c.Request().Context(), c.Param("flow"))
+	msgCh := h.co.StreamLogs(c.Request().Context(), c.Param("flow"))
 
 	for msg := range msgCh {
 		if msg.Err != nil {

@@ -78,9 +78,9 @@ func startServer() {
 		log.Fatal(err)
 	}
 
-	co := core.NewCore(s, redisClient)
+	co := core.NewCore(s, asynqClient, redisClient)
 
-	h := handlers.NewHandler(flows, s, asynqClient, co)
+	h := handlers.NewHandler(flows, co)
 
 	e := echo.New()
 	views := e.Group("/view")
