@@ -35,6 +35,15 @@ func (s *StreamLogger) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// Checkpoint can be used to save the completion status of an action.
+// Call after the successful completion of an action
+func (s *StreamLogger) Checkpoint(id string) error {
+	return s.r.XAdd(context.Background(), &redis.XAddArgs{
+		Stream: s.ID,
+		Values: map[string]interface{}{"checkpoint": id},
+	}).Err()
+}
+
 func (s *StreamLogger) Close() error {
 	return s.r.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: s.ID,

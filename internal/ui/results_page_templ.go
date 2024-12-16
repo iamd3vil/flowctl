@@ -8,9 +8,12 @@ package ui
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/cvhariharan/autopilot/internal/ui/partials"
+import (
+	"github.com/cvhariharan/autopilot/internal/models"
+	"github.com/cvhariharan/autopilot/internal/ui/partials"
+)
 
-func ResultsPage(flowName string, wsURL string) templ.Component {
+func ResultsPage(f models.Flow, wsURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -48,28 +51,44 @@ func ResultsPage(flowName string, wsURL string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(flowName)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(f.Meta.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/results_page.templ`, Line: 9, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/results_page.templ`, Line: 12, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><div hx-ext=\"ws\" ws-connect=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			actions := make([]string, 0)
+			for _, v := range f.Actions {
+				actions = append(actions, v.Name)
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div hx-ext=\"ws\" ws-connect=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(wsURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/results_page.templ`, Line: 10, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/results_page.templ`, Line: 17, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16\"><div id=\"message\" class=\"whitespace-pre-wrap break-words\"></div></div></div>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = partials.DottedProgress(actions, 0).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16\"><div id=\"message\" class=\"whitespace-pre-wrap break-words\"></div></div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -183,7 +183,7 @@ func startWorker() {
 	flowRunner := tasks.NewFlowRunner(flowLogger, runner.NewDockerArtifactsManager("./artifacts"))
 
 	asynqSrv := asynq.NewServerFromRedisClient(redisClient, asynq.Config{
-		Concurrency: 8,
+		Concurrency: 0,
 	})
 
 	mux := asynq.NewServeMux()

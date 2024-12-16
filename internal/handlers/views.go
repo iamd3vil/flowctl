@@ -95,7 +95,7 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 		return showErrorPage(c, http.StatusNotFound, err.Error())
 	}
 
-	return render(c, ui.ResultsPage(f.Meta.Name, fmt.Sprintf("/view/logs/%s", logID)))
+	return render(c, ui.ResultsPage(f, fmt.Sprintf("/view/logs/%s", logID)))
 }
 
 func (h *Handler) HandleLogStreaming(c echo.Context) error {
@@ -106,10 +106,18 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 	}
 	defer func() {
 		ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(int(http.StateClosed), "Connection closed"))
-		ws.Close()
 	}()
 
-	msgCh := h.co.StreamLogs(c.Request().Context(), c.Param("logID"))
+	logID := c.Param("logID")
+	if logID == "" {
+		return fmt.Errorf("log ID cannot be empty")
+	}
+
+	msgCh := h.co.StreamLogs(c.Request().Context(), logID)
+	flow, err := h.co.GetFlowFromLogID(logID)
+	if err != nil {
+		return err
+	}
 
 	for msg := range msgCh {
 		if msg.Err != nil {
@@ -121,6 +129,22 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 			return err
 		}
 
+		if msg.Checkpoint != "" {
+			buf = bytes.Buffer{}
+
+			var currentActionIdx int
+			var actions []string
+			for i, v := range flow.Actions {
+				actions = append(actions, v.Name)
+				if v.ID == msg.Checkpoint {
+					currentActionIdx = i
+				}
+			}
+
+			if err := partials.DottedProgress(actions, currentActionIdx).Render(c.Request().Context(), &buf); err != nil {
+				return err
+			}
+		}
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
 			return err
 		}

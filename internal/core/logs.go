@@ -38,6 +38,11 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMess
 						return
 					}
 
+					if checkpoint, ok := message.Values["checkpoint"]; ok {
+						ch <- models.LogMessage{Checkpoint: checkpoint.(string)}
+						continue
+					}
+
 					ch <- models.LogMessage{Message: message.Values["log"].(string)}
 
 					lastProcessedID = message.ID

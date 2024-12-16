@@ -12,6 +12,9 @@ type Core struct {
 	store       repo.Store
 	q           *asynq.Client
 	flows       map[string]models.Flow
+
+	// store the mapping between logID and flowID
+	logMap map[string]string
 }
 
 func NewCore(flows map[string]models.Flow, s repo.Store, q *asynq.Client, redisClient redis.UniversalClient) *Core {
@@ -20,5 +23,6 @@ func NewCore(flows map[string]models.Flow, s repo.Store, q *asynq.Client, redisC
 		redisClient: redisClient,
 		q:           q,
 		flows:       flows,
+		logMap:      make(map[string]string),
 	}
 }
