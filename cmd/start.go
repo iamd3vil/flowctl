@@ -78,14 +78,15 @@ func startServer() {
 		log.Fatal(err)
 	}
 
-	co := core.NewCore(s, asynqClient, redisClient)
+	co := core.NewCore(flows, s, asynqClient, redisClient)
 
-	h := handlers.NewHandler(flows, co)
+	h := handlers.NewHandler(co)
 
 	e := echo.New()
 	views := e.Group("/view")
 	views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:flow", h.HandleFlowForm)
+	views.GET("/", h.HandleFlowsList)
 
 	api := e.Group("/api")
 	api.GET("/logs/:flow", h.HandleLogStreaming)

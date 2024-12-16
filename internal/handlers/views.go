@@ -6,7 +6,6 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/cvhariharan/autopilot/internal/core"
-	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/google/uuid"
@@ -14,12 +13,11 @@ import (
 )
 
 type Handler struct {
-	flows map[string]models.Flow
-	co    *core.Core
+	co *core.Core
 }
 
-func NewHandler(f map[string]models.Flow, co *core.Core) *Handler {
-	return &Handler{flows: f, co: co}
+func NewHandler(co *core.Core) *Handler {
+	return &Handler{co: co}
 }
 
 func render(c echo.Context, component templ.Component) error {
@@ -37,9 +35,9 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return showErrorPage(c, http.StatusNotFound, "could not parse request")
 	}
 
-	f, ok := h.flows[c.Param("flow")]
-	if !ok {
-		return render(c, ui.FlowInputFormPage(f, nil, "request flow not found"))
+	f, err := h.co.GetFlowByID(c.Param("flow"))
+	if err != nil {
+		return render(c, ui.FlowInputFormPage(f, nil, err.Error()))
 	}
 
 	if err := f.ValidateInput(req); err != nil {
@@ -48,19 +46,28 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 
 	// Add to queue
 	logID := uuid.NewString()
-	_, err := h.co.QueueFlowExecution(f, req, logID)
+	_, err = h.co.QueueFlowExecution(f, req, logID)
 	if err != nil {
 		return render(c, ui.FlowInputFormPage(f, nil, err.Error()))
 	}
 
-	return partials.LogTerminal(fmt.Sprintf("/api/logs/%s", logID)).Render(c.Request().Context(), c.Response().Writer)
+	return render(c, partials.LogTerminal(fmt.Sprintf("/api/logs/%s", logID)))
 }
 
 func (h *Handler) HandleFlowForm(c echo.Context) error {
-	flow, ok := h.flows[c.Param("flow")]
-	if !ok {
-		return showErrorPage(c, http.StatusNotFound, "requested flow not found")
+	flow, err := h.co.GetFlowByID(c.Param("flow"))
+	if err != nil {
+		return showErrorPage(c, http.StatusNotFound, err.Error())
 	}
 
 	return ui.FlowInputFormPage(flow, nil, "").Render(c.Request().Context(), c.Response().Writer)
+}
+
+func (h *Handler) HandleFlowsList(c echo.Context) error {
+	flows, err := h.co.GetAllFlows()
+	if err != nil {
+		return showErrorPage(c, http.StatusInternalServerError, err.Error())
+	}
+
+	return render(c, ui.FlowsListPage(flows))
 }

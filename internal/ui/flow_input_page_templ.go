@@ -14,7 +14,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 )
 
-func FlowInputFormPage(f models.Flow, errors map[string]string, inlineError string) templ.Component {
+func FlowInputFormPage(f models.Flow, validationErrors map[string]string, inlineError string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -92,8 +92,8 @@ func FlowInputFormPage(f models.Flow, errors map[string]string, inlineError stri
 			}
 			for _, v := range f.Inputs {
 				err := ""
-				if errors != nil {
-					err, _ = errors[v.Name]
+				if validationErrors != nil {
+					err, _ = validationErrors[v.Name]
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
 				if templ_7745c5c3_Err != nil {

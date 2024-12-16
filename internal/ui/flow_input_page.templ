@@ -6,7 +6,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 )
 
-templ FlowInputFormPage(f models.Flow, errors map[string]string, inlineError string) {
+templ FlowInputFormPage(f models.Flow, validationErrors map[string]string, inlineError string) {
 	@partials.BaseLayout("autopilot") {
 		 <div  class="flex h-screen flex-col justify-start items-center">
 		 <div id="trigger">
@@ -17,8 +17,8 @@ templ FlowInputFormPage(f models.Flow, errors map[string]string, inlineError str
 			<form hx-post={ fmt.Sprintf("/view/trigger/%s", f.Meta.ID) } hx-target="#trigger" class="max-w-screen-sm py-16 w-screen mx-auto">
 				for _, v := range f.Inputs {
 					{{ err := "" }}
-					if errors != nil {
-						{{ err, _ = errors[v.Name] }}
+					if validationErrors != nil {
+						{{ err, _ = validationErrors[v.Name] }}
 					}
 					@partials.RenderField(v.Name, v.Label, v.Description, v.Type, err)
 				}
