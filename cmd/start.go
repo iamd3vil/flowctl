@@ -87,9 +87,8 @@ func startServer() {
 	views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:flow", h.HandleFlowForm)
 	views.GET("/", h.HandleFlowsList)
-
-	api := e.Group("/api")
-	api.GET("/logs/:flow", h.HandleLogStreaming)
+	views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
+	views.GET("/logs/:logID", h.HandleLogStreaming)
 
 	e.Start(":7000")
 }

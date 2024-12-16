@@ -65,14 +65,14 @@ func FlowsListPage(f []models.Flow) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-push-url=\"true\" hx-target=\"body\" hx-swap=\"innerHTML\" class=\"max-w-screen-sm w-screen max-h-24 min-h-24 mx-auto border-2 rounded-md border-solid m-3 px-8 flex flex-col justify-center content-start\"><p class=\"font-semibold text-xl\">")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" hx-push-url=\"true\" hx-target=\"body\" hx-swap=\"innerHTML\" class=\"max-w-screen-sm w-screen max-h-24 min-h-24 mx-auto border-2 \n                           rounded-md border-solid m-3 px-8 flex flex-col justify-center content-start\n                           transition-all duration-200 hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.995]\"><p class=\"font-semibold text-xl\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(v.Meta.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/flows_page.templ`, Line: 15, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/flows_page.templ`, Line: 18, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -85,7 +85,7 @@ func FlowsListPage(f []models.Flow) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(v.Meta.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/flows_page.templ`, Line: 16, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/flows_page.templ`, Line: 19, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {

@@ -1,6 +1,8 @@
 package partials
 
-import "github.com/cvhariharan/autopilot/internal/models"
+import (
+	"github.com/cvhariharan/autopilot/internal/models"
+)
 
 templ RenderField(name, label, placeholder string, inputType models.InputType, errMsg string) {
 	<div class="mb-5">
