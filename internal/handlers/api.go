@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"net/http"
 
-	"github.com/cvhariharan/autopilot/internal/ui"
+	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
@@ -32,7 +32,7 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 		}
 
 		var buf bytes.Buffer
-		if err := ui.LogMessage(msg.Message).Render(c.Request().Context(), &buf); err != nil {
+		if err := partials.LogMessage(msg.Message).Render(c.Request().Context(), &buf); err != nil {
 			return err
 		}
 

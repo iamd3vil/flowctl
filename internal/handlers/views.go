@@ -8,6 +8,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/ui"
+	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -36,7 +37,7 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 	if err := f.ValidateInput(req); err != nil {
 		var ferr *models.FlowValidationError
 		if errors.As(err, &ferr) {
-			return ui.Form(f, map[string]string{ferr.FieldName: ferr.Msg}).Render(c.Request().Context(), c.Response().Writer)
+			return ui.FlowInputForm(f, map[string]string{ferr.FieldName: ferr.Msg}).Render(c.Request().Context(), c.Response().Writer)
 		}
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("error validating input: %v", err))
 	}
@@ -48,7 +49,7 @@ func (h *Handler) HandleTrigger(c echo.Context) error {
 		return err
 	}
 
-	return ui.Result(logID).Render(c.Request().Context(), c.Response().Writer)
+	return partials.LogTerminal(fmt.Sprintf("/api/logs/%s", logID)).Render(c.Request().Context(), c.Response().Writer)
 }
 
 func (h *Handler) HandleForm(c echo.Context) error {
@@ -61,5 +62,5 @@ func (h *Handler) HandleForm(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "requested flow not found")
 	}
 
-	return ui.Form(flow, make(map[string]string)).Render(c.Request().Context(), c.Response().Writer)
+	return ui.FlowInputForm(flow, make(map[string]string)).Render(c.Request().Context(), c.Response().Writer)
 }

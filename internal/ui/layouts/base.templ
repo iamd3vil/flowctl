@@ -1,0 +1,13 @@
+package layouts
+
+import "github.com/cvhariharan/autopilot/internal/ui/partials"
+
+
+templ Base(title string) {
+    <html>
+        @partials.Header(title)
+        <body>
+            { children... }
+        </body>
+    </html>
+}
