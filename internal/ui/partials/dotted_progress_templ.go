@@ -114,7 +114,7 @@ func DottedProgress(stages []string, currentStage int) templ.Component {
 // Helper function to get dot color class
 func getStageColorClass(index, currentStage int) string {
 	if index <= currentStage {
-		return "bg-blue-600"
+		return "bg-green-600"
 	}
 	return "bg-gray-300"
 }

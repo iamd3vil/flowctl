@@ -1,7 +1,7 @@
 package partials
 
 templ LogTerminal(wsURL string) {
-    <div hx-ext="ws" ws-connect={ wsURL } class="bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16">
+    <div hx-ext="ws" ws-connect={ wsURL } class="bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md  max-h-96 w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16">
         <div id="message" class="whitespace-pre-wrap break-words"></div>
     </div>
 }

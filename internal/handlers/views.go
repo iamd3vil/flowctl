@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -140,6 +141,7 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 					currentActionIdx = i
 				}
 			}
+			log.Println(currentActionIdx)
 
 			if err := partials.DottedProgress(actions, currentActionIdx).Render(c.Request().Context(), &buf); err != nil {
 				return err

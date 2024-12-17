@@ -84,11 +84,11 @@ func ResultsPage(f models.Flow, wsURL string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = partials.DottedProgress(actions, 0).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = partials.DottedProgress(actions, -1).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16\"><div id=\"message\" class=\"whitespace-pre-wrap break-words\"></div></div></div></div>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-black text-green-400 text-sm font-mono p-8 rounded-lg shadow-2xl max-w-screen-md max-h-96 w-full mx-auto overflow-y-scroll h-screen w-screen mt-16 mb-16\"><div id=\"message\" class=\"whitespace-pre-wrap break-words\"></div></div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
