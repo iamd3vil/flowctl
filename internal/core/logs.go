@@ -28,7 +28,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMess
 				if err == redis.Nil {
 					continue
 				}
-				ch <- models.LogMessage{Err: fmt.Errorf("error reading from redis log stream: %w", err)}
+				ch <- models.LogMessage{Err: fmt.Sprintf("error reading from redis log stream: %v", err)}
 				return
 			}
 
@@ -39,7 +39,15 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMess
 					}
 
 					if checkpoint, ok := message.Values["checkpoint"]; ok {
-						ch <- models.LogMessage{Checkpoint: checkpoint.(string)}
+						var chck models.ExecutionCheckpoint
+						chck.UnmarshalBinary([]byte(checkpoint.(string)))
+
+						if chck.Err != "" {
+							ch <- models.LogMessage{ID: chck.ActionID, Checkpoint: true, Err: chck.Err}
+							continue
+						}
+
+						ch <- models.LogMessage{ID: chck.ActionID, Checkpoint: true, Results: chck.Results}
 						continue
 					}
 

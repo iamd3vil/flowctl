@@ -1,7 +1,71 @@
 package models
 
+import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
+)
+
 type LogMessage struct {
 	Message    string
-	Checkpoint string
-	Err        error
+	Results    map[string]string
+	Checkpoint bool
+	ID         string
+	Err        string
+}
+
+type ExecutionCheckpoint struct {
+	ActionID string
+	Err      string
+	Results  map[string]string
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface.
+// It serializes the ExecutionCheckpoint into a binary format.
+func (ec ExecutionCheckpoint) MarshalBinary() ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Register the types with gob to ensure proper encoding
+	gob.Register(map[string]string{})
+
+	// Create a new encoder
+	enc := gob.NewEncoder(&buf)
+
+	// Encode the struct fields
+	if err := enc.Encode(ec.ActionID); err != nil {
+		return nil, fmt.Errorf("failed to encode ActionID: %w", err)
+	}
+	if err := enc.Encode(ec.Err); err != nil {
+		return nil, fmt.Errorf("failed to encode Err: %w", err)
+	}
+	if err := enc.Encode(ec.Results); err != nil {
+		return nil, fmt.Errorf("failed to encode Results: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// It deserializes the binary data back into an ExecutionCheckpoint.
+func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	// Register the types with gob to ensure proper decoding
+	gob.Register(map[string]string{})
+
+	// Create a new decoder
+	dec := gob.NewDecoder(buf)
+
+	// Decode the struct fields
+	if err := dec.Decode(&ec.ActionID); err != nil {
+		return fmt.Errorf("failed to decode ActionID: %w", err)
+	}
+	if err := dec.Decode(&ec.Err); err != nil {
+		return fmt.Errorf("failed to decode Err: %w", err)
+	}
+	if err := dec.Decode(&ec.Results); err != nil {
+		return fmt.Errorf("failed to decode Results: %w", err)
+	}
+
+	return nil
 }

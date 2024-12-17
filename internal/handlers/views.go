@@ -121,8 +121,8 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 	}
 
 	for msg := range msgCh {
-		if msg.Err != nil {
-			return err
+		if msg.Err != "" {
+			return fmt.Errorf("%v", err)
 		}
 
 		var buf bytes.Buffer
@@ -130,14 +130,15 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 			return err
 		}
 
-		if msg.Checkpoint != "" {
+		if msg.Checkpoint {
+			log.Println("checkpoint received")
 			buf = bytes.Buffer{}
 
 			var currentActionIdx int
 			var actions []string
 			for i, v := range flow.Actions {
 				actions = append(actions, v.Name)
-				if v.ID == msg.Checkpoint {
+				if v.ID == msg.ID {
 					currentActionIdx = i
 				}
 			}
@@ -145,6 +146,12 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 
 			if err := partials.DottedProgress(actions, currentActionIdx).Render(c.Request().Context(), &buf); err != nil {
 				return err
+			}
+
+			if msg.Results != nil {
+				if err := partials.ExecutionOutput(msg.Results).Render(c.Request().Context(), &buf); err != nil {
+					return err
+				}
 			}
 		}
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {

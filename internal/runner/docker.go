@@ -46,6 +46,7 @@ type DockerRunner struct {
 	containerID      string
 	workingDirectory string
 	artifacts        []string
+	mounts           []mount.Mount
 	artifactManager  ArtifactManager
 	dockerOptions    DockerRunnerOptions
 	authConfig       string
@@ -128,6 +129,11 @@ func (d *DockerRunner) WithCredentials(username, password string) *DockerRunner 
 		log.Fatal("could not create auth config for docker authentication: ", err)
 	}
 	d.authConfig = base64.URLEncoding.EncodeToString(jsonVal)
+	return d
+}
+
+func (d *DockerRunner) WithMount(m mount.Mount) *DockerRunner {
+	d.mounts = append(d.mounts, m)
 	return d
 }
 
@@ -236,18 +242,6 @@ func (d *DockerRunner) publishArtifacts() error {
 	return nil
 }
 
-func (d *DockerRunner) prepareMounts() []mount.Mount {
-	var mounts []mount.Mount
-	if d.dockerOptions.MountDockerSocket {
-		mounts = append(mounts, mount.Mount{
-			Type:   mount.TypeBind,
-			Source: "/var/run/docker.sock",
-			Target: "/var/run/docker.sock",
-		})
-	}
-	return mounts
-}
-
 func (d *DockerRunner) pullImage(ctx context.Context, cli *client.Client) error {
 	reader, err := cli.ImagePull(ctx, d.image, image.PullOptions{RegistryAuth: d.authConfig})
 	if err != nil {
@@ -273,6 +267,14 @@ func (d *DockerRunner) createContainer(ctx context.Context, cli *client.Client) 
 		cmd = []string{commandScript}
 	}
 
+	if d.dockerOptions.MountDockerSocket {
+		d.mounts = append(d.mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: "/var/run/docker.sock",
+			Target: "/var/run/docker.sock",
+		})
+	}
+
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image:      d.image,
 		Env:        d.env,
@@ -280,7 +282,7 @@ func (d *DockerRunner) createContainer(ctx context.Context, cli *client.Client) 
 		Cmd:        cmd,
 		WorkingDir: WORKING_DIR,
 	}, &container.HostConfig{
-		Mounts: d.prepareMounts(),
+		Mounts: d.mounts,
 	}, nil, nil, d.name)
 	if err != nil {
 		return container.CreateResponse{}, err
