@@ -56,8 +56,7 @@ func init() {
 
 	viper.SetDefault("app.admin_username", "autopilot_admin")
 	viper.SetDefault("app.admin_password", "autopilot_password")
-	viper.SetDefault("app.address", ":7000")
-	viper.SetDefault("app.domain", "localhost")
+	viper.SetDefault("app.root_url", "localhost:7000")
 	viper.SetDefault("app.use_tls", false)
 	viper.SetDefault("app.http_tls_cert", "server_cert.pem")
 	viper.SetDefault("app.http_tls_key", "server_key.pem")

@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/cvhariharan/autopilot/internal/auth"
 	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/handlers"
 	"github.com/cvhariharan/autopilot/internal/models"
@@ -26,8 +26,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zerodha/simplesessions/stores/postgres/v3"
-	"github.com/zerodha/simplesessions/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -94,51 +92,23 @@ func startServer() {
 
 	co := core.NewCore(flows, s, asynqClient, redisClient)
 
-	sessMgr := simplesessions.New(simplesessions.Options{
-		EnableAutoCreate: false,
-		Cookie: simplesessions.CookieOptions{
-			Name:       "autopilot",
-			Domain:     viper.GetString("app.domain"),
-			IsSecure:   viper.GetBool("app.use_tls"),
-			IsHTTPOnly: true,
-			SameSite:   http.SameSiteDefaultMode,
-			MaxAge:     2 * time.Hour,
-		},
-	})
+	h := handlers.NewHandler(co)
 
-	sessionStore, err := postgres.New(postgres.Opt{
-		TTL: 1 * time.Hour,
-	}, db.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sessMgr.UseStore(sessionStore)
-
-	go func() {
-		if err := sessionStore.Prune(); err != nil {
-			log.Printf("error pruning login sessions: %v", err)
-		}
-		time.Sleep(time.Hour * 1)
-	}()
-
-	h, err := handlers.NewHandler(co, sessMgr, handlers.OIDCAuthConfig{
+	ah, err := auth.NewAuthHandler(db.DB, auth.OIDCAuthConfig{
 		Issuer:       viper.GetString("app.oidc.issuer"),
 		ClientID:     viper.GetString("app.oidc.client_id"),
 		ClientSecret: viper.GetString("app.oidc.client_secret"),
-		RedirectURL:  viper.GetString("app.oidc.redirect_url"),
-		LoginPath:    "/login",
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	e := echo.New()
-	e.GET("/login", h.HandleLogin)
-	e.GET("/auth/callback", h.HandleAuthCallback)
+	e.GET("/login", ah.HandleLogin)
+	e.GET("/auth/callback", ah.HandleAuthCallback)
 
 	views := e.Group("/view")
-	views.Use(h.Authenticate)
+	views.Use(ah.Authenticate)
 
 	views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:flow", h.HandleFlowForm)
@@ -146,7 +116,19 @@ func startServer() {
 	views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
 	views.GET("/logs/:logID", h.HandleLogStreaming)
 
-	e.Start(":7000")
+	rootURL := viper.GetString("app.root_url")
+	if !strings.Contains(rootURL, "://") {
+		log.Fatal("root_url should contain a scheme")
+	}
+
+	u, err := url.Parse(rootURL)
+	if err != nil {
+		log.Fatalf("invalid root_url: %v", err)
+	}
+
+	log.Println(u.Host)
+
+	log.Fatal(e.Start(u.Host))
 }
 
 func processYAMLFiles(dirPath string, store repo.Store) (map[string]models.Flow, error) {

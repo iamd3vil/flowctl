@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"bytes"
@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/labstack/echo/v4"
 )
 
-func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
+func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sess, err := h.sessMgr.Acquire(nil, c, c)
 		if err != nil {
@@ -18,8 +19,7 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		rawIDToken, err := sess.Get("id_token")
-		if err != nil {
-			log.Println(err)
+		if err != nil || rawIDToken == nil {
 			return h.handleUnauthenticated(c)
 		}
 
@@ -34,7 +34,7 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// Set user info in context
 		if userInfo, err := sess.Get("user"); err == nil {
-			var user UserInfo
+			var user models.UserInfo
 			userBytes, err := json.Marshal(userInfo)
 			if err != nil {
 				c.Logger().Error(err)

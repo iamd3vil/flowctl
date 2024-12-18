@@ -69,3 +69,10 @@ func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
 
 	return nil
 }
+
+type UserInfo struct {
+	Subject string   `json:"sub"`
+	Email   string   `json:"email"`
+	Name    string   `json:"name"`
+	Groups  []string `json:"groups"`
+}

@@ -1,37 +1,39 @@
-package handlers
+package auth
 
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/labstack/echo/v4"
+	"github.com/spf13/viper"
+	"github.com/zerodha/simplesessions/stores/postgres/v3"
 	"github.com/zerodha/simplesessions/v3"
 	"golang.org/x/oauth2"
+)
+
+const (
+	SessionTimeout = 2 * time.Hour
+	RedirectPath   = "/auth/callback"
+	LoginPath      = "/login"
 )
 
 type OIDCAuthConfig struct {
 	Issuer       string
 	ClientID     string
 	ClientSecret string
-	RedirectURL  string
 	Scopes       []string
 	provider     *oidc.Provider
 	verifier     *oidc.IDTokenVerifier
 	oauth2Config *oauth2.Config
-	LoginPath    string
-}
-
-type UserInfo struct {
-	Subject string   `json:"sub"`
-	Email   string   `json:"email"`
-	Name    string   `json:"name"`
-	Groups  []string `json:"groups"`
 }
 
 func getCookie(name string, r interface{}) (*http.Cookie, error) {
@@ -45,7 +47,80 @@ func setCookie(cookie *http.Cookie, w interface{}) error {
 	return nil
 }
 
-func (h *Handler) HandleLogin(c echo.Context) error {
+type AuthHandler struct {
+	sessMgr    *simplesessions.Manager
+	authconfig OIDCAuthConfig
+}
+
+func NewAuthHandler(db *sql.DB, authconfig OIDCAuthConfig) (*AuthHandler, error) {
+	sessMgr := simplesessions.New(simplesessions.Options{
+		EnableAutoCreate: false,
+		Cookie: simplesessions.CookieOptions{
+			IsHTTPOnly: true,
+			MaxAge:     SessionTimeout,
+		},
+	})
+
+	sessMgr.SetCookieHooks(getCookie, setCookie)
+
+	sessionStore, err := postgres.New(postgres.Opt{
+		TTL: SessionTimeout,
+	}, db)
+	if err != nil {
+		return nil, fmt.Errorf("could not initialize postgres session store: %w", err)
+	}
+
+	sessMgr.UseStore(sessionStore)
+
+	go func() {
+		if err := sessionStore.Prune(); err != nil {
+			log.Printf("error pruning login sessions: %v", err)
+		}
+		time.Sleep(SessionTimeout / 2)
+	}()
+
+	ah := &AuthHandler{sessMgr: sessMgr}
+	if err := ah.initOIDC(authconfig); err != nil {
+		return nil, fmt.Errorf("could not initialize OIDC config: %w", err)
+	}
+
+	return ah, nil
+}
+
+func (h *AuthHandler) initOIDC(authconfig OIDCAuthConfig) error {
+	provider, err := oidc.NewProvider(context.Background(), authconfig.Issuer)
+	if err != nil {
+		return fmt.Errorf("could not initialize new OIDC provider client: %w", err)
+	}
+
+	if len(authconfig.Scopes) == 0 {
+		authconfig.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "groups"}
+	}
+
+	redirectURL := viper.GetString("app.root_url") + RedirectPath
+
+	oauth2Config := &oauth2.Config{
+		ClientID:     authconfig.ClientID,
+		ClientSecret: authconfig.ClientSecret,
+		RedirectURL:  redirectURL,
+		Endpoint:     provider.Endpoint(),
+		Scopes:       authconfig.Scopes,
+	}
+
+	verifier := provider.Verifier(&oidc.Config{
+		ClientID: authconfig.ClientID,
+	})
+
+	authconfig.provider = provider
+	authconfig.verifier = verifier
+	authconfig.oauth2Config = oauth2Config
+
+	h.authconfig = authconfig
+
+	return nil
+}
+
+func (h *AuthHandler) HandleLogin(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 
 	if err == simplesessions.ErrInvalidSession {
@@ -77,7 +152,7 @@ func generateRandomState() (string, error) {
 	return state, nil
 }
 
-func (h *Handler) HandleAuthCallback(c echo.Context) error {
+func (h *AuthHandler) HandleAuthCallback(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "session does not exist")
@@ -118,7 +193,7 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	}
 
 	sess.Set("id_token", rawIDToken)
-	sess.Set("user", UserInfo{
+	sess.Set("user", models.UserInfo{
 		Subject: idToken.Subject,
 		Email:   claims.Email,
 		Name:    claims.Name,
@@ -133,12 +208,16 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	return c.Redirect(http.StatusTemporaryRedirect, redirectURL.(string))
 }
 
-func (h *Handler) handleUnauthenticated(c echo.Context) error {
-	// Store the current URL for redirect after login
+func (h *AuthHandler) handleUnauthenticated(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "session does not exist redirect")
+
+	if err == simplesessions.ErrInvalidSession {
+		sess, err = h.sessMgr.NewSession(c, c)
+		if err != nil {
+			return err
+		}
 	}
+
 	sess.Set("redirect_after_login", c.Request().URL.String())
 
 	// For API requests, return 401
@@ -147,5 +226,5 @@ func (h *Handler) handleUnauthenticated(c echo.Context) error {
 	}
 
 	// For web requests, redirect to login page
-	return c.Redirect(http.StatusTemporaryRedirect, h.authconfig.LoginPath)
+	return c.Redirect(http.StatusTemporaryRedirect, LoginPath)
 }
