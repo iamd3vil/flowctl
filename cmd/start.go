@@ -107,6 +107,8 @@ func startServer() {
 	e.GET("/login", ah.HandleLogin)
 	e.GET("/auth/callback", ah.HandleAuthCallback)
 
+	e.HTTPErrorHandler = handlers.ErrorHandler
+
 	views := e.Group("/view")
 	views.Use(ah.Authenticate)
 
@@ -125,8 +127,6 @@ func startServer() {
 	if err != nil {
 		log.Fatalf("invalid root_url: %v", err)
 	}
-
-	log.Println(u.Host)
 
 	log.Fatal(e.Start(u.Host))
 }

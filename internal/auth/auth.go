@@ -125,10 +125,13 @@ func (h *AuthHandler) HandleLogin(c echo.Context) error {
 
 	if err == simplesessions.ErrInvalidSession {
 		sess, err = h.sessMgr.NewSession(c, c)
-		log.Println(sess.ID())
 		if err != nil {
-			return err
+			return echo.NewHTTPError(http.StatusUnauthorized, err)
 		}
+	}
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, err)
 	}
 
 	state, err := generateRandomState()
@@ -136,7 +139,7 @@ func (h *AuthHandler) HandleLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "could not generate a login state")
 	}
 
-	log.Println(sess.Set("state", state))
+	sess.Set("state", state)
 
 	authURL := h.authconfig.oauth2Config.AuthCodeURL(state)
 	return c.Redirect(http.StatusTemporaryRedirect, authURL)

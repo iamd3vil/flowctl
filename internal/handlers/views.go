@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/a-h/templ"
-	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/google/uuid"
@@ -19,32 +17,16 @@ var (
 	upgrader = websocket.Upgrader{}
 )
 
-type Handler struct {
-	co *core.Core
-}
-
-func NewHandler(co *core.Core) *Handler {
-	return &Handler{co: co}
-}
-
-func render(c echo.Context, component templ.Component) error {
-	return component.Render(c.Request().Context(), c.Response().Writer)
-}
-
-func showErrorPage(c echo.Context, code int, message string) error {
-	return ui.ErrorPage(code, message).Render(c.Request().Context(), c.Response().Writer)
-}
-
 func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	var req map[string]interface{}
 	// This is done to only bind request body and ignore path / query params
 	if err := (&echo.DefaultBinder{}).BindBody(c, &req); err != nil {
-		return showErrorPage(c, http.StatusBadRequest, "could not parse request")
+		return echo.NewHTTPError(http.StatusBadRequest, "could not parse request")
 	}
 
 	f, err := h.co.GetFlowByID(c.Param("flow"))
 	if err != nil {
-		return showErrorPage(c, http.StatusNotFound, err.Error())
+		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
 	if err := f.ValidateInput(req); err != nil {
@@ -65,7 +47,7 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 func (h *Handler) HandleFlowForm(c echo.Context) error {
 	flow, err := h.co.GetFlowByID(c.Param("flow"))
 	if err != nil {
-		return showErrorPage(c, http.StatusNotFound, err.Error())
+		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
 	return ui.FlowInputFormPage(flow, "", nil, "").Render(c.Request().Context(), c.Response().Writer)
@@ -83,17 +65,17 @@ func (h *Handler) HandleFlowsList(c echo.Context) error {
 func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 	flowID := c.Param("flowID")
 	if flowID == "" {
-		return showErrorPage(c, http.StatusBadRequest, "flow id cannot be empty")
+		return echo.NewHTTPError(http.StatusBadRequest, "flow id cannot be empty")
 	}
 
 	logID := c.Param("logID")
 	if logID == "" {
-		return showErrorPage(c, http.StatusBadRequest, "execution id cannot be empty")
+		return echo.NewHTTPError(http.StatusBadRequest, "execution id cannot be empty")
 	}
 
 	f, err := h.co.GetFlowByID(flowID)
 	if err != nil {
-		return showErrorPage(c, http.StatusNotFound, err.Error())
+		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
 	return render(c, ui.ResultsPage(f, fmt.Sprintf("/view/logs/%s", logID)))
@@ -111,13 +93,13 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 
 	logID := c.Param("logID")
 	if logID == "" {
-		return fmt.Errorf("log ID cannot be empty")
+		return echo.NewHTTPError(http.StatusBadRequest, "execution id cannot be empty")
 	}
 
 	msgCh := h.co.StreamLogs(c.Request().Context(), logID)
 	flow, err := h.co.GetFlowFromLogID(logID)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusBadRequest, "flow id cannot be empty")
 	}
 
 	for msg := range msgCh {
