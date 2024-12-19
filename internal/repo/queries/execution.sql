@@ -1,24 +1,12 @@
--- name: AddToQueue :one
-INSERT INTO execution_queue (
+-- name: AddExecutionLog :one
+INSERT INTO execution_log (
+    exec_id,
     flow_id,
-    input
+    input,
+    triggered_by
 ) VALUES (
-    $1, $2
+    $1, $2, $3, $4
 ) RETURNING *;
 
--- name: UpdateStatusByID :exec
-UPDATE execution_queue SET status = $2 WHERE id = $1;
-
--- name: GetFromQueueByID :one
-SELECT * FROM execution_queue WHERE id = $1;
-
--- name: Dequeue :many
-UPDATE execution_queue SET status = 'running' WHERE id IN (
-    SELECT id FROM execution_queue WHERE status = 'pending' ORDER BY created_at LIMIT $1 FOR UPDATE SKIP LOCKED
-) RETURNING uuid, flow_id, input;
-
-
--- name: DequeueByID :one
-UPDATE execution_queue SET status = 'running' WHERE id = (
-    SELECT id FROM execution_queue WHERE status = 'pending' AND execution_queue.id = $1 FOR UPDATE SKIP LOCKED
-) RETURNING uuid, flow_id, input;
+-- name: UpdateExecutionStatus :one
+UPDATE execution_log SET status=$1, output=$2, error=$3 WHERE exec_id = $4 RETURNING *;

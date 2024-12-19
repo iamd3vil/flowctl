@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 
 	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/labstack/echo/v4"
@@ -45,6 +46,14 @@ func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 				c.Logger().Error(err)
 				return h.handleUnauthenticated(c)
 			}
+
+			u, err := h.store.GetUserByUsername(c.Request().Context(), user.Email)
+			if err != nil {
+				c.Logger().Error(err)
+				return echo.NewHTTPError(http.StatusUnauthorized, "could not authenticate user")
+			}
+			user.UUID = u.Uuid.String()
+			user.ID = u.ID
 
 			c.Set("user", user)
 			return next(c)

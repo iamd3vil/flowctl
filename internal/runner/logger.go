@@ -11,7 +11,7 @@ import (
 
 const CheckpointPrefix = "checkpoint:%s"
 
-// StreamLogger logs messages to a Redis stream
+// StreamLogger logs messages to a Redis stream and provides utility functions for tracking execution status
 type StreamLogger struct {
 	ID string
 	r  redis.UniversalClient

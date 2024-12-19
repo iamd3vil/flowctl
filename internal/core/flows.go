@@ -1,10 +1,13 @@
 package core
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/cvhariharan/autopilot/internal/models"
+	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 )
 
@@ -39,13 +42,13 @@ func (c *Core) GetFlowFromLogID(logID string) (models.Flow, error) {
 }
 
 // QueueFlowExecution adds a flow in the execution queue. The ID returned is the execution queue ID.
-// Log ID should be universally unique, this is used to create the log stream
-func (c *Core) QueueFlowExecution(f models.Flow, input map[string]interface{}, logID string) (string, error) {
+// Exec ID should be universally unique, this is used to create the log stream and identify each execution
+func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, userID int32) (string, error) {
 
 	// store the mapping between logID and flowID
-	c.logMap[logID] = f.Meta.ID
+	c.logMap[execID] = f.Meta.ID
 
-	task, err := tasks.NewFlowExecution(f, input, logID)
+	task, err := tasks.NewFlowExecution(f, input, execID)
 	if err != nil {
 		return "", fmt.Errorf("error creating task: %v", err)
 	}
@@ -53,6 +56,21 @@ func (c *Core) QueueFlowExecution(f models.Flow, input map[string]interface{}, l
 	info, err := c.q.Enqueue(task)
 	if err != nil {
 		return "", err
+	}
+
+	inputB, err := json.Marshal(input)
+	if err != nil {
+		return "", fmt.Errorf("could not marshal input for storing execution log: %w", err)
+	}
+
+	_, err = c.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
+		ExecID:      execID,
+		FlowID:      f.Meta.DBID,
+		Input:       inputB,
+		TriggeredBy: userID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not add entry to execution log: %w", err)
 	}
 
 	return info.ID, nil

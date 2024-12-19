@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"fmt"
 	"net/http"
 
 	"github.com/a-h/templ"
 	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/ui"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
 
@@ -42,4 +45,17 @@ func ErrorHandler(err error, c echo.Context) {
 	if err := showErrorPage(c, code, errMsg); err != nil {
 		c.Logger().Error(err)
 	}
+}
+
+func renderToWebsocket(c echo.Context, component templ.Component, ws *websocket.Conn) error {
+	var buf bytes.Buffer
+	if err := component.Render(c.Request().Context(), &buf); err != nil {
+		return fmt.Errorf("could not render component: %w", err)
+	}
+
+	if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
+		return fmt.Errorf("could not send to websocket: %w", err)
+	}
+
+	return nil
 }

@@ -1,8 +1,9 @@
 DROP TABLE IF EXISTS flows;
 DROP INDEX IF EXISTS idx_flows_slug;
 
-DROP TABLE IF EXISTS execution_queue;
-DROP INDEX IF EXISTS idx_execution_queue_uuid;
+DROP TABLE IF EXISTS execution_log;
+DROP INDEX IF EXISTS idx_execution_log_exec_id;
+DROP INDEX IF EXISTS idx_execution_log_triggered_by;
 
 DROP TABLE IF EXISTS results;
 DROP INDEX IF EXISTS idx_results_uuid;

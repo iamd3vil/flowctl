@@ -13,6 +13,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/cvhariharan/autopilot/internal/models"
+	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
 	"github.com/zerodha/simplesessions/stores/postgres/v3"
@@ -50,9 +51,10 @@ func setCookie(cookie *http.Cookie, w interface{}) error {
 type AuthHandler struct {
 	sessMgr    *simplesessions.Manager
 	authconfig OIDCAuthConfig
+	store      repo.Store
 }
 
-func NewAuthHandler(db *sql.DB, authconfig OIDCAuthConfig) (*AuthHandler, error) {
+func NewAuthHandler(db *sql.DB, store repo.Store, authconfig OIDCAuthConfig) (*AuthHandler, error) {
 	sessMgr := simplesessions.New(simplesessions.Options{
 		EnableAutoCreate: false,
 		Cookie: simplesessions.CookieOptions{
@@ -79,7 +81,7 @@ func NewAuthHandler(db *sql.DB, authconfig OIDCAuthConfig) (*AuthHandler, error)
 		time.Sleep(SessionTimeout / 2)
 	}()
 
-	ah := &AuthHandler{sessMgr: sessMgr}
+	ah := &AuthHandler{sessMgr: sessMgr, store: store}
 	if err := ah.initOIDC(authconfig); err != nil {
 		return nil, fmt.Errorf("could not initialize OIDC config: %w", err)
 	}

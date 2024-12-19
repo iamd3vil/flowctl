@@ -12,19 +12,16 @@ import (
 )
 
 type Querier interface {
-	AddToQueue(ctx context.Context, arg AddToQueueParams) (ExecutionQueue, error)
+	AddExecutionLog(ctx context.Context, arg AddExecutionLogParams) (ExecutionLog, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAllFlows(ctx context.Context) error
-	Dequeue(ctx context.Context, limit int32) ([]DequeueRow, error)
-	DequeueByID(ctx context.Context, id int32) (DequeueByIDRow, error)
 	GetFlowBySlug(ctx context.Context, slug string) (Flow, error)
-	GetFromQueueByID(ctx context.Context, id int32) (ExecutionQueue, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserPassword(ctx context.Context, id int32) (sql.NullString, error)
+	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
-	UpdateStatusByID(ctx context.Context, arg UpdateStatusByIDParams) error
 }
 
 var _ Querier = (*Queries)(nil)

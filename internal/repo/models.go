@@ -12,16 +12,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sqlc-dev/pqtype"
 )
 
 type ExecutionStatus string
 
 const (
-	ExecutionStatusPending    ExecutionStatus = "pending"
-	ExecutionStatusRunning    ExecutionStatus = "running"
-	ExecutionStatusSuccessful ExecutionStatus = "successful"
-	ExecutionStatusFailed     ExecutionStatus = "failed"
+	ExecutionStatusCompleted ExecutionStatus = "completed"
+	ExecutionStatusErrored   ExecutionStatus = "errored"
+	ExecutionStatusPending   ExecutionStatus = "pending"
 )
 
 func (e *ExecutionStatus) Scan(src interface{}) error {
@@ -144,13 +142,16 @@ func (ns NullUserRoleType) Value() (driver.Value, error) {
 	return string(ns.UserRoleType), nil
 }
 
-type ExecutionQueue struct {
-	ID        int32           `db:"id" json:"id"`
-	Uuid      uuid.UUID       `db:"uuid" json:"uuid"`
-	FlowID    int32           `db:"flow_id" json:"flow_id"`
-	Input     json.RawMessage `db:"input" json:"input"`
-	Status    ExecutionStatus `db:"status" json:"status"`
-	CreatedAt time.Time       `db:"created_at" json:"created_at"`
+type ExecutionLog struct {
+	ID          int32           `db:"id" json:"id"`
+	ExecID      string          `db:"exec_id" json:"exec_id"`
+	FlowID      int32           `db:"flow_id" json:"flow_id"`
+	Input       json.RawMessage `db:"input" json:"input"`
+	Output      json.RawMessage `db:"output" json:"output"`
+	Error       sql.NullString  `db:"error" json:"error"`
+	Status      ExecutionStatus `db:"status" json:"status"`
+	TriggeredBy int32           `db:"triggered_by" json:"triggered_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
 }
 
 type Flow struct {
@@ -163,14 +164,10 @@ type Flow struct {
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 }
 
-type Result struct {
-	ID          int32                 `db:"id" json:"id"`
-	Uuid        uuid.UUID             `db:"uuid" json:"uuid"`
-	FlowID      int32                 `db:"flow_id" json:"flow_id"`
-	ExecutionID int32                 `db:"execution_id" json:"execution_id"`
-	Output      json.RawMessage       `db:"output" json:"output"`
-	Error       pqtype.NullRawMessage `db:"error" json:"error"`
-	CreatedAt   time.Time             `db:"created_at" json:"created_at"`
+type Session struct {
+	ID        string          `db:"id" json:"id"`
+	Data      json.RawMessage `db:"data" json:"data"`
+	CreatedAt time.Time       `db:"created_at" json:"created_at"`
 }
 
 type User struct {

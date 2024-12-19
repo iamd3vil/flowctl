@@ -7,121 +7,79 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-
-	"github.com/google/uuid"
 )
 
-const addToQueue = `-- name: AddToQueue :one
-INSERT INTO execution_queue (
+const addExecutionLog = `-- name: AddExecutionLog :one
+INSERT INTO execution_log (
+    exec_id,
     flow_id,
-    input
+    input,
+    triggered_by
 ) VALUES (
-    $1, $2
-) RETURNING id, uuid, flow_id, input, status, created_at
+    $1, $2, $3, $4
+) RETURNING id, exec_id, flow_id, input, output, error, status, triggered_by, created_at
 `
 
-type AddToQueueParams struct {
-	FlowID int32           `db:"flow_id" json:"flow_id"`
-	Input  json.RawMessage `db:"input" json:"input"`
+type AddExecutionLogParams struct {
+	ExecID      string          `db:"exec_id" json:"exec_id"`
+	FlowID      int32           `db:"flow_id" json:"flow_id"`
+	Input       json.RawMessage `db:"input" json:"input"`
+	TriggeredBy int32           `db:"triggered_by" json:"triggered_by"`
 }
 
-func (q *Queries) AddToQueue(ctx context.Context, arg AddToQueueParams) (ExecutionQueue, error) {
-	row := q.db.QueryRowContext(ctx, addToQueue, arg.FlowID, arg.Input)
-	var i ExecutionQueue
+func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams) (ExecutionLog, error) {
+	row := q.db.QueryRowContext(ctx, addExecutionLog,
+		arg.ExecID,
+		arg.FlowID,
+		arg.Input,
+		arg.TriggeredBy,
+	)
+	var i ExecutionLog
 	err := row.Scan(
 		&i.ID,
-		&i.Uuid,
+		&i.ExecID,
 		&i.FlowID,
 		&i.Input,
+		&i.Output,
+		&i.Error,
 		&i.Status,
+		&i.TriggeredBy,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const dequeue = `-- name: Dequeue :many
-UPDATE execution_queue SET status = 'running' WHERE id IN (
-    SELECT id FROM execution_queue WHERE status = 'pending' ORDER BY created_at LIMIT $1 FOR UPDATE SKIP LOCKED
-) RETURNING uuid, flow_id, input
+const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
+UPDATE execution_log SET status=$1, output=$2, error=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, input, output, error, status, triggered_by, created_at
 `
 
-type DequeueRow struct {
-	Uuid   uuid.UUID       `db:"uuid" json:"uuid"`
-	FlowID int32           `db:"flow_id" json:"flow_id"`
-	Input  json.RawMessage `db:"input" json:"input"`
-}
-
-func (q *Queries) Dequeue(ctx context.Context, limit int32) ([]DequeueRow, error) {
-	rows, err := q.db.QueryContext(ctx, dequeue, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []DequeueRow
-	for rows.Next() {
-		var i DequeueRow
-		if err := rows.Scan(&i.Uuid, &i.FlowID, &i.Input); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const dequeueByID = `-- name: DequeueByID :one
-UPDATE execution_queue SET status = 'running' WHERE id = (
-    SELECT id FROM execution_queue WHERE status = 'pending' AND execution_queue.id = $1 FOR UPDATE SKIP LOCKED
-) RETURNING uuid, flow_id, input
-`
-
-type DequeueByIDRow struct {
-	Uuid   uuid.UUID       `db:"uuid" json:"uuid"`
-	FlowID int32           `db:"flow_id" json:"flow_id"`
-	Input  json.RawMessage `db:"input" json:"input"`
-}
-
-func (q *Queries) DequeueByID(ctx context.Context, id int32) (DequeueByIDRow, error) {
-	row := q.db.QueryRowContext(ctx, dequeueByID, id)
-	var i DequeueByIDRow
-	err := row.Scan(&i.Uuid, &i.FlowID, &i.Input)
-	return i, err
-}
-
-const getFromQueueByID = `-- name: GetFromQueueByID :one
-SELECT id, uuid, flow_id, input, status, created_at FROM execution_queue WHERE id = $1
-`
-
-func (q *Queries) GetFromQueueByID(ctx context.Context, id int32) (ExecutionQueue, error) {
-	row := q.db.QueryRowContext(ctx, getFromQueueByID, id)
-	var i ExecutionQueue
-	err := row.Scan(
-		&i.ID,
-		&i.Uuid,
-		&i.FlowID,
-		&i.Input,
-		&i.Status,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const updateStatusByID = `-- name: UpdateStatusByID :exec
-UPDATE execution_queue SET status = $2 WHERE id = $1
-`
-
-type UpdateStatusByIDParams struct {
-	ID     int32           `db:"id" json:"id"`
+type UpdateExecutionStatusParams struct {
 	Status ExecutionStatus `db:"status" json:"status"`
+	Output json.RawMessage `db:"output" json:"output"`
+	Error  sql.NullString  `db:"error" json:"error"`
+	ExecID string          `db:"exec_id" json:"exec_id"`
 }
 
-func (q *Queries) UpdateStatusByID(ctx context.Context, arg UpdateStatusByIDParams) error {
-	_, err := q.db.ExecContext(ctx, updateStatusByID, arg.ID, arg.Status)
-	return err
+func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error) {
+	row := q.db.QueryRowContext(ctx, updateExecutionStatus,
+		arg.Status,
+		arg.Output,
+		arg.Error,
+		arg.ExecID,
+	)
+	var i ExecutionLog
+	err := row.Scan(
+		&i.ID,
+		&i.ExecID,
+		&i.FlowID,
+		&i.Input,
+		&i.Output,
+		&i.Error,
+		&i.Status,
+		&i.TriggeredBy,
+		&i.CreatedAt,
+	)
+	return i, err
 }

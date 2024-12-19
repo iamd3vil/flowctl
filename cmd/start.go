@@ -80,7 +80,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 
 	h := handlers.NewHandler(co)
 
-	ah, err := auth.NewAuthHandler(db.DB, auth.OIDCAuthConfig{
+	ah, err := auth.NewAuthHandler(db.DB, s, auth.OIDCAuthConfig{
 		Issuer:       viper.GetString("app.oidc.issuer"),
 		ClientID:     viper.GetString("app.oidc.client_id"),
 		ClientSecret: viper.GetString("app.oidc.client_secret"),
@@ -201,7 +201,15 @@ func startWorker(db *sqlx.DB, redisClient redis.UniversalClient) {
 	})
 
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(tasks.TypeFlowExecution, flowRunner.HandleFlowExecution)
+	mux.HandleFunc(tasks.TypeFlowExecution, AsynqMiddleware(flowRunner.HandleFlowExecution))
 
 	log.Fatal(asynqSrv.Run(mux))
+}
+
+func AsynqMiddleware(next func(context.Context, *asynq.Task) error) func(context.Context, *asynq.Task) error {
+	return func(ctx context.Context, t *asynq.Task) error {
+		err := next(ctx, t)
+		log.Println("middleware error: ", err)
+		return err
+	}
 }

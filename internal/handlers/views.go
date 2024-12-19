@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/a-h/templ"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/google/uuid"
@@ -34,14 +34,19 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return render(c, ui.FlowInputFormPage(f, "", map[string]string{err.FieldName: err.Msg}, ""))
 	}
 
+	user, ok := c.Get("user").(models.UserInfo)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+	}
+
 	// Add to queue
-	logID := uuid.NewString()
-	_, err = h.co.QueueFlowExecution(f, req, logID)
+	execID := uuid.NewString()
+	_, err = h.co.QueueFlowExecution(c.Request().Context(), f, req, execID, user.ID)
 	if err != nil {
 		return render(c, ui.FlowInputFormPage(f, "", nil, err.Error()))
 	}
 
-	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/view/results/%s/%s", f.Meta.ID, logID))
+	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/view/results/%s/%s", f.Meta.ID, execID))
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -140,19 +145,6 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func renderToWebsocket(c echo.Context, component templ.Component, ws *websocket.Conn) error {
-	var buf bytes.Buffer
-	if err := component.Render(c.Request().Context(), &buf); err != nil {
-		return fmt.Errorf("could not render component: %w", err)
-	}
-
-	if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
-		return fmt.Errorf("could not send to websocket: %w", err)
 	}
 
 	return nil

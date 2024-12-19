@@ -71,6 +71,8 @@ func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
 }
 
 type UserInfo struct {
+	ID      int32    `json:"-"`
+	UUID    string   `json:"-"`
 	Subject string   `json:"sub"`
 	Email   string   `json:"email"`
 	Name    string   `json:"name"`
