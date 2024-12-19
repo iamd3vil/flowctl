@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/a-h/templ"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/google/uuid"
@@ -104,7 +105,7 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 
 	for msg := range msgCh {
 		if msg.Err != "" {
-			return fmt.Errorf("%v", err)
+			return renderToWebsocket(c, partials.InlineError(msg.Err), ws)
 		}
 
 		var buf bytes.Buffer
@@ -139,6 +140,19 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func renderToWebsocket(c echo.Context, component templ.Component, ws *websocket.Conn) error {
+	var buf bytes.Buffer
+	if err := component.Render(c.Request().Context(), &buf); err != nil {
+		return fmt.Errorf("could not render component: %w", err)
+	}
+
+	if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
+		return fmt.Errorf("could not send to websocket: %w", err)
 	}
 
 	return nil

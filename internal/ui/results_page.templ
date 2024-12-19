@@ -20,6 +20,7 @@ templ ResultsPage(f models.Flow, wsURL string) {
                     <div id="message" class="whitespace-pre-wrap break-words"></div>
                 </div>
                 @partials.ExecutionOutput(make(map[string]string))
+                @partials.InlineError("")
             </div>
         </div>
     }

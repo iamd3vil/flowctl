@@ -20,6 +20,7 @@ import (
 const (
 	TypeFlowExecution   = "flow_execution"
 	TypeActionExecution = "action_execution"
+	MaxRetries          = 0
 )
 
 type FlowExecutionPayload struct {
@@ -33,7 +34,7 @@ func NewFlowExecution(f models.Flow, input map[string]interface{}, logID string)
 	if err != nil {
 		return nil, err
 	}
-	return asynq.NewTask(TypeFlowExecution, payload), nil
+	return asynq.NewTask(TypeFlowExecution, payload, asynq.MaxRetry(MaxRetries)), nil
 }
 
 type FlowRunner struct {
@@ -51,89 +52,104 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		return err
 	}
 
+	streamLogger := r.logger.WithID(payload.LogID)
+	defer streamLogger.Close()
+
+	for _, action := range payload.Workflow.Actions {
+		res, err := streamLogger.Results(action.ID)
+		if err != nil {
+			res, err = r.runAction(ctx, action, payload.Input, streamLogger)
+			if err != nil {
+				if err := streamLogger.Checkpoint(action.ID, models.ExecutionCheckpoint{Err: err.Error()}); err != nil {
+					return err
+				}
+				return err
+			}
+		}
+		if err := streamLogger.Checkpoint(action.ID, models.ExecutionCheckpoint{Results: res}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *FlowRunner) runAction(ctx context.Context, action models.Action, input map[string]interface{}, streamlogger *runner.StreamLogger) (map[string]string, error) {
+	// Create temp file for outputs
+	outfile, err := os.CreateTemp("", fmt.Sprintf("output-action-%s-*", action.ID))
+	if err != nil {
+		return nil, fmt.Errorf("could not create tmp file for storing action %s outputs: %w", action.ID, err)
+	}
+	defer func() {
+		outfile.Close()
+		os.Remove(outfile.Name())
+	}()
+
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
 
-	streamLogger := r.logger.WithID(payload.LogID)
-	defer streamLogger.Close()
+	jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
+	defer cancel()
 
-	// Create temp file for outputs
-	outfile, err := os.CreateTemp("", fmt.Sprintf("output-flow-%s-*", payload.Workflow.Meta.ID))
-	if err != nil {
-		return fmt.Errorf("could not create tmp file for storing flow %s outputs: %w", payload.Workflow.Meta.ID, err)
-	}
-	log.Println(outfile.Name())
-
-	for _, action := range payload.Workflow.Actions {
-		jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
-		defer cancel()
-
-		// Iterate over all the flow variables execute variable interpolation if required
-		for i, variable := range action.Variables {
-			matches := re.FindAllStringSubmatch(variable.Value(), -1)
-			if len(matches) > 0 {
-				inputExpr := matches[0][1]
-				env := map[string]interface{}{
-					"input": payload.Input,
-				}
-
-				program, err := expr.Compile(inputExpr, expr.Env(env))
-				if err != nil {
-					return fmt.Errorf("failed to compile expression: %w", err)
-				}
-
-				output, err := expr.Run(program, env)
-				if err != nil {
-					return fmt.Errorf("failed to run expression: %w", err)
-				}
-
-				action.Variables[i][action.Variables[i].Name()] = output
-				log.Println(action.Variables[i])
+	// Iterate over all the flow variables execute variable interpolation if required
+	for i, variable := range action.Variables {
+		matches := re.FindAllStringSubmatch(variable.Value(), -1)
+		if len(matches) > 0 {
+			inputExpr := matches[0][1]
+			env := map[string]interface{}{
+				"input": input,
 			}
+
+			program, err := expr.Compile(inputExpr, expr.Env(env))
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile expression: %w", err)
+			}
+
+			output, err := expr.Run(program, env)
+			if err != nil {
+				return nil, fmt.Errorf("failed to run expression: %w", err)
+			}
+
+			action.Variables[i][action.Variables[i].Name()] = output
+			log.Println(action.Variables[i])
 		}
-
-		// Add output env variable
-		action.Variables = append(action.Variables, map[string]interface{}{"OUTPUT": "/tmp/flow/output"})
-
-		err := runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
-			ShowImagePull: true,
-			Stdout:        streamLogger,
-			Stderr:        streamLogger,
-		}).CreatesArtifacts(action.Artifacts).
-			WithImage(action.Image).
-			WithCmd(action.Script).
-			WithEnv(action.Variables).
-			WithEntrypoint(action.Entrypoint).
-			WithSrc(action.Src).
-			// Output file
-			WithMount(mount.Mount{
-				Type:   mount.TypeBind,
-				Source: outfile.Name(),
-				Target: "/tmp/flow/output",
-			}).
-			Run(jobCtx)
-		if err != nil {
-			return fmt.Errorf("failed to run docker runner: %w", err)
-		}
-
-		// Parse output file env
-		outputTempFile, err := os.Open(outfile.Name())
-		if err != nil {
-			return fmt.Errorf("error opening output file for reading: %w", err)
-		}
-
-		outputEnv, err := envparse.Parse(outputTempFile)
-		if err != nil {
-			return fmt.Errorf("could not load output env: %w", err)
-		}
-
-		// Send a checkpoint to the stream
-		if err := streamLogger.Checkpoint(models.ExecutionCheckpoint{ActionID: action.ID, Results: outputEnv}); err != nil {
-			return fmt.Errorf("could not save checkpoint for action %s: %w", action.ID, err)
-		}
-
 	}
 
-	return nil
+	// Add output env variable
+	action.Variables = append(action.Variables, map[string]interface{}{"OUTPUT": "/tmp/flow/output"})
+
+	err = runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
+		ShowImagePull: true,
+		Stdout:        streamlogger,
+		Stderr:        streamlogger,
+	}).CreatesArtifacts(action.Artifacts).
+		WithImage(action.Image).
+		WithCmd(action.Script).
+		WithEnv(action.Variables).
+		WithEntrypoint(action.Entrypoint).
+		WithSrc(action.Src).
+		// Output file
+		WithMount(mount.Mount{
+			Type:   mount.TypeBind,
+			Source: outfile.Name(),
+			Target: "/tmp/flow/output",
+		}).
+		Run(jobCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run docker runner: %w", err)
+	}
+
+	// Parse output file env
+	outputTempFile, err := os.Open(outfile.Name())
+	if err != nil {
+		return nil, fmt.Errorf("error opening output file for reading: %w", err)
+	}
+
+	outputEnv, err := envparse.Parse(outputTempFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not load output env: %w", err)
+	}
+
+	return outputEnv, nil
 }

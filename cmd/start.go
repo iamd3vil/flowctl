@@ -93,6 +93,8 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	e.GET("/login", ah.HandleLogin)
 	e.GET("/auth/callback", ah.HandleAuthCallback)
 
+	e.Logger.SetLevel(0)
+
 	e.HTTPErrorHandler = handlers.ErrorHandler
 
 	views := e.Group("/view")
