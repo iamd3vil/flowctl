@@ -46,11 +46,11 @@ CREATE TABLE IF NOT EXISTS execution_log (
     exec_id VARCHAR(36) NOT NULL,
     flow_id INTEGER NOT NULL,
     input JSONB DEFAULT '{}'::jsonb NOT NULL,
-    output JSONB DEFAULT '{}'::jsonb NOT NULL,
     error TEXT,
     status execution_status NOT NULL DEFAULT 'pending',
     triggered_by INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), 
     FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE CASCADE,
     FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE
 );

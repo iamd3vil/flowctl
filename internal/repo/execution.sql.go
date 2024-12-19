@@ -19,7 +19,7 @@ INSERT INTO execution_log (
     triggered_by
 ) VALUES (
     $1, $2, $3, $4
-) RETURNING id, exec_id, flow_id, input, output, error, status, triggered_by, created_at
+) RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
 `
 
 type AddExecutionLogParams struct {
@@ -42,44 +42,38 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 		&i.ExecID,
 		&i.FlowID,
 		&i.Input,
-		&i.Output,
 		&i.Error,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
-UPDATE execution_log SET status=$1, output=$2, error=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, input, output, error, status, triggered_by, created_at
+UPDATE execution_log SET status=$1, error=$2 WHERE exec_id = $3 RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
 `
 
 type UpdateExecutionStatusParams struct {
 	Status ExecutionStatus `db:"status" json:"status"`
-	Output json.RawMessage `db:"output" json:"output"`
 	Error  sql.NullString  `db:"error" json:"error"`
 	ExecID string          `db:"exec_id" json:"exec_id"`
 }
 
 func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error) {
-	row := q.db.QueryRowContext(ctx, updateExecutionStatus,
-		arg.Status,
-		arg.Output,
-		arg.Error,
-		arg.ExecID,
-	)
+	row := q.db.QueryRowContext(ctx, updateExecutionStatus, arg.Status, arg.Error, arg.ExecID)
 	var i ExecutionLog
 	err := row.Scan(
 		&i.ID,
 		&i.ExecID,
 		&i.FlowID,
 		&i.Input,
-		&i.Output,
 		&i.Error,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

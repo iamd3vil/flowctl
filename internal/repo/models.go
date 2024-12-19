@@ -147,11 +147,11 @@ type ExecutionLog struct {
 	ExecID      string          `db:"exec_id" json:"exec_id"`
 	FlowID      int32           `db:"flow_id" json:"flow_id"`
 	Input       json.RawMessage `db:"input" json:"input"`
-	Output      json.RawMessage `db:"output" json:"output"`
 	Error       sql.NullString  `db:"error" json:"error"`
 	Status      ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy int32           `db:"triggered_by" json:"triggered_by"`
 	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
 }
 
 type Flow struct {

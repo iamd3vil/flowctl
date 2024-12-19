@@ -200,16 +200,11 @@ func startWorker(db *sqlx.DB, redisClient redis.UniversalClient) {
 		Concurrency: 0,
 	})
 
+	s := repo.NewPostgresStore(db)
+	st := tasks.NewStatusTracker(s)
+
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(tasks.TypeFlowExecution, AsynqMiddleware(flowRunner.HandleFlowExecution))
+	mux.HandleFunc(tasks.TypeFlowExecution, st.TrackerMiddleware(flowRunner.HandleFlowExecution))
 
 	log.Fatal(asynqSrv.Run(mux))
-}
-
-func AsynqMiddleware(next func(context.Context, *asynq.Task) error) func(context.Context, *asynq.Task) error {
-	return func(ctx context.Context, t *asynq.Task) error {
-		err := next(ctx, t)
-		log.Println("middleware error: ", err)
-		return err
-	}
 }
