@@ -20,6 +20,7 @@ const (
 	ExecutionStatusCompleted ExecutionStatus = "completed"
 	ExecutionStatusErrored   ExecutionStatus = "errored"
 	ExecutionStatusPending   ExecutionStatus = "pending"
+	ExecutionStatusRunning   ExecutionStatus = "running"
 )
 
 func (e *ExecutionStatus) Scan(src interface{}) error {

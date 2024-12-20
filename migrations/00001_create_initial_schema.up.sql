@@ -59,7 +59,8 @@ CREATE INDEX idx_group_memberships_group_id ON group_memberships(group_id);
 CREATE TYPE execution_status AS ENUM (
     'completed',
     'errored',
-    'pending'
+    'pending',
+    'running'
 );
 
 CREATE TABLE IF NOT EXISTS execution_log (

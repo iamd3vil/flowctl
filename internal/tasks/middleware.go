@@ -19,26 +19,19 @@ func NewStatusTracker(s repo.Store) *StatusTrackerDB {
 	return &StatusTrackerDB{store: s}
 }
 
-func (s *StatusTrackerDB) SetStatus(ctx context.Context, execID string, err error) error {
+func (s *StatusTrackerDB) SetStatus(ctx context.Context, execID string, status repo.ExecutionStatus, err error) error {
+	var errMsg sql.NullString
 	if err != nil {
-		_, err = s.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
-			Status:    repo.ExecutionStatusErrored,
-			Error:     sql.NullString{String: err.Error(), Valid: true},
-			ExecID:    execID,
-			UpdatedAt: time.Now(),
-		})
-		if err != nil {
-			return fmt.Errorf("could not update error execution status: %w", err)
-		}
-	} else {
-		_, err = s.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
-			Status:    repo.ExecutionStatusCompleted,
-			ExecID:    execID,
-			UpdatedAt: time.Now(),
-		})
-		if err != nil {
-			return fmt.Errorf("could not update completed execution status: %w", err)
-		}
+		errMsg = sql.NullString{String: err.Error(), Valid: true}
+	}
+	_, err = s.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
+		Status:    status,
+		Error:     errMsg,
+		ExecID:    execID,
+		UpdatedAt: time.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("could not update error execution status: %w", err)
 	}
 
 	return nil
@@ -52,6 +45,14 @@ func (s *StatusTrackerDB) TrackerMiddleware(next func(context.Context, *asynq.Ta
 			return fmt.Errorf("payload could not be deserialized: %w", err)
 		}
 
-		return s.SetStatus(ctx, payload.LogID, next(ctx, t))
+		if err := s.SetStatus(ctx, payload.LogID, repo.ExecutionStatusRunning, nil); err != nil {
+			return err
+		}
+
+		if err := next(ctx, t); err != nil {
+			return s.SetStatus(ctx, payload.LogID, repo.ExecutionStatusErrored, err)
+		}
+
+		return s.SetStatus(ctx, payload.LogID, repo.ExecutionStatusCompleted, nil)
 	}
 }
