@@ -6,22 +6,22 @@ import (
     "fmt"
 )
 
-templ ExecutionSummaryPage(flowName string, summaries []models.ExecutionSummary) {
+templ ExecutionSummaryPage(f models.Flow, summaries []models.ExecutionSummary) {
     @partials.BaseLayout("autopilot: summary") {
         <div class="flex h-screen flex-col justify-start items-center">
             @partials.InlineError("")
-            <h1 class="text-2xl font-semibold text-gray-900">Execution History</h1>
+            <h1 class="text-2xl font-semibold text-gray-900 py-10">Execution History</h1>
             
             <p class="mt-2 text-sm text-gray-700">
-                A list of all past "{ flowName }" executions.
+                A list of all past "{ f.Meta.Name }" executions.
             </p>
 
-            @ExecutionTable(summaries)
+            @ExecutionTable(f, summaries)
         </div>
     }
 }
 
-templ ExecutionTable(summaries []models.ExecutionSummary) {
+templ ExecutionTable(f models.Flow, summaries []models.ExecutionSummary) {
     <div id="workflow-table" class="mt-8 px-4 sm:px-6 lg:px-8">
         <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
             <table class="min-w-full divide-y divide-gray-300">
@@ -61,8 +61,8 @@ templ ExecutionTable(summaries []models.ExecutionSummary) {
                     }
                     for _, execution := range summaries {
                         <tr>
-                                <td class="truncate py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6" title={execution.ExecID}>
-                                    { execution.ExecID }
+                                <td class="hover:underline truncate py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                    <a href={ templ.SafeURL(fmt.Sprintf("/view/results/%s/%s", f.Meta.ID, execution.ExecID)) }> { execution.ExecID } </a>
                                 </td>
                                 <td class="px-3 py-4 text-sm">
                                     @getStatusBadge(string(execution.Status))

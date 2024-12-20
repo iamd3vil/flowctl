@@ -91,7 +91,7 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 
 	exec, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "could not get execution details")
+		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
 	if exec.TriggeredBy != user.UUID {
@@ -122,7 +122,7 @@ func (h *Handler) HandleExecutionSummary(c echo.Context) error {
 		return render(c, partials.InlineError(err.Error()))
 	}
 
-	return render(c, ui.ExecutionSummaryPage(f.Meta.Name, summary))
+	return render(c, ui.ExecutionSummaryPage(f, summary))
 }
 
 func (h *Handler) HandleLogStreaming(c echo.Context) error {

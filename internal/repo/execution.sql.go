@@ -115,6 +115,40 @@ func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFl
 	return items, nil
 }
 
+const getFlowFromExecID = `-- name: GetFlowFromExecID :one
+WITH exec_log AS (
+    SELECT flow_id FROM execution_log WHERE exec_id = $1 
+)
+SELECT id, slug, name, checksum, description, created_at, updated_at, flow_id FROM flows inner join exec_log on exec_log.flow_id = flows.id
+`
+
+type GetFlowFromExecIDRow struct {
+	ID          int32          `db:"id" json:"id"`
+	Slug        string         `db:"slug" json:"slug"`
+	Name        string         `db:"name" json:"name"`
+	Checksum    string         `db:"checksum" json:"checksum"`
+	Description sql.NullString `db:"description" json:"description"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	FlowID      int32          `db:"flow_id" json:"flow_id"`
+}
+
+func (q *Queries) GetFlowFromExecID(ctx context.Context, execID string) (GetFlowFromExecIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getFlowFromExecID, execID)
+	var i GetFlowFromExecIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Checksum,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FlowID,
+	)
+	return i, err
+}
+
 const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
 UPDATE execution_log SET status=$1, error=$2, updated_at=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
 `

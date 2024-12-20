@@ -50,7 +50,7 @@ func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 			u, err := h.store.GetUserByUsername(c.Request().Context(), user.Email)
 			if err != nil {
 				c.Logger().Error(err)
-				return echo.NewHTTPError(http.StatusUnauthorized, "could not authenticate user")
+				return echo.NewHTTPError(http.StatusForbidden, "user does not exist")
 			}
 			user.UUID = u.Uuid.String()
 			user.ID = u.ID

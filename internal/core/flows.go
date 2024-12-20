@@ -35,7 +35,11 @@ func (c *Core) GetAllFlows() ([]models.Flow, error) {
 func (c *Core) GetFlowFromLogID(logID string) (models.Flow, error) {
 	f, ok := c.logMap[logID]
 	if !ok {
-		return models.Flow{}, ErrFlowNotFound
+		df, err := c.store.GetFlowFromExecID(context.Background(), logID)
+		if err != nil {
+			return models.Flow{}, fmt.Errorf("could not get flow for exec id %s: %w", logID, err)
+		}
+		return c.GetFlowByID(df.Slug)
 	}
 
 	return c.GetFlowByID(f)
@@ -87,7 +91,13 @@ func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, trigge
 
 	var m []models.ExecutionSummary
 	for _, v := range execs {
-		m = append(m, models.ExecutionSummary{ExecID: v.ExecID, CreatedAt: v.CreatedAt, CompletedAt: v.UpdatedAt, Status: models.ExecutionStatus(v.Status)})
+
+		m = append(m, models.ExecutionSummary{
+			ExecID:      v.ExecID,
+			CreatedAt:   v.CreatedAt,
+			CompletedAt: v.UpdatedAt,
+			Status:      models.ExecutionStatus(v.Status),
+		})
 	}
 
 	return m, nil
