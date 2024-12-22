@@ -1,9 +1,12 @@
 package auth
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"log"
 
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/labstack/echo/v4"
 )
 
@@ -43,7 +46,18 @@ func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		}
 
-		c.Set("user", user)
+		var userInfo models.UserInfo
+		userBytes, err := json.Marshal(user)
+		if err != nil {
+			c.Logger().Error(err)
+			return h.handleUnauthenticated(c)
+		}
+
+		if err := json.NewDecoder(bytes.NewBuffer(userBytes)).Decode(&userInfo); err != nil {
+			c.Logger().Error(err)
+			return h.handleUnauthenticated(c)
+		}
+		c.Set("user", userInfo)
 
 		return next(c)
 	}

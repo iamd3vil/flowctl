@@ -19,6 +19,11 @@ var (
 )
 
 func (h *Handler) HandleFlowTrigger(c echo.Context) error {
+	user, ok := c.Get("user").(models.UserInfo)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+	}
+
 	var req map[string]interface{}
 	// This is done to only bind request body and ignore path / query params
 	if err := (&echo.DefaultBinder{}).BindBody(c, &req); err != nil {
@@ -31,19 +36,14 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	}
 
 	if err := f.ValidateInput(req); err != nil {
-		return render(c, ui.FlowInputFormPage(f, "", map[string]string{err.FieldName: err.Msg}, ""))
-	}
-
-	user, ok := c.Get("user").(models.UserInfo)
-	if !ok {
-		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+		return render(c, ui.FlowInputFormPage(f, "", map[string]string{err.FieldName: err.Msg}, ""), http.StatusOK)
 	}
 
 	// Add to queue
 	execID := uuid.NewString()
 	_, err = h.co.QueueFlowExecution(c.Request().Context(), f, req, execID, user.UUID)
 	if err != nil {
-		return render(c, ui.FlowInputFormPage(f, "", nil, err.Error()))
+		return render(c, partials.InlineError("could not queue flow for execution"), http.StatusInternalServerError)
 	}
 
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/view/results/%s/%s", f.Meta.ID, execID))
@@ -56,7 +56,7 @@ func (h *Handler) HandleFlowForm(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
-	return ui.FlowInputFormPage(flow, "", nil, "").Render(c.Request().Context(), c.Response().Writer)
+	return render(c, ui.FlowInputFormPage(flow, "", nil, ""), http.StatusOK)
 }
 
 func (h *Handler) HandleFlowsList(c echo.Context) error {
@@ -65,10 +65,15 @@ func (h *Handler) HandleFlowsList(c echo.Context) error {
 		return showErrorPage(c, http.StatusInternalServerError, err.Error())
 	}
 
-	return render(c, ui.FlowsListPage(flows))
+	return render(c, ui.FlowsListPage(flows), http.StatusOK)
 }
 
 func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
+	user, ok := c.Get("user").(models.UserInfo)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+	}
+
 	flowID := c.Param("flowID")
 	if flowID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "flow id cannot be empty")
@@ -81,27 +86,27 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 
 	f, err := h.co.GetFlowByID(flowID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, err.Error())
-	}
-
-	user, ok := c.Get("user").(models.UserInfo)
-	if !ok {
-		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+		return render(c, partials.InlineError("flow could not be found"), http.StatusNotFound)
 	}
 
 	exec, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, err.Error())
+		return render(c, partials.InlineError("could not get execution summary for the given flow"), http.StatusNotFound)
 	}
 
 	if exec.TriggeredBy != user.UUID {
 		return echo.NewHTTPError(http.StatusForbidden, "you are not allowed to view this execution summary")
 	}
 
-	return render(c, ui.ResultsPage(f, fmt.Sprintf("/view/logs/%s", logID)))
+	return render(c, ui.ResultsPage(f, fmt.Sprintf("/view/logs/%s", logID)), http.StatusOK)
 }
 
 func (h *Handler) HandleExecutionSummary(c echo.Context) error {
+	user, ok := c.Get("user").(models.UserInfo)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+	}
+
 	flowID := c.Param("flowID")
 	if flowID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "flow id cannot be empty")
@@ -109,20 +114,15 @@ func (h *Handler) HandleExecutionSummary(c echo.Context) error {
 
 	f, err := h.co.GetFlowByID(flowID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, err.Error())
-	}
-
-	user, ok := c.Get("user").(models.UserInfo)
-	if !ok {
-		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+		return render(c, partials.InlineError("flow could not be found"), http.StatusNotFound)
 	}
 
 	summary, err := h.co.GetAllExecutionSummary(c.Request().Context(), f, user.UUID)
 	if err != nil {
-		return render(c, partials.InlineError(err.Error()))
+		return render(c, partials.InlineError(err.Error()), http.StatusInternalServerError)
 	}
 
-	return render(c, ui.ExecutionSummaryPage(f, summary))
+	return render(c, ui.ExecutionSummaryPage(f, summary), http.StatusOK)
 }
 
 func (h *Handler) HandleLogStreaming(c echo.Context) error {

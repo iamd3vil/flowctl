@@ -14,7 +14,7 @@ templ FlowInputFormPage(f models.Flow, resultsPage string, validationErrors map[
 					<h1 class="font-bold text-5xl">{ f.Meta.Name }</h1>
 					<h3 class="font-light text-xl">{ f.Meta.Description }</h3>
 				</div>
-				<form id="flow-form" hx-post={ fmt.Sprintf("/view/trigger/%s", f.Meta.ID) } hx-target="#trigger" class="max-w-screen-sm py-16 w-screen mx-auto">
+				<form id="flow-form" hx-target-error="#inline-error" hx-post={ fmt.Sprintf("/view/trigger/%s", f.Meta.ID) } hx-target="#trigger" class="max-w-screen-sm py-16 w-screen mx-auto">
 					for _, v := range f.Inputs {
 						{{ err := "" }}
 						if validationErrors != nil {

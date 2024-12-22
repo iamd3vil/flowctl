@@ -20,7 +20,8 @@ func NewHandler(co *core.Core) *Handler {
 	return &Handler{co: co}
 }
 
-func render(c echo.Context, component templ.Component) error {
+func render(c echo.Context, component templ.Component, status int) error {
+	c.Response().Writer.WriteHeader(status)
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
 

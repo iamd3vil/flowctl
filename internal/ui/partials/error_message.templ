@@ -1,11 +1,11 @@
 package partials
 
 templ InlineError(msg string) {
-    <div id="inline-error">
-        if msg != "" {
-            <div class="bg-red-100 p-8 rounded-lg max-w-screen-sm w-screen mx-auto text-red-600">
-                Error: { msg }
-            </div>
-        }
-    </div>
+	<div id="inline-error" class="p-5">
+		if msg != "" {
+			<div class="bg-red-100 p-8 rounded-lg max-w-screen-sm w-screen mx-auto text-red-600">
+				Error: { msg }
+			</div>
+		}
+	</div>
 }

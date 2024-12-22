@@ -1,11 +1,10 @@
 package partials
 
-
 templ BaseLayout(title string) {
-    <html>
-        @Header(title)
-        <body>
-            { children... }
-        </body>
-    </html>
+	<html>
+		@Header(title)
+		<body hx-ext="response-targets">
+			{ children... }
+		</body>
+	</html>
 }

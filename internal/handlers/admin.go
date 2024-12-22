@@ -4,21 +4,22 @@ import (
 	"net/http"
 
 	"github.com/cvhariharan/autopilot/internal/ui"
+	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleGroup(c echo.Context) error {
 	if c.QueryParam("action") == "add" {
-		return render(c, ui.GroupModal())
+		return render(c, ui.GroupModal(), http.StatusOK)
 	}
 
 	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
 	if err != nil {
 		c.Logger().Error(err)
-		return render(c, ui.GroupManagementPage(groups))
+		return render(c, partials.InlineError(err.Error()), http.StatusInternalServerError)
 	}
 
-	return render(c, ui.GroupManagementPage(groups))
+	return render(c, ui.GroupManagementPage(groups, ""), http.StatusOK)
 }
 
 func (h *Handler) HandleCreateGroup(c echo.Context) error {
@@ -26,47 +27,47 @@ func (h *Handler) HandleCreateGroup(c echo.Context) error {
 	groupDescription := c.FormValue("description")
 
 	if groupName == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "name cannot be empty")
+		return render(c, partials.InlineError("name cannot be empty"), http.StatusBadRequest)
 	}
 
 	_, err := h.co.CreateGroup(c.Request().Context(), groupName, groupDescription)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not create group")
+		return render(c, partials.InlineError("could not create group"), http.StatusInternalServerError)
 	}
 
 	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
 	if err != nil {
 		c.Logger().Error(err)
-		return render(c, ui.GroupsTable(groups))
+		return render(c, partials.InlineError("could not get groups"), http.StatusInternalServerError)
 	}
 
-	return render(c, ui.GroupManagementPage(groups))
+	return render(c, ui.GroupsTable(groups), http.StatusOK)
 }
 
 func (h *Handler) HandleDeleteGroup(c echo.Context) error {
 	groupID := c.Param("groupID")
 
 	if groupID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "group id cannot be empty")
+		return render(c, partials.InlineError("group id cannot be empty"), http.StatusBadRequest)
 	}
 
 	_, err := h.co.GetGroupByUUID(c.Request().Context(), groupID)
 	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusNotFound, "group not found")
+		return render(c, partials.InlineError("could not get group"), http.StatusNotFound)
 	}
 
 	if err := h.co.DeleteGroupByUUID(c.Request().Context(), groupID); err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not delete group")
+		return render(c, partials.InlineError("could not delete group"), http.StatusInternalServerError)
 	}
 
 	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
 	if err != nil {
 		c.Logger().Error(err)
-		return render(c, ui.GroupsTable(groups))
+		return render(c, partials.InlineError("could not get groups"), http.StatusInternalServerError)
 	}
 
-	return render(c, ui.GroupsTable(groups))
+	return render(c, ui.GroupsTable(groups), http.StatusOK)
 }
