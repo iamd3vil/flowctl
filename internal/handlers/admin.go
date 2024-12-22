@@ -12,7 +12,7 @@ func (h *Handler) HandleGroup(c echo.Context) error {
 		return render(c, ui.GroupModal())
 	}
 
-	groups, err := h.co.GetAllGroups(c.Request().Context())
+	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
 	if err != nil {
 		c.Logger().Error(err)
 		return render(c, ui.GroupManagementPage(groups))
@@ -23,13 +23,25 @@ func (h *Handler) HandleGroup(c echo.Context) error {
 
 func (h *Handler) HandleCreateGroup(c echo.Context) error {
 	groupName := c.FormValue("name")
-	// groupDescription := c.FormValue("description")
+	groupDescription := c.FormValue("description")
 
 	if groupName == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "name cannot be empty")
 	}
 
-	return c.NoContent(http.StatusCreated)
+	_, err := h.co.CreateGroup(c.Request().Context(), groupName, groupDescription)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not create group")
+	}
+
+	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
+	if err != nil {
+		c.Logger().Error(err)
+		return render(c, ui.GroupsTable(groups))
+	}
+
+	return render(c, ui.GroupManagementPage(groups))
 }
 
 func (h *Handler) HandleDeleteGroup(c echo.Context) error {
@@ -50,7 +62,7 @@ func (h *Handler) HandleDeleteGroup(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "could not delete group")
 	}
 
-	groups, err := h.co.GetAllGroups(c.Request().Context())
+	groups, err := h.co.GetAllGroupsWithUsers(c.Request().Context())
 	if err != nil {
 		c.Logger().Error(err)
 		return render(c, ui.GroupsTable(groups))

@@ -2,15 +2,16 @@ package core
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/cvhariharan/autopilot/internal/models"
+	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/google/uuid"
 )
 
-func (c *Core) GetAllGroups(ctx context.Context) ([]models.Group, error) {
+func (c *Core) GetAllGroupsWithUsers(ctx context.Context) ([]models.Group, error) {
 	g, err := c.store.GetAllGroupsWithUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not get all groups: %w", err)
@@ -21,17 +22,15 @@ func (c *Core) GetAllGroups(ctx context.Context) ([]models.Group, error) {
 		var users []models.User
 		if v.Users != nil {
 			if err := json.Unmarshal(v.Users.([]byte), &users); err != nil {
-				log.Println(err)
+				return nil, fmt.Errorf("could not get users for the group %s: %w", v.Uuid.String(), err)
 			}
 		}
-		log.Println(users)
 		groups = append(groups, models.Group{
 			ID:          v.Uuid.String(),
 			Name:        v.Name,
 			Description: v.Description.String,
 			Users:       users,
 		})
-		log.Println(groups)
 	}
 
 	return groups, nil
@@ -62,4 +61,20 @@ func (c *Core) DeleteGroupByUUID(ctx context.Context, groupUUID string) error {
 	}
 
 	return c.store.DeleteGroupByUUID(ctx, gid)
+}
+
+func (c *Core) CreateGroup(ctx context.Context, name, description string) (models.Group, error) {
+	g, err := c.store.CreateGroup(ctx, repo.CreateGroupParams{
+		Name:        name,
+		Description: sql.NullString{String: description, Valid: true},
+	})
+	if err != nil {
+		return models.Group{}, fmt.Errorf("could not create group %s: %w", name, err)
+	}
+
+	return models.Group{
+		ID:          g.Uuid.String(),
+		Name:        g.Name,
+		Description: g.Description.String,
+	}, nil
 }
