@@ -294,3 +294,7 @@ func (h *AuthHandler) handleUnauthenticated(c echo.Context) error {
 func render(c echo.Context, component templ.Component) error {
 	return component.Render(c.Request().Context(), c.Response().Writer)
 }
+
+func showErrorPage(c echo.Context, code int, message string) error {
+	return ui.ErrorPage(code, message).Render(c.Request().Context(), c.Response().Writer)
+}

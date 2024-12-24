@@ -22,7 +22,18 @@ type UserInfo struct {
 	ID       string   `json:"id"`
 	Username string   `json:"email"`
 	Name     string   `json:"name"`
+	Role     string   `json:"role"`
 	Groups   []string `json:"groups"`
+}
+
+func (u UserInfo) HasGroup(groupUUID string) bool {
+	for _, v := range u.Groups {
+		if v == groupUUID {
+			return true
+		}
+	}
+
+	return false
 }
 
 type UserWithGroups struct {
@@ -45,6 +56,7 @@ func (u UserWithGroups) ToUserInfo() UserInfo {
 		Username: u.Username,
 		Name:     u.Name,
 		Groups:   groups,
+		Role:     string(u.Role),
 	}
 }
 

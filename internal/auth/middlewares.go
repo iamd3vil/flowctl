@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 
 	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/labstack/echo/v4"
@@ -61,4 +62,49 @@ func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 
 		return next(c)
 	}
+}
+
+func (h *AuthHandler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			userInfo, err := h.getUserInfo(c)
+			if err != nil {
+				return h.handleUnauthenticated(c)
+			}
+
+			if userInfo.Role == expectedRole {
+				return next(c)
+			}
+
+			return showErrorPage(c, http.StatusForbidden, "not permitted")
+		}
+	}
+}
+
+func (h *AuthHandler) getUserInfo(c echo.Context) (models.UserInfo, error) {
+	sess, err := h.sessMgr.Acquire(nil, c, c)
+	if err != nil {
+		c.Logger().Error(err)
+		return models.UserInfo{}, err
+	}
+
+	user, err := sess.Get("user")
+	if err != nil {
+		c.Logger().Error(err)
+		return models.UserInfo{}, err
+	}
+
+	var userInfo models.UserInfo
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		c.Logger().Error(err)
+		return models.UserInfo{}, err
+	}
+
+	if err := json.NewDecoder(bytes.NewBuffer(userBytes)).Decode(&userInfo); err != nil {
+		c.Logger().Error(err)
+		return models.UserInfo{}, err
+	}
+
+	return userInfo, nil
 }

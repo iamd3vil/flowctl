@@ -111,6 +111,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
 	admin := e.Group("/admin")
+	admin.Use(ah.AuthorizeForRole("admin"))
 	admin.GET("/groups", h.HandleGroup)
 	admin.POST("/groups", h.HandleCreateGroup)
 	admin.DELETE("/groups/:groupID", h.HandleDeleteGroup)
