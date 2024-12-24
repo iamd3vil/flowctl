@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/zerodha/simplesessions/stores/postgres/v3"
 	"github.com/zerodha/simplesessions/v3"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 )
 
@@ -148,17 +147,17 @@ func (h *AuthHandler) HandleLoginPage(c echo.Context) error {
 			return render(c, ui.LoginPage("username or password cannot be empty"))
 		}
 
-		user, err := h.co.GetUserByUsername(c.Request().Context(), username)
+		user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), username)
 		if err != nil {
 			return render(c, ui.LoginPage("could not authenticate user"))
 		}
 
 		// not using password based login
-		if user.Password == "" {
+		if user.LoginType != models.StandardLoginType {
 			return render(c, ui.LoginPage("invalid authentication method"))
 		}
 
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		if err := user.CheckPassword(password); err != nil {
 			return render(c, ui.LoginPage("invalid credentials"))
 		}
 
@@ -169,11 +168,7 @@ func (h *AuthHandler) HandleLoginPage(c echo.Context) error {
 			groups = append(groups, v.ID)
 		}
 
-		sess.Set("user", models.UserInfo{
-			UUID:     user.UUID,
-			Username: user.Username,
-			Groups:   groups,
-		})
+		sess.Set("user", user.ToUserInfo())
 
 		c.Logger().Info("login successful")
 		c.Response().Header().Set("HX-Redirect", RedirectAfterLogin)
@@ -257,7 +252,7 @@ func (h *AuthHandler) HandleAuthCallback(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to parse claims")
 	}
 
-	user, err := h.co.GetUserByUsername(c.Request().Context(), claims.Email)
+	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), claims.Email)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusForbidden, "user does not exist in autopilot")
 	}
@@ -265,16 +260,7 @@ func (h *AuthHandler) HandleAuthCallback(c echo.Context) error {
 	sess.Set("method", "oidc")
 	sess.Set("id_token", rawIDToken)
 
-	var groups []string
-	for _, v := range user.Groups {
-		groups = append(groups, v.ID)
-	}
-
-	sess.Set("user", models.UserInfo{
-		Username: claims.Email,
-		UUID:     user.UUID,
-		Groups:   groups,
-	})
+	sess.Set("user", user.ToUserInfo())
 
 	redirectURL, err := sess.Get("redirect_after_login")
 	if err != nil || redirectURL == nil {

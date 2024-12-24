@@ -5,23 +5,10 @@ SELECT * FROM users WHERE uuid = $1;
 DELETE FROM users WHERE uuid = $1;
 
 -- name: GetUserByUsername :one
-SELECT
-    u.id AS user_id,
-    u.uuid,
-    u.username,
-    u.password,
-    array_agg(g.name) AS group_names,
-    array_agg(g.description) AS group_descriptions
-FROM
-    users u
-LEFT JOIN
-    group_memberships gm ON u.id = gm.user_id
-LEFT JOIN
-    groups g ON gm.group_id = g.id
-WHERE
-    u.username = $1
-GROUP BY
-    u.id, u.uuid, u.username, u.password;
+SELECT * FROM users WHERE username = $1;
+
+-- name: GetUserByUsernameWithGroups :one
+SELECT * FROM user_view WHERE username = $1;
 
 -- name: GetAllUsersWithGroups :many
 SELECT * FROM user_view;
@@ -40,5 +27,5 @@ INSERT INTO users (
     $1, $2, $3, $4, $5
 ) RETURNING *;
 
--- name: SearchUser :many
+-- name: SearchUsersWithGroups :many
 SELECT * FROM user_view WHERE lower(name) LIKE '%' || lower($1::text) || '%' OR lower(username) LIKE '%' || lower($1::text) || '%';

@@ -11,26 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *Core) GetAllGroupsWithUsers(ctx context.Context) ([]models.Group, error) {
+func (c *Core) GetAllGroupsWithUsers(ctx context.Context) ([]models.GroupWithUsers, error) {
 	g, err := c.store.GetAllGroupsWithUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not get all groups: %w", err)
 	}
 
-	var groups []models.Group
+	var groups []models.GroupWithUsers
 	for _, v := range g {
-		var users []models.User
-		if v.Users != nil {
-			if err := json.Unmarshal(v.Users.([]byte), &users); err != nil {
-				return nil, fmt.Errorf("could not get users for the group %s: %w", v.Uuid.String(), err)
-			}
+		grp, err := c.repoGroupViewToGroupWithUsers(v)
+		if err != nil {
+			return nil, err
 		}
-		groups = append(groups, models.Group{
-			ID:          v.Uuid.String(),
-			Name:        v.Name,
-			Description: v.Description.String,
-			Users:       users,
-		})
+
+		groups = append(groups, grp)
 	}
 
 	return groups, nil
@@ -47,11 +41,7 @@ func (c *Core) GetGroupByUUID(ctx context.Context, groupUUID string) (models.Gro
 		return models.Group{}, fmt.Errorf("could not get group %s: %w", gid, err)
 	}
 
-	return models.Group{
-		ID:          g.Uuid.String(),
-		Name:        g.Name,
-		Description: g.Description.String,
-	}, nil
+	return c.repoGroupToGroup(g), nil
 }
 
 func (c *Core) DeleteGroupByUUID(ctx context.Context, groupUUID string) error {
@@ -72,34 +62,51 @@ func (c *Core) CreateGroup(ctx context.Context, name, description string) (model
 		return models.Group{}, fmt.Errorf("could not create group %s: %w", name, err)
 	}
 
-	return models.Group{
-		ID:          g.Uuid.String(),
-		Name:        g.Name,
-		Description: g.Description.String,
-	}, nil
+	return c.repoGroupToGroup(g), nil
 }
 
-func (c *Core) SearchGroup(ctx context.Context, query string) ([]models.Group, error) {
+func (c *Core) SearchGroup(ctx context.Context, query string) ([]models.GroupWithUsers, error) {
 	g, err := c.store.SearchGroup(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
-	var groups []models.Group
+	var groups []models.GroupWithUsers
 	for _, v := range g {
-		var users []models.User
-		if v.Users != nil {
-			if err := json.Unmarshal(v.Users.([]byte), &users); err != nil {
-				return nil, fmt.Errorf("could not get users for the group %s: %w", v.Uuid.String(), err)
-			}
+		grp, err := c.repoGroupViewToGroupWithUsers(v)
+		if err != nil {
+			return nil, err
 		}
-		groups = append(groups, models.Group{
-			ID:          v.Uuid.String(),
-			Name:        v.Name,
-			Description: v.Description.String,
-			Users:       users,
-		})
+
+		groups = append(groups, grp)
 	}
 
 	return groups, nil
+}
+
+func (c *Core) repoGroupToGroup(group repo.Group) models.Group {
+	return models.Group{
+		ID:          group.Uuid.String(),
+		Name:        group.Name,
+		Description: group.Description.String,
+	}
+}
+
+func (c *Core) repoGroupViewToGroupWithUsers(group repo.GroupView) (models.GroupWithUsers, error) {
+	var users []models.User
+	if group.Users != nil {
+		if err := json.Unmarshal(group.Users.([]byte), &users); err != nil {
+			return models.GroupWithUsers{}, fmt.Errorf("could not get users for the group %s: %w", group.Uuid.String(), err)
+		}
+	}
+	g := models.GroupWithUsers{
+		Group: models.Group{
+			ID:          group.Uuid.String(),
+			Name:        group.Name,
+			Description: group.Description.String,
+		},
+		Users: users,
+	}
+
+	return g, nil
 }

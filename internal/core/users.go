@@ -10,82 +10,55 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserLoginType string
-type UserRoleType string
-
-const (
-	OIDCLoginType UserLoginType = "oidc"
-	// Password based login
-	StandardLoginType UserLoginType = "standard"
-
-	AdminUserRole    UserRoleType = "admin"
-	StandardUserRole UserRoleType = "user"
-)
-
 func (c *Core) GetUserByUsername(ctx context.Context, username string) (models.User, error) {
 	user, err := c.store.GetUserByUsername(ctx, username)
 	if err != nil {
 		return models.User{}, fmt.Errorf("could not get user %s: %w", username, err)
 	}
 
-	var p string
-	if user.Password.Valid {
-		p = user.Password.String
-	}
-
-	return models.User{
-		UUID:     user.Uuid.String(),
-		Username: user.Username,
-		Password: p,
-	}, nil
+	return c.repoUserToUser(user), nil
 }
 
-func (c *Core) GetAllUsersWithGroups(ctx context.Context) ([]models.User, error) {
+func (c *Core) GetUserByUsernameWithGroups(ctx context.Context, username string) (models.UserWithGroups, error) {
+	user, err := c.store.GetUserByUsernameWithGroups(ctx, username)
+	if err != nil {
+		return models.UserWithGroups{}, fmt.Errorf("could not get user %s: %w", username, err)
+	}
+
+	return c.repoUserViewToUserWithGroups(user)
+}
+
+func (c *Core) GetAllUsersWithGroups(ctx context.Context) ([]models.UserWithGroups, error) {
 	u, err := c.store.GetAllUsersWithGroups(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not get users with groups: %w", err)
 	}
 
-	var users []models.User
+	var users []models.UserWithGroups
 	for _, v := range u {
-		var groups []models.Group
-		if v.Groups != nil {
-			if err := json.Unmarshal(v.Groups.([]byte), &groups); err != nil {
-				return nil, fmt.Errorf("could not get groups for the user %s: %w", v.Uuid.String(), err)
-			}
+		user, err := c.repoUserViewToUserWithGroups(v)
+		if err != nil {
+			return nil, err
 		}
-
-		users = append(users, models.User{
-			UUID:     v.Uuid.String(),
-			Name:     v.Name,
-			Username: v.Username,
-			Groups:   groups,
-		})
+		users = append(users, user)
 	}
 
 	return users, nil
 }
 
-func (c *Core) SearchUser(ctx context.Context, query string) ([]models.User, error) {
-	g, err := c.store.SearchUser(ctx, query)
+func (c *Core) SearchUser(ctx context.Context, query string) ([]models.UserWithGroups, error) {
+	u, err := c.store.SearchUsersWithGroups(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 
-	var users []models.User
-	for _, v := range g {
-		var groups []models.Group
-		if v.Groups != nil {
-			if err := json.Unmarshal(v.Groups.([]byte), &groups); err != nil {
-				return nil, fmt.Errorf("could not get groups for the user %s: %w", v.Uuid.String(), err)
-			}
+	var users []models.UserWithGroups
+	for _, v := range u {
+		user, err := c.repoUserViewToUserWithGroups(v)
+		if err != nil {
+			return nil, err
 		}
-		users = append(users, models.User{
-			UUID:     v.Uuid.String(),
-			Name:     v.Name,
-			Username: v.Username,
-			Groups:   groups,
-		})
+		users = append(users, user)
 	}
 
 	return users, nil
@@ -102,12 +75,7 @@ func (c *Core) GetUserByUUID(ctx context.Context, userUUID string) (models.User,
 		return models.User{}, fmt.Errorf("could not get user %s: %w", userUUID, err)
 	}
 
-	return models.User{
-		UUID:     u.Uuid.String(),
-		Name:     u.Name,
-		Username: u.Username,
-		Password: u.Password.String,
-	}, nil
+	return c.repoUserToUser(u), nil
 }
 
 func (c *Core) DeleteUserByUUID(ctx context.Context, userUUID string) error {
@@ -123,12 +91,12 @@ func (c *Core) DeleteUserByUUID(ctx context.Context, userUUID string) error {
 	return nil
 }
 
-func (c *Core) CreateUser(ctx context.Context, name, username string, loginType UserLoginType, userRole UserRoleType) (models.User, error) {
+func (c *Core) CreateUser(ctx context.Context, name, username string, loginType models.UserLoginType, userRole models.UserRoleType) (models.User, error) {
 	var ltype repo.UserLoginType
 	switch loginType {
-	case OIDCLoginType:
+	case models.OIDCLoginType:
 		ltype = repo.UserLoginTypeOidc
-	case StandardLoginType:
+	case models.StandardLoginType:
 		ltype = repo.UserLoginTypeStandard
 	default:
 		return models.User{}, fmt.Errorf("unknown login type")
@@ -136,9 +104,9 @@ func (c *Core) CreateUser(ctx context.Context, name, username string, loginType 
 
 	var urole repo.UserRoleType
 	switch userRole {
-	case AdminUserRole:
+	case models.AdminUserRole:
 		urole = repo.UserRoleTypeAdmin
-	case StandardUserRole:
+	case models.StandardUserRole:
 		urole = repo.UserRoleTypeUser
 	default:
 		return models.User{}, fmt.Errorf("unknown role type")
@@ -154,9 +122,41 @@ func (c *Core) CreateUser(ctx context.Context, name, username string, loginType 
 		return models.User{}, fmt.Errorf("could not create user %s: %w", username, err)
 	}
 
-	return models.User{
-		UUID:     u.Uuid.String(),
-		Name:     name,
-		Username: username,
-	}, nil
+	return c.repoUserToUser(u), nil
+}
+
+func (c *Core) repoUserViewToUserWithGroups(user repo.UserView) (models.UserWithGroups, error) {
+	var groups []models.Group
+	if user.Groups != nil {
+		if err := json.Unmarshal(user.Groups.([]byte), &groups); err != nil {
+			return models.UserWithGroups{}, fmt.Errorf("could not get groups for the user %s: %w", user.Uuid.String(), err)
+		}
+	}
+
+	u := models.UserWithGroups{
+		User: models.User{
+			ID:        user.Uuid.String(),
+			Name:      user.Name,
+			Username:  user.Username,
+			LoginType: models.UserLoginType(user.LoginType),
+			Role:      models.UserRoleType(user.Role),
+		},
+		Groups: groups,
+	}
+
+	u.User = u.User.WithPassword(user.Password.String)
+	return u, nil
+}
+
+func (c *Core) repoUserToUser(user repo.User) models.User {
+	u := models.User{
+		ID:        user.Uuid.String(),
+		Name:      user.Name,
+		Username:  user.Username,
+		LoginType: models.UserLoginType(user.LoginType),
+		Role:      models.UserRoleType(user.Role),
+	}
+
+	u = u.WithPassword(user.Password.String)
+	return u
 }

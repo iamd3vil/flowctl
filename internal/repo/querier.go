@@ -28,9 +28,10 @@ type Querier interface {
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
-	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetUserByUsernameWithGroups(ctx context.Context, username string) (UserView, error)
 	SearchGroup(ctx context.Context, dollar_1 string) ([]GroupView, error)
-	SearchUser(ctx context.Context, dollar_1 string) ([]UserView, error)
+	SearchUsersWithGroups(ctx context.Context, dollar_1 string) ([]UserView, error)
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
 }

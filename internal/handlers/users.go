@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/cvhariharan/autopilot/internal/core"
+	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 	"github.com/labstack/echo/v4"
@@ -74,7 +74,7 @@ func (h *Handler) HandleCreateUser(c echo.Context) error {
 		return render(c, partials.InlineError("name or username cannot be empty"), http.StatusBadRequest)
 	}
 
-	_, err := h.co.CreateUser(c.Request().Context(), name, username, core.OIDCLoginType, core.StandardUserRole)
+	_, err := h.co.CreateUser(c.Request().Context(), name, username, models.OIDCLoginType, models.StandardUserRole)
 	if err != nil {
 		c.Logger().Error(err)
 		return render(c, partials.InlineError("could not create user"), http.StatusInternalServerError)

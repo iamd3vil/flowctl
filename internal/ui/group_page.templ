@@ -6,7 +6,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
 )
 
-templ GroupManagementPage(groups []models.Group, inlineErr string) {
+templ GroupManagementPage(groups []models.GroupWithUsers, inlineErr string) {
 	@partials.BaseLayout("autopilot: groups") {
 		<div class="flex h-screen flex-col justify-start items-center">
 			<div class="w-full max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -125,7 +125,7 @@ templ GroupModal() {
 }
 
 // Groups Table Template
-templ GroupsTable(groups []models.Group) {
+templ GroupsTable(groups []models.GroupWithUsers) {
 	<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
 		<table class="min-w-full divide-y divide-gray-300">
 			<thead class="bg-gray-50">

@@ -71,20 +71,6 @@ func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type UserInfo struct {
-	UUID     string   `json:"id"`
-	Username string   `json:"email"`
-	Groups   []string `json:"groups"`
-}
-
-type User struct {
-	UUID     string `json:"uuid"`
-	Username string `json:"username"`
-	Password string `json:"-"`
-	Name     string
-	Groups   []Group
-}
-
 type ExecutionStatus string
 
 const (
@@ -130,11 +116,4 @@ func (e ExecutionSummary) Duration() string {
 		return fmt.Sprintf("%d hours", hours)
 	}
 	return fmt.Sprintf("%d hours %d minutes", hours, minutes)
-}
-
-type Group struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Users       []User `json:"users"`
 }

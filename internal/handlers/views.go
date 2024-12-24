@@ -41,7 +41,7 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 
 	// Add to queue
 	execID := uuid.NewString()
-	_, err = h.co.QueueFlowExecution(c.Request().Context(), f, req, execID, user.UUID)
+	_, err = h.co.QueueFlowExecution(c.Request().Context(), f, req, execID, user.ID)
 	if err != nil {
 		return render(c, partials.InlineError("could not queue flow for execution"), http.StatusInternalServerError)
 	}
@@ -94,7 +94,7 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 		return render(c, partials.InlineError("could not get execution summary for the given flow"), http.StatusNotFound)
 	}
 
-	if exec.TriggeredBy != user.UUID {
+	if exec.TriggeredBy != user.ID {
 		return echo.NewHTTPError(http.StatusForbidden, "you are not allowed to view this execution summary")
 	}
 
@@ -117,7 +117,7 @@ func (h *Handler) HandleExecutionSummary(c echo.Context) error {
 		return render(c, partials.InlineError("flow could not be found"), http.StatusNotFound)
 	}
 
-	summary, err := h.co.GetAllExecutionSummary(c.Request().Context(), f, user.UUID)
+	summary, err := h.co.GetAllExecutionSummary(c.Request().Context(), f, user.ID)
 	if err != nil {
 		return render(c, partials.InlineError(err.Error()), http.StatusInternalServerError)
 	}
