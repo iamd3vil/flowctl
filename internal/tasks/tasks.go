@@ -62,13 +62,13 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		if err != nil {
 			res, err = r.runAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger)
 			if err != nil {
-				if err := streamLogger.Checkpoint(action.ID, models.ExecutionCheckpoint{Err: err.Error()}); err != nil {
+				if err := streamLogger.Checkpoint(action.ID, err, models.ErrMessageType); err != nil {
 					return err
 				}
 				return err
 			}
 		}
-		if err := streamLogger.Checkpoint(action.ID, models.ExecutionCheckpoint{Results: res}); err != nil {
+		if err := streamLogger.Checkpoint(action.ID, res, models.ResultMessageType); err != nil {
 			return err
 		}
 	}

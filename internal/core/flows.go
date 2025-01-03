@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 )
 
 var (
@@ -58,7 +60,7 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		return "", fmt.Errorf("error creating task: %v", err)
 	}
 
-	info, err := c.q.Enqueue(task)
+	info, err := c.q.Enqueue(task, asynq.Retention(24*time.Hour))
 	if err != nil {
 		return "", err
 	}

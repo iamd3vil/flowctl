@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -141,45 +142,29 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 	}
 
 	msgCh := h.co.StreamLogs(c.Request().Context(), logID)
-	flow, err := h.co.GetFlowFromLogID(logID)
+	_, err = h.co.GetFlowFromLogID(logID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "flow id cannot be empty")
 	}
 
 	for msg := range msgCh {
-		if msg.Err != "" {
-			return renderToWebsocket(c, partials.InlineError(msg.Err), ws)
-		}
-
+		log.Println(msg)
 		var buf bytes.Buffer
-		if err := partials.LogMessage(msg.Message).Render(c.Request().Context(), &buf); err != nil {
-			return err
-		}
-
-		if msg.Checkpoint {
-			log.Println("checkpoint received")
-			buf = bytes.Buffer{}
-
-			var currentActionIdx int
-			var actions []string
-			for i, v := range flow.Actions {
-				actions = append(actions, v.Name)
-				if v.ID == msg.ID {
-					currentActionIdx = i
-				}
-			}
-			log.Println(currentActionIdx)
-
-			if err := partials.DottedProgress(actions, currentActionIdx).Render(c.Request().Context(), &buf); err != nil {
+		switch msg.MType {
+		case models.LogMessageType:
+			if err := partials.LogMessage(string(msg.Val)).Render(c.Request().Context(), &buf); err != nil {
 				return err
 			}
-
-			if msg.Results != nil {
-				if err := partials.ExecutionOutput(msg.Results).Render(c.Request().Context(), &buf); err != nil {
-					return err
-				}
+		case models.ResultMessageType:
+			var res map[string]string
+			if err := json.Unmarshal(msg.Val, &res); err != nil {
+				return fmt.Errorf("could not decode results: %w", err)
+			}
+			if err := partials.ExecutionOutput(res).Render(c.Request().Context(), &buf); err != nil {
+				return err
 			}
 		}
+
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
 			return err
 		}

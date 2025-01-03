@@ -15,6 +15,21 @@ type LogMessage struct {
 	Err        string
 }
 
+type MessageType string
+
+const (
+	LogMessageType    MessageType = "log"
+	ErrMessageType    MessageType = "error"
+	ResultMessageType MessageType = "result"
+	StateMessageType  MessageType = "state"
+)
+
+type StreamMessage struct {
+	ActionID string      `json:"action_id"`
+	MType    MessageType `json:"message_type"`
+	Val      []byte      `json:"value"`
+}
+
 type ExecutionCheckpoint struct {
 	ActionID string
 	Err      string

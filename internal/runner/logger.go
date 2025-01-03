@@ -30,9 +30,10 @@ func (s *StreamLogger) WithID(id string) *StreamLogger {
 }
 
 func (s *StreamLogger) Write(p []byte) (int, error) {
+	sm := models.StreamMessage{MType: models.LogMessageType, Val: p}
 	res := s.r.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: s.ID,
-		Values: map[string]interface{}{"log": string(p)},
+		Values: map[string]interface{}{"checkpoint": sm},
 	})
 	if res.Err() != nil {
 		return 0, res.Err()
@@ -42,20 +43,32 @@ func (s *StreamLogger) Write(p []byte) (int, error) {
 
 // Checkpoint can be used to save the completion status of an action.
 // Call after the successful completion of an action
-func (s *StreamLogger) Checkpoint(id string, chck models.ExecutionCheckpoint) error {
-	chck.ActionID = id
-	if chck.Results != nil {
-		res, err := json.Marshal(chck.Results)
+func (s *StreamLogger) Checkpoint(id string, val interface{}, mtype models.MessageType) error {
+	var sm models.StreamMessage
+	sm.ActionID = id
+	switch mtype {
+	case models.ErrMessageType:
+		e, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("expected string type for error got %T in stream checkpoint", val)
+		}
+		sm.MType = models.ErrMessageType
+		sm.Val = []byte(e)
+	case models.ResultMessageType:
+		r, ok := val.(map[string]string)
+		if !ok {
+			return fmt.Errorf("expected map[string]string type got %T in stream checkpoint", val)
+		}
+		data, err := json.Marshal(r)
 		if err != nil {
-			return fmt.Errorf("could not marshal checkpoint results for %s: %w", id, err)
+			return fmt.Errorf("could not marshal result for result message type in stream message %s: %w", id, err)
 		}
-		if _, err := s.r.Set(context.Background(), fmt.Sprintf(CheckpointPrefix, id), res, 0).Result(); err != nil {
-			return fmt.Errorf("error while storing checkpoint results for %s: %w", id, err)
-		}
+		sm.MType = models.ResultMessageType
+		sm.Val = data
 	}
 	return s.r.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: s.ID,
-		Values: map[string]interface{}{"checkpoint": chck},
+		Values: map[string]interface{}{"checkpoint": sm},
 	}).Err()
 }
 

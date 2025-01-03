@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cvhariharan/autopilot/internal/models"
@@ -11,10 +12,10 @@ import (
 
 // StreamLogs reads values from a redis stream from the beginning and returns a channel to which
 // all the messages are sent. logID is the ID sent to the NewFlowExecution task
-func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMessage {
-	ch := make(chan models.LogMessage)
+func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.StreamMessage {
+	ch := make(chan models.StreamMessage)
 
-	go func(ch chan models.LogMessage) {
+	go func(ch chan models.StreamMessage) {
 		defer close(ch)
 		lastProcessedID := "0"
 		for {
@@ -28,7 +29,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMess
 				if err == redis.Nil {
 					continue
 				}
-				ch <- models.LogMessage{Err: fmt.Sprintf("error reading from redis log stream: %v", err)}
+				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(fmt.Errorf("error reading from stream: %w", err).Error())}
 				return
 			}
 
@@ -39,19 +40,13 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.LogMess
 					}
 
 					if checkpoint, ok := message.Values["checkpoint"]; ok {
-						var chck models.ExecutionCheckpoint
-						chck.UnmarshalBinary([]byte(checkpoint.(string)))
-
-						if chck.Err != "" {
-							ch <- models.LogMessage{ID: chck.ActionID, Checkpoint: true, Err: chck.Err}
+						sm, ok := checkpoint.(models.StreamMessage)
+						if !ok {
+							log.Printf("checkpoint not of StreamMessage type: %v", checkpoint)
 							continue
 						}
-
-						ch <- models.LogMessage{ID: chck.ActionID, Checkpoint: true, Results: chck.Results}
-						continue
+						ch <- sm
 					}
-
-					ch <- models.LogMessage{Message: message.Values["log"].(string)}
 
 					lastProcessedID = message.ID
 				}
