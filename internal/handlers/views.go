@@ -161,6 +161,10 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 			if err := partials.ExecutionOutput(res).Render(c.Request().Context(), &buf); err != nil {
 				return err
 			}
+		case models.ErrMessageType:
+			if err := partials.InlineError(string(msg.Val)).Render(c.Request().Context(), &buf); err != nil {
+				return err
+			}
 		}
 
 		if err := ws.WriteMessage(websocket.TextMessage, buf.Bytes()); err != nil {
