@@ -40,11 +40,17 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) chan models.StreamM
 					}
 
 					if checkpoint, ok := message.Values["checkpoint"]; ok {
-						sm, ok := checkpoint.(models.StreamMessage)
-						if !ok {
-							log.Printf("checkpoint not of StreamMessage type: %v", checkpoint)
+						var sm models.StreamMessage
+						if err := sm.UnmarshalBinary([]byte(checkpoint.(string))); err != nil {
+							log.Println(err)
 							continue
 						}
+
+						if !ok {
+							log.Printf("checkpoint not of StreamMessage type: %T", checkpoint)
+							continue
+						}
+
 						ch <- sm
 					}
 

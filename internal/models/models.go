@@ -30,6 +30,38 @@ type StreamMessage struct {
 	Val      []byte      `json:"value"`
 }
 
+func (s StreamMessage) MarshalBinary() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if err := gob.NewEncoder(&buf).Encode(s.ActionID); err != nil {
+		return nil, err
+	}
+	if err := gob.NewEncoder(&buf).Encode(s.MType); err != nil {
+		return nil, err
+	}
+	if err := gob.NewEncoder(&buf).Encode(s.Val); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (s *StreamMessage) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	if err := gob.NewDecoder(buf).Decode(&s.ActionID); err != nil {
+		return err
+	}
+	if err := gob.NewDecoder(buf).Decode(&s.MType); err != nil {
+		return err
+	}
+	if err := gob.NewDecoder(buf).Decode(&s.Val); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type ExecutionCheckpoint struct {
 	ActionID string
 	Err      string

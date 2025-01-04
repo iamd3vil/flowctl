@@ -30,13 +30,8 @@ func (s *StreamLogger) WithID(id string) *StreamLogger {
 }
 
 func (s *StreamLogger) Write(p []byte) (int, error) {
-	sm := models.StreamMessage{MType: models.LogMessageType, Val: p}
-	res := s.r.XAdd(context.Background(), &redis.XAddArgs{
-		Stream: s.ID,
-		Values: map[string]interface{}{"checkpoint": sm},
-	})
-	if res.Err() != nil {
-		return 0, res.Err()
+	if err := s.Checkpoint("", p, models.LogMessageType); err != nil {
+		return 0, err
 	}
 	return len(p), nil
 }
@@ -65,7 +60,16 @@ func (s *StreamLogger) Checkpoint(id string, val interface{}, mtype models.Messa
 		}
 		sm.MType = models.ResultMessageType
 		sm.Val = data
+	case models.LogMessageType:
+		sm.MType = models.LogMessageType
+		d, ok := val.([]byte)
+		if !ok {
+			return fmt.Errorf("expected []byte type for log got %T in stream checkpoint", val)
+		}
+		sm.MType = models.LogMessageType
+		sm.Val = d
 	}
+
 	return s.r.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: s.ID,
 		Values: map[string]interface{}{"checkpoint": sm},
