@@ -38,6 +38,10 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
+	if len(f.Actions) == 0 {
+		return echo.NewHTTPError(http.StatusInternalServerError, "no actions in flow")
+	}
+
 	if err := f.ValidateInput(req); err != nil {
 		return render(c, ui.FlowInputFormPage(f, "", map[string]string{err.FieldName: err.Msg}, ""), http.StatusOK)
 	}
@@ -50,6 +54,40 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	}
 
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/view/results/%s/%s", f.Meta.ID, execID))
+	return c.NoContent(http.StatusCreated)
+}
+
+func (h *Handler) HandleExecTrigger(c echo.Context) error {
+	execID := c.Param("execID")
+	if execID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "exec ID cannot be empty")
+	}
+
+	actionID := c.Param("actionID")
+	if actionID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "exec ID cannot be empty")
+	}
+
+	user, ok := c.Get("user").(models.UserInfo)
+	if !ok {
+		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+	}
+
+	exec, err := h.co.GetExecutionByExecID(c.Request().Context(), execID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not get exec details")
+	}
+
+	if exec.TriggeredBy != user.ID {
+		return echo.NewHTTPError(http.StatusForbidden, "only the person who triggered the exec can resume it")
+	}
+
+	if err := h.co.ResumeFlowExecution(c.Request().Context(), execID, actionID); err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not queue flow for execution")
+	}
+
 	return c.NoContent(http.StatusCreated)
 }
 

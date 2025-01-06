@@ -55,14 +55,9 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 	// store the mapping between logID and flowID
 	c.logMap[execID] = f.Meta.ID
 
-	task, err := tasks.NewFlowExecution(f, input, 0, execID)
+	userID, err := uuid.Parse(userUUID)
 	if err != nil {
-		return "", fmt.Errorf("error creating task: %v", err)
-	}
-
-	info, err := c.q.Enqueue(task, asynq.Retention(24*time.Hour))
-	if err != nil {
-		return "", err
+		return "", fmt.Errorf("user id is not a UUID: %w", err)
 	}
 
 	inputB, err := json.Marshal(input)
@@ -70,9 +65,9 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		return "", fmt.Errorf("could not marshal input for storing execution log: %w", err)
 	}
 
-	userID, err := uuid.Parse(userUUID)
+	info, err := c.queueFlow(ctx, f, input, execID, 0)
 	if err != nil {
-		return "", fmt.Errorf("user id is not a UUID: %w", err)
+		return "", err
 	}
 
 	_, err = c.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
@@ -85,7 +80,44 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		return "", fmt.Errorf("could not add entry to execution log: %w", err)
 	}
 
-	return info.ID, nil
+	return info, nil
+}
+
+func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID string) error {
+	exec, err := c.GetExecutionByExecID(ctx, execID)
+	if err != nil {
+		return fmt.Errorf("could not get exec %s: %w", execID, err)
+	}
+
+	f, err := c.GetFlowFromLogID(execID)
+	if err != nil {
+		return err
+	}
+
+	actionIndex, err := f.GetActionIndexByID(actionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int) (string, error) {
+	task, err := tasks.NewFlowExecution(f, input, actionIndex, execID)
+	if err != nil {
+		return "", fmt.Errorf("error creating task: %v", err)
+	}
+
+	info, err := c.q.Enqueue(task, asynq.Retention(24*time.Hour))
+	if err != nil {
+		return "", err
+	}
+
+	return info.ID, err
 }
 
 func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, triggeredBy string) ([]models.ExecutionSummary, error) {
@@ -133,5 +165,43 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string) (
 		CreatedAt:   e.CreatedAt,
 		CompletedAt: e.UpdatedAt,
 		TriggeredBy: e.TriggeredByUuid.String(),
+	}, nil
+}
+
+func (c *Core) GetInputForExec(ctx context.Context, execID string) (map[string]interface{}, error) {
+	var input map[string]interface{}
+	in, err := c.store.GetInputForExecByUUID(ctx, execID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting input for %s: %w", execID, err)
+	}
+
+	if err := json.Unmarshal(in, &input); err != nil {
+		return nil, fmt.Errorf("error unmarshaling input for %s: %w", execID, err)
+	}
+
+	return input, nil
+}
+
+func (c *Core) GetExecutionByExecID(ctx context.Context, execID string) (models.Execution, error) {
+	e, err := c.store.GetExecutionByExecID(ctx, execID)
+	if err != nil {
+		return models.Execution{}, fmt.Errorf("could not get execution for exec %s: %w", execID, err)
+	}
+
+	var input map[string]interface{}
+	if err := json.Unmarshal(e.Input, &input); err != nil {
+		return models.Execution{}, fmt.Errorf("error unmarshaling input for %s: %w", execID, err)
+	}
+
+	u, err := c.store.GetUserByID(ctx, e.TriggeredBy)
+	if err != nil {
+		return models.Execution{}, fmt.Errorf("could not get trigger person for %s: %w", execID, err)
+	}
+
+	return models.Execution{
+		ExecID:      e.ExecID,
+		Input:       input,
+		ErrorMsg:    e.Error.String,
+		TriggeredBy: u.Uuid.String(),
 	}, nil
 }

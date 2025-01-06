@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -115,4 +116,37 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 	}
 
 	return models.ApprovalRequest{}, ErrNoPendingApproval
+}
+
+func (c *Core) BeforeActionHook(ctx context.Context, execID string, action models.Action) error {
+	if len(action.Approval) == 0 {
+		return nil
+	}
+
+	// check if pending approval, exit if not approved
+	a, err := c.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
+		ExecID:   execID,
+		ActionID: action.ID,
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	// continue execution if approved
+	if a.Status == repo.ApprovalStatusApproved {
+		return nil
+	}
+
+	if a.Status == repo.ApprovalStatusRejected {
+		return fmt.Errorf("request for running action %q is rejected", action.Name)
+	}
+
+	if a.Status == "" {
+		_, err = c.RequestApproval(ctx, execID, action)
+		if err != nil {
+			return err
+		}
+	}
+
+	return ErrPendingApproval
 }

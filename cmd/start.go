@@ -111,6 +111,8 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	views.GET("/logs/:logID", h.HandleLogStreaming)
 	views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
+	views.GET("/:execID/:actionID", h.HandleExecTrigger)
+
 	admin := e.Group("/admin")
 	admin.Use(ah.AuthorizeForRole("admin"))
 	admin.GET("/groups", h.HandleGroup)
@@ -245,14 +247,24 @@ func processYAMLFiles(rootDir string, store repo.Store) (map[string]models.Flow,
 }
 
 func startWorker(db *sqlx.DB, redisClient redis.UniversalClient) {
-	flowLogger := runner.NewStreamLogger(redisClient)
-	flowRunner := tasks.NewFlowRunner(flowLogger, runner.NewDockerArtifactsManager("./artifacts"), nil, nil)
+	asynqClient := asynq.NewClientFromRedisClient(redisClient)
+	defer asynqClient.Close()
 
 	asynqSrv := asynq.NewServerFromRedisClient(redisClient, asynq.Config{
 		Concurrency: 0,
 	})
 
 	s := repo.NewPostgresStore(db)
+	flows, err := processYAMLFiles(viper.GetString("app.flows_directory"), s)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	core := core.NewCore(flows, s, asynqClient, redisClient)
+
+	flowLogger := runner.NewStreamLogger(redisClient)
+	flowRunner := tasks.NewFlowRunner(flowLogger, runner.NewDockerArtifactsManager("./artifacts"), core.BeforeActionHook, nil)
+
 	st := tasks.NewStatusTracker(s)
 
 	mux := asynq.NewServeMux()

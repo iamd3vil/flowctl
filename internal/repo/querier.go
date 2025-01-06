@@ -6,6 +6,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 )
@@ -33,6 +34,7 @@ type Querier interface {
 	GetFlowFromExecID(ctx context.Context, execID string) (GetFlowFromExecIDRow, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
+	GetInputForExecByUUID(ctx context.Context, execID string) (json.RawMessage, error)
 	GetPendingApprovalRequestForExec(ctx context.Context, execID string) (Approval, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)

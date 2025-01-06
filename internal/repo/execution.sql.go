@@ -200,6 +200,17 @@ func (q *Queries) GetFlowFromExecID(ctx context.Context, execID string) (GetFlow
 	return i, err
 }
 
+const getInputForExecByUUID = `-- name: GetInputForExecByUUID :one
+SELECT input FROM execution_log WHERE exec_id = $1
+`
+
+func (q *Queries) GetInputForExecByUUID(ctx context.Context, execID string) (json.RawMessage, error) {
+	row := q.db.QueryRowContext(ctx, getInputForExecByUUID, execID)
+	var input json.RawMessage
+	err := row.Scan(&input)
+	return input, err
+}
+
 const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
 UPDATE execution_log SET status=$1, error=$2, updated_at=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
 `

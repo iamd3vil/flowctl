@@ -124,20 +124,30 @@ func (f Flow) Validate() error {
 	validate.RegisterValidation("alphanum_underscore", AlphanumericUnderscore)
 
 	actionsIDs := make(map[string]int)
-		for _, action := range f.Actions {
-			// Check if action IDs are unique
-			if _, ok := actionsIDs[action.ID]; ok {
-				return fmt.Errorf("action ID %s is reused, actions IDs should be unique", action.ID)
-			}
-			actionsIDs[action.ID] = 1
-			for _, approver := range action.Approval {
-				if !strings.HasPrefix(approver, "users/") && !strings.HasPrefix(approver, "groups/") {
-					return fmt.Errorf("error validating action approval %s: approver should have a users/ or groups/ prefix", action.ID)
-				}
+	for _, action := range f.Actions {
+		// Check if action IDs are unique
+		if _, ok := actionsIDs[action.ID]; ok {
+			return fmt.Errorf("action ID %s is reused, actions IDs should be unique", action.ID)
+		}
+		actionsIDs[action.ID] = 1
+		for _, approver := range action.Approval {
+			if !strings.HasPrefix(approver, "users/") && !strings.HasPrefix(approver, "groups/") {
+				return fmt.Errorf("error validating action approval %s: approver should have a users/ or groups/ prefix", action.ID)
 			}
 		}
+	}
 
 	return validate.Struct(f)
+}
+
+func (f Flow) GetActionIndexByID(id string) (int, error) {
+	for i, v := range f.Actions {
+		if v.ID == id {
+			return i, nil
+		}
+	}
+
+	return -1, fmt.Errorf("action %s not found", id)
 }
 
 func (f Flow) ValidateInput(inputs map[string]interface{}) *FlowValidationError {
@@ -256,4 +266,11 @@ func validateType(name string, val interface{}, t InputType) error {
 	}
 
 	return nil
+}
+
+type Execution struct {
+	Input       map[string]interface{} `json:"input"`
+	ExecID      string                 `json:"exec_id"`
+	ErrorMsg    string                 `json:"error_msg"`
+	TriggeredBy string                 `json:"triggered_by"`
 }
