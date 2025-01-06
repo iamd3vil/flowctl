@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS execution_log (
     id SERIAL PRIMARY KEY,
     exec_id VARCHAR(36) NOT NULL,
     flow_id INTEGER NOT NULL,
+    parent_exec_id VARCHAR(36),
     input JSONB DEFAULT '{}'::jsonb NOT NULL,
     error TEXT,
     status execution_status NOT NULL DEFAULT 'pending',

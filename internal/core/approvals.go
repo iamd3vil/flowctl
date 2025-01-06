@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cvhariharan/autopilot/internal/models"
@@ -118,19 +119,26 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 	return models.ApprovalRequest{}, ErrNoPendingApproval
 }
 
-func (c *Core) BeforeActionHook(ctx context.Context, execID string, action models.Action) error {
+func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string, action models.Action) error {
 	if len(action.Approval) == 0 {
 		return nil
 	}
 
+	eID := execID
+	if parentExecID != "" {
+		eID = parentExecID
+	}
+
 	// check if pending approval, exit if not approved
 	a, err := c.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
-		ExecID:   execID,
+		ExecID:   eID,
 		ActionID: action.ID,
 	})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
+
+	log.Println(a)
 
 	// continue execution if approved
 	if a.Status == repo.ApprovalStatusApproved {

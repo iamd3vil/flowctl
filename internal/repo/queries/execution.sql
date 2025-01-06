@@ -1,14 +1,15 @@
 -- name: AddExecutionLog :one
 WITH user_lookup AS (
-    SELECT id FROM users WHERE uuid = $4
+    SELECT id FROM users WHERE uuid = $5
 )
 INSERT INTO execution_log (
     exec_id,
+    parent_exec_id,
     flow_id,
     input,
     triggered_by
 ) VALUES (
-    $1, $2, $3, (SELECT id FROM user_lookup)
+    $1, $2, $3, $4, (SELECT id FROM user_lookup)
 ) RETURNING *;
 
 -- name: UpdateExecutionStatus :one

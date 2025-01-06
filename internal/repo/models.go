@@ -198,15 +198,16 @@ type Approval struct {
 }
 
 type ExecutionLog struct {
-	ID          int32           `db:"id" json:"id"`
-	ExecID      string          `db:"exec_id" json:"exec_id"`
-	FlowID      int32           `db:"flow_id" json:"flow_id"`
-	Input       json.RawMessage `db:"input" json:"input"`
-	Error       sql.NullString  `db:"error" json:"error"`
-	Status      ExecutionStatus `db:"status" json:"status"`
-	TriggeredBy int32           `db:"triggered_by" json:"triggered_by"`
-	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	ID           int32           `db:"id" json:"id"`
+	ExecID       string          `db:"exec_id" json:"exec_id"`
+	FlowID       int32           `db:"flow_id" json:"flow_id"`
+	ParentExecID sql.NullString  `db:"parent_exec_id" json:"parent_exec_id"`
+	Input        json.RawMessage `db:"input" json:"input"`
+	Error        sql.NullString  `db:"error" json:"error"`
+	Status       ExecutionStatus `db:"status" json:"status"`
+	TriggeredBy  int32           `db:"triggered_by" json:"triggered_by"`
+	CreatedAt    time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time       `db:"updated_at" json:"updated_at"`
 }
 
 type Flow struct {

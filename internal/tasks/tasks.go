@@ -30,12 +30,13 @@ type FlowExecutionPayload struct {
 	Input             map[string]interface{}
 	StartingActionIdx int
 	ExecID            string
+	ParentExecID      string
 }
 
-type HookFn func(ctx context.Context, execID string, action models.Action) error
+type HookFn func(ctx context.Context, execID, parentExecID string, action models.Action) error
 
-func NewFlowExecution(f models.Flow, input map[string]interface{}, startingActionIdx int, ExecID string) (*asynq.Task, error) {
-	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, StartingActionIdx: startingActionIdx, ExecID: ExecID})
+func NewFlowExecution(f models.Flow, input map[string]interface{}, startingActionIdx int, ExecID, parentExecID string) (*asynq.Task, error) {
+	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, StartingActionIdx: startingActionIdx, ExecID: ExecID, ParentExecID: parentExecID})
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		action := payload.Workflow.Actions[i]
 
 		if r.onBeforeActionFn != nil {
-			if err := r.onBeforeActionFn(ctx, payload.ExecID, action); err != nil {
+			if err := r.onBeforeActionFn(ctx, payload.ExecID, payload.ParentExecID, action); err != nil {
 				return err
 			}
 		}
@@ -93,7 +94,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		}
 
 		if r.onAfterActionFn != nil {
-			if err := r.onAfterActionFn(ctx, payload.ExecID, action); err != nil {
+			if err := r.onAfterActionFn(ctx, payload.ExecID, payload.ParentExecID, action); err != nil {
 				return err
 			}
 		}

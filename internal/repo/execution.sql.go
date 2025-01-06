@@ -16,28 +16,31 @@ import (
 
 const addExecutionLog = `-- name: AddExecutionLog :one
 WITH user_lookup AS (
-    SELECT id FROM users WHERE uuid = $4
+    SELECT id FROM users WHERE uuid = $5
 )
 INSERT INTO execution_log (
     exec_id,
+    parent_exec_id,
     flow_id,
     input,
     triggered_by
 ) VALUES (
-    $1, $2, $3, (SELECT id FROM user_lookup)
-) RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
+    $1, $2, $3, $4, (SELECT id FROM user_lookup)
+) RETURNING id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at
 `
 
 type AddExecutionLogParams struct {
-	ExecID string          `db:"exec_id" json:"exec_id"`
-	FlowID int32           `db:"flow_id" json:"flow_id"`
-	Input  json.RawMessage `db:"input" json:"input"`
-	Uuid   uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecID       string          `db:"exec_id" json:"exec_id"`
+	ParentExecID sql.NullString  `db:"parent_exec_id" json:"parent_exec_id"`
+	FlowID       int32           `db:"flow_id" json:"flow_id"`
+	Input        json.RawMessage `db:"input" json:"input"`
+	Uuid         uuid.UUID       `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams) (ExecutionLog, error) {
 	row := q.db.QueryRowContext(ctx, addExecutionLog,
 		arg.ExecID,
+		arg.ParentExecID,
 		arg.FlowID,
 		arg.Input,
 		arg.Uuid,
@@ -47,6 +50,7 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 		&i.ID,
 		&i.ExecID,
 		&i.FlowID,
+		&i.ParentExecID,
 		&i.Input,
 		&i.Error,
 		&i.Status,
@@ -59,7 +63,7 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 
 const getExecutionByExecID = `-- name: GetExecutionByExecID :one
 SELECT
-    el.id, el.exec_id, el.flow_id, el.input, el.error, el.status, el.triggered_by, el.created_at, el.updated_at,
+    el.id, el.exec_id, el.flow_id, el.parent_exec_id, el.input, el.error, el.status, el.triggered_by, el.created_at, el.updated_at,
     u.uuid AS triggered_by_uuid
 FROM
     execution_log el
@@ -73,6 +77,7 @@ type GetExecutionByExecIDRow struct {
 	ID              int32           `db:"id" json:"id"`
 	ExecID          string          `db:"exec_id" json:"exec_id"`
 	FlowID          int32           `db:"flow_id" json:"flow_id"`
+	ParentExecID    sql.NullString  `db:"parent_exec_id" json:"parent_exec_id"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
 	Status          ExecutionStatus `db:"status" json:"status"`
@@ -89,6 +94,7 @@ func (q *Queries) GetExecutionByExecID(ctx context.Context, execID string) (GetE
 		&i.ID,
 		&i.ExecID,
 		&i.FlowID,
+		&i.ParentExecID,
 		&i.Input,
 		&i.Error,
 		&i.Status,
@@ -101,7 +107,7 @@ func (q *Queries) GetExecutionByExecID(ctx context.Context, execID string) (GetE
 }
 
 const getExecutionByID = `-- name: GetExecutionByID :one
-SELECT id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE id = $1
+SELECT id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE id = $1
 `
 
 func (q *Queries) GetExecutionByID(ctx context.Context, id int32) (ExecutionLog, error) {
@@ -111,6 +117,7 @@ func (q *Queries) GetExecutionByID(ctx context.Context, id int32) (ExecutionLog,
 		&i.ID,
 		&i.ExecID,
 		&i.FlowID,
+		&i.ParentExecID,
 		&i.Input,
 		&i.Error,
 		&i.Status,
@@ -125,7 +132,7 @@ const getExecutionsByFlow = `-- name: GetExecutionsByFlow :many
 WITH user_lookup AS (
     SELECT id FROM users WHERE uuid = $2
 )
-SELECT id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE flow_id = $1 and triggered_by = (SELECT id FROM user_lookup)
+SELECT id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE flow_id = $1 and triggered_by = (SELECT id FROM user_lookup)
 `
 
 type GetExecutionsByFlowParams struct {
@@ -146,6 +153,7 @@ func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFl
 			&i.ID,
 			&i.ExecID,
 			&i.FlowID,
+			&i.ParentExecID,
 			&i.Input,
 			&i.Error,
 			&i.Status,
@@ -212,7 +220,7 @@ func (q *Queries) GetInputForExecByUUID(ctx context.Context, execID string) (jso
 }
 
 const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
-UPDATE execution_log SET status=$1, error=$2, updated_at=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, input, error, status, triggered_by, created_at, updated_at
+UPDATE execution_log SET status=$1, error=$2, updated_at=$3 WHERE exec_id = $4 RETURNING id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at
 `
 
 type UpdateExecutionStatusParams struct {
@@ -234,6 +242,7 @@ func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecution
 		&i.ID,
 		&i.ExecID,
 		&i.FlowID,
+		&i.ParentExecID,
 		&i.Input,
 		&i.Error,
 		&i.Status,

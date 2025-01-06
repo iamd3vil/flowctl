@@ -12,7 +12,6 @@ import (
 	"github.com/cvhariharan/autopilot/internal/models"
 	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/cvhariharan/autopilot/internal/ui/partials"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
@@ -35,6 +34,7 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 
 	f, err := h.co.GetFlowByID(c.Param("flow"))
 	if err != nil {
+		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
 
@@ -47,9 +47,9 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	}
 
 	// Add to queue
-	execID := uuid.NewString()
-	_, err = h.co.QueueFlowExecution(c.Request().Context(), f, req, execID, user.ID)
+	execID, err := h.co.QueueFlowExecution(c.Request().Context(), f, req, user.ID)
 	if err != nil {
+		c.Logger().Error(err)
 		return render(c, partials.InlineError("could not queue flow for execution"), http.StatusInternalServerError)
 	}
 
@@ -83,7 +83,7 @@ func (h *Handler) HandleExecTrigger(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "only the person who triggered the exec can resume it")
 	}
 
-	if err := h.co.ResumeFlowExecution(c.Request().Context(), execID, actionID); err != nil {
+	if err := h.co.ResumeFlowExecution(c.Request().Context(), execID, actionID, user.ID); err != nil {
 		c.Logger().Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "could not queue flow for execution")
 	}
@@ -132,6 +132,7 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 
 	exec, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID)
 	if err != nil {
+		c.Logger().Error(err)
 		return render(c, partials.InlineError("could not get execution summary for the given flow"), http.StatusNotFound)
 	}
 
@@ -160,6 +161,7 @@ func (h *Handler) HandleExecutionSummary(c echo.Context) error {
 
 	summary, err := h.co.GetAllExecutionSummary(c.Request().Context(), f, user.ID)
 	if err != nil {
+		c.Logger().Error(err)
 		return render(c, partials.InlineError(err.Error()), http.StatusInternalServerError)
 	}
 
