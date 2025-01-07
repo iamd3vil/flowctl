@@ -150,7 +150,7 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string
 	}
 
 	if a.Status == "" {
-		_, err = c.RequestApproval(ctx, execID, action)
+		_, err = c.RequestApproval(ctx, eID, action)
 		if err != nil {
 			return err
 		}
