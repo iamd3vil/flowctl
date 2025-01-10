@@ -17,6 +17,7 @@ import (
 var (
 	ErrPendingApproval   = errors.New("pending approval for action")
 	ErrNoPendingApproval = errors.New("no pending approval")
+	ErrNil               = errors.New("not found")
 )
 
 const (
@@ -99,8 +100,12 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 	// Get from DB
 	if errors.Is(err, redis.Nil) {
 		areq, err := c.store.GetPendingApprovalRequestForExec(ctx, execID)
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return models.ApprovalRequest{}, fmt.Errorf("could not get approval request from DB for exec %s: %w", execID, err)
+		}
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ApprovalRequest{}, ErrNil
 		}
 
 		existingReq = models.ApprovalRequest{UUID: areq.Uuid.String(), Status: string(areq.Status), ActionID: areq.ActionID}

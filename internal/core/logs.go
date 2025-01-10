@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -52,6 +53,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 	return ch, nil
 }
 
+// streamLogs reads log messages and results from a redis stream and writes to a channel
 func (c *Core) streamLogs(ctx context.Context, execID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
@@ -131,6 +133,51 @@ func (c *Core) checkErrors(ctx context.Context, execID string) (chan models.Stre
 			}
 		}
 	}(ch)
+
+	return ch, nil
+}
+
+func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan models.StreamMessage, error) {
+	ch := make(chan models.StreamMessage)
+
+	f, err := c.GetFlowFromLogID(execID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !f.IsApprovalRequired() {
+		return nil, nil
+	}
+
+	go func(f models.Flow, ch chan models.StreamMessage) {
+		defer close(ch)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				a, err := c.GetPendingApprovalsForExec(ctx, execID)
+				if err != nil && !errors.Is(err, ErrNil) {
+					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
+					return
+				}
+
+				if errors.Is(err, ErrNil) {
+					continue
+				}
+
+				if a.Status == "pending" {
+					ch <- models.StreamMessage{MType: models.StateMessageType, Val: []byte(a.UUID)}
+					return
+				}
+
+				if a.Status != "pending" {
+					return
+				}
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}(f, ch)
 
 	return ch, nil
 }

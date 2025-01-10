@@ -150,6 +150,18 @@ func (f Flow) GetActionIndexByID(id string) (int, error) {
 	return -1, fmt.Errorf("action %s not found", id)
 }
 
+func (f Flow) IsApprovalRequired() bool {
+	var isApprovalRequired bool
+	for _, action := range f.Actions {
+		if len(action.Approval) > 0 {
+			isApprovalRequired = true
+			break
+		}
+	}
+
+	return isApprovalRequired
+}
+
 func (f Flow) ValidateInput(inputs map[string]interface{}) *FlowValidationError {
 	for _, input := range f.Inputs {
 		value, exists := inputs[input.Name]
