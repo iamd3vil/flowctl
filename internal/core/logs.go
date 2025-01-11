@@ -94,7 +94,7 @@ func (c *Core) streamLogs(ctx context.Context, execID string) (chan models.Strea
 		for {
 			result, err := c.redisClient.XRead(ctx, &redis.XReadArgs{
 				Streams: []string{eID, lastProcessedID},
-				Count:   10,
+				Count:   200,
 				Block:   0,
 			}).Result()
 
@@ -195,11 +195,6 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan m
 				if err != nil && !errors.Is(err, ErrNil) {
 					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
 					return
-				}
-				log.Println("approval request: ", a)
-
-				if errors.Is(err, ErrNil) {
-					continue
 				}
 
 				if a.Status == "pending" {

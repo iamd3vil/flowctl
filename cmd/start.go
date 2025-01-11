@@ -22,6 +22,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -89,6 +90,8 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	}
 
 	e := echo.New()
+	e.Use(middleware.Logger())
+
 	e.GET("/ping", h.HandlePing)
 	e.GET("/login", ah.HandleLoginPage)
 	e.POST("/login", ah.HandleLoginPage)
