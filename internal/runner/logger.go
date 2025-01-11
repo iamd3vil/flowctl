@@ -90,9 +90,9 @@ func (s *StreamLogger) Results(id string) (map[string]string, error) {
 	return results, nil
 }
 
-func (s *StreamLogger) Close() error {
+func (s *StreamLogger) Close(closeID string) error {
 	return s.r.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: s.ID,
-		Values: map[string]interface{}{"closed": true},
+		Values: map[string]interface{}{"closed": closeID},
 	}).Err()
 }

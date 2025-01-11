@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -67,17 +68,38 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 func (c *Core) streamLogs(ctx context.Context, execID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
+	exec, err := c.GetExecutionByExecID(ctx, execID)
+	if err != nil {
+		return nil, err
+	}
+
+	eID := execID
+	if exec.ParentExecID != "" {
+		eID = exec.ParentExecID
+	}
+
+	children, err := c.store.GetChildrenByParentUUID(ctx, sql.NullString{String: eID, Valid: len(eID) > 0})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("could not get children for exec %s: %w", execID, err)
+	}
+
 	go func(ch chan models.StreamMessage) {
 		defer close(ch)
 		lastProcessedID := "0"
+
+		// used to decide when to close the stream
+		// a close message is used to signify an end of stream but all the children write to the same stream
+		// this can create many close messages so the stream should only be closed when the last child sends a close message
+		closeCount := len(children)
 		for {
 			result, err := c.redisClient.XRead(ctx, &redis.XReadArgs{
-				Streams: []string{execID, lastProcessedID},
+				Streams: []string{eID, lastProcessedID},
 				Count:   10,
 				Block:   0,
 			}).Result()
 
 			if err != nil {
+				log.Println(err)
 				if err == redis.Nil {
 					continue
 				}
@@ -88,7 +110,10 @@ func (c *Core) streamLogs(ctx context.Context, execID string) (chan models.Strea
 			for _, stream := range result {
 				for _, message := range stream.Messages {
 					if _, ok := message.Values["closed"]; ok {
-						return
+						if closeCount == 0 {
+							return
+						}
+						closeCount -= 1
 					}
 
 					if checkpoint, ok := message.Values["checkpoint"]; ok {
@@ -171,6 +196,7 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan m
 					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
 					return
 				}
+				log.Println("approval request: ", a)
 
 				if errors.Is(err, ErrNil) {
 					continue

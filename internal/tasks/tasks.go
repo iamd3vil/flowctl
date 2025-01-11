@@ -78,7 +78,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	}
 
 	streamLogger := r.logger.WithID(streamID)
-	defer streamLogger.Close()
+	defer streamLogger.Close(payload.ExecID)
 
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		action := payload.Workflow.Actions[i]

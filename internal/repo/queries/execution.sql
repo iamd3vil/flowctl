@@ -43,3 +43,6 @@ SELECT * FROM execution_log WHERE id = $1;
 
 -- name: GetInputForExecByUUID :one
 SELECT input FROM execution_log WHERE exec_id = $1;
+
+-- name: GetChildrenByParentUUID :many
+SELECT * FROM execution_log WHERE parent_exec_id = $1;

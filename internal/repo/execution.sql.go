@@ -61,6 +61,44 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 	return i, err
 }
 
+const getChildrenByParentUUID = `-- name: GetChildrenByParentUUID :many
+SELECT id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE parent_exec_id = $1
+`
+
+func (q *Queries) GetChildrenByParentUUID(ctx context.Context, parentExecID sql.NullString) ([]ExecutionLog, error) {
+	rows, err := q.db.QueryContext(ctx, getChildrenByParentUUID, parentExecID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExecutionLog
+	for rows.Next() {
+		var i ExecutionLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExecID,
+			&i.FlowID,
+			&i.ParentExecID,
+			&i.Input,
+			&i.Error,
+			&i.Status,
+			&i.TriggeredBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getExecutionByExecID = `-- name: GetExecutionByExecID :one
 SELECT
     el.id, el.exec_id, el.flow_id, el.parent_exec_id, el.input, el.error, el.status, el.triggered_by, el.created_at, el.updated_at,

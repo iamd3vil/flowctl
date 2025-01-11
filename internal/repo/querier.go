@@ -6,6 +6,7 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
@@ -27,6 +28,7 @@ type Querier interface {
 	GetAllUsersWithGroups(ctx context.Context) ([]UserView, error)
 	GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (Approval, error)
 	GetApprovalRequestForActionAndExec(ctx context.Context, arg GetApprovalRequestForActionAndExecParams) (Approval, error)
+	GetChildrenByParentUUID(ctx context.Context, parentExecID sql.NullString) ([]ExecutionLog, error)
 	GetExecutionByExecID(ctx context.Context, execID string) (GetExecutionByExecIDRow, error)
 	GetExecutionByID(ctx context.Context, id int32) (ExecutionLog, error)
 	GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]ExecutionLog, error)

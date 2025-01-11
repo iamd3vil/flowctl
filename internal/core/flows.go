@@ -202,9 +202,10 @@ func (c *Core) GetExecutionByExecID(ctx context.Context, execID string) (models.
 	}
 
 	return models.Execution{
-		ExecID:      e.ExecID,
-		Input:       input,
-		ErrorMsg:    e.Error.String,
-		TriggeredBy: u.Uuid.String(),
+		ExecID:       e.ExecID,
+		ParentExecID: e.ParentExecID.String,
+		Input:        input,
+		ErrorMsg:     e.Error.String,
+		TriggeredBy:  u.Uuid.String(),
 	}, nil
 }

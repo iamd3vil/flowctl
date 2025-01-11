@@ -120,7 +120,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 		return existingReq, nil
 	}
 
-	return models.ApprovalRequest{}, ErrNoPendingApproval
+	return models.ApprovalRequest{}, nil
 }
 
 func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string, action models.Action) error {
