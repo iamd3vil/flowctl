@@ -17,7 +17,7 @@ const (
 type ApprovalRequest struct {
 	UUID        string
 	ActionID    string
-	Status      string
+	Status      ApprovalType
 	ExecID      string
 	RequestedBy string
 }
@@ -37,6 +37,9 @@ func (a ApprovalRequest) MarshalBinary() ([]byte, error) {
 	if err := gob.NewEncoder(&buf).Encode(a.ExecID); err != nil {
 		return nil, fmt.Errorf("failed to encode ExecID: %w", err)
 	}
+	if err := gob.NewEncoder(&buf).Encode(a.RequestedBy); err != nil {
+		return nil, fmt.Errorf("failed to encode RequestedBy: %w", err)
+	}
 
 	return buf.Bytes(), nil
 }
@@ -55,6 +58,9 @@ func (a *ApprovalRequest) UnmarshalBinary(data []byte) error {
 	}
 	if err := gob.NewDecoder(buf).Decode(&a.ExecID); err != nil {
 		return fmt.Errorf("failed to decode ExecID: %w", err)
+	}
+	if err := gob.NewDecoder(buf).Decode(&a.RequestedBy); err != nil {
+		return fmt.Errorf("failed to decode RequestedBy: %w", err)
 	}
 
 	return nil

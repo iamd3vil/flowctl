@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cvhariharan/autopilot/internal/models"
@@ -79,7 +80,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		}
 		approval = models.ApprovalRequest{
 			UUID:        a.Uuid.String(),
-			Status:      string(a.Status),
+			Status:      models.ApprovalType(a.Status),
 			ActionID:    a.ActionID,
 			RequestedBy: a.RequestedBy,
 		}
@@ -94,7 +95,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		}
 		approval = models.ApprovalRequest{
 			UUID:        a.Uuid.String(),
-			Status:      string(a.Status),
+			Status:      models.ApprovalType(a.Status),
 			ActionID:    a.ActionID,
 			RequestedBy: a.RequestedBy,
 		}
@@ -127,7 +128,7 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 		return "", fmt.Errorf("error performing existing approval request check: %w", err)
 	}
 
-	if approvalReq.Status == string(models.ApprovalStatusPending) {
+	if approvalReq.Status == models.ApprovalStatusPending {
 		return "", fmt.Errorf("pending approval request: %s", approvalReq.UUID)
 	}
 
@@ -138,7 +139,7 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 
 	approvalReq = models.ApprovalRequest{
 		UUID:        areq.Uuid.String(),
-		Status:      string(areq.Status),
+		Status:      models.ApprovalType(areq.Status),
 		ActionID:    action.ID,
 		ExecID:      execID,
 		RequestedBy: areq.RequestedBy,
@@ -176,7 +177,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 
 		existingReq = models.ApprovalRequest{
 			UUID:        areq.Uuid.String(),
-			Status:      string(areq.Status),
+			Status:      models.ApprovalType(areq.Status),
 			ActionID:    areq.ActionID,
 			ExecID:      execID,
 			RequestedBy: areq.RequestedBy,
@@ -187,7 +188,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 		}
 	}
 
-	if existingReq.Status == string(models.ApprovalStatusPending) {
+	if existingReq.Status == models.ApprovalStatusPending {
 		return existingReq, nil
 	}
 
@@ -261,7 +262,7 @@ func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string) (mod
 
 		approval = models.ApprovalRequest{
 			UUID:        areq.Uuid.String(),
-			Status:      string(areq.Status),
+			Status:      models.ApprovalType(areq.Status),
 			ActionID:    areq.ActionID,
 			ExecID:      exec.ExecID,
 			RequestedBy: areq.RequestedBy,
@@ -271,6 +272,8 @@ func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string) (mod
 			return models.ApprovalRequest{}, fmt.Errorf("error caching approval: %w", err)
 		}
 	}
+
+	log.Printf("Approval request: %+v\n", approval)
 
 	return approval, nil
 }
