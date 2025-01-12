@@ -128,9 +128,11 @@ CREATE TABLE IF NOT EXISTS approvals (
     action_id VARCHAR(50) NOT NULL,
     status approval_status NOT NULL DEFAULT 'pending',
     approvers JSONB DEFAULT '{}'::jsonb NOT NULL,
+    decided_by INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    FOREIGN KEY (exec_log_id) REFERENCES execution_log(id) ON DELETE CASCADE
+    FOREIGN KEY (exec_log_id) REFERENCES execution_log(id) ON DELETE CASCADE,
+    FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_approvals_uuid ON approvals(uuid);
 CREATE UNIQUE INDEX idx_approvals_exec_action_id ON approvals(exec_log_id, action_id);

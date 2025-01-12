@@ -114,8 +114,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	views.GET("/logs/:logID", h.HandleLogStreaming)
 	views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
-	views.GET("/:execID/:actionID", h.HandleExecTrigger)
-	views.GET("/approve/:approvalID", h.HandleApprovalAction)
+	views.GET("/approvals/:approvalID", h.HandleApprovalRequest)
 
 	admin := e.Group("/admin")
 	admin.Use(ah.AuthorizeForRole("admin"))

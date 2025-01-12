@@ -7,19 +7,29 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const addApprovalRequest = `-- name: AddApprovalRequest :one
-INSERT INTO approvals (
-    exec_log_id,
-    approvers,
-    action_id
-) VALUES (
-    $1, $2, $3
-) RETURNING id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at
+WITH inserted_approval AS (
+    INSERT INTO approvals (
+        exec_log_id,
+        approvers,
+        action_id
+    ) VALUES (
+        $1, $2, $3
+    ) RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
+)
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM inserted_approval a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
 `
 
 type AddApprovalRequestParams struct {
@@ -28,9 +38,22 @@ type AddApprovalRequestParams struct {
 	ActionID  string          `db:"action_id" json:"action_id"`
 }
 
-func (q *Queries) AddApprovalRequest(ctx context.Context, arg AddApprovalRequestParams) (Approval, error) {
+type AddApprovalRequestRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) AddApprovalRequest(ctx context.Context, arg AddApprovalRequestParams) (AddApprovalRequestRow, error) {
 	row := q.db.QueryRowContext(ctx, addApprovalRequest, arg.ExecLogID, arg.Approvers, arg.ActionID)
-	var i Approval
+	var i AddApprovalRequestRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -38,19 +61,49 @@ func (q *Queries) AddApprovalRequest(ctx context.Context, arg AddApprovalRequest
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }
 
 const approveRequestByUUID = `-- name: ApproveRequestByUUID :one
-UPDATE approvals SET status = 'approved', updated_at = NOW() WHERE uuid = $1 RETURNING id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at
+WITH updated AS (
+    UPDATE approvals SET status = 'approved', decided_by = $2, updated_at = NOW()
+    WHERE approvals.uuid = $1
+    RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
+)
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM updated a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
 `
 
-func (q *Queries) ApproveRequestByUUID(ctx context.Context, argUuid uuid.UUID) (Approval, error) {
-	row := q.db.QueryRowContext(ctx, approveRequestByUUID, argUuid)
-	var i Approval
+type ApproveRequestByUUIDParams struct {
+	Uuid      uuid.UUID     `db:"uuid" json:"uuid"`
+	DecidedBy sql.NullInt32 `db:"decided_by" json:"decided_by"`
+}
+
+type ApproveRequestByUUIDRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) ApproveRequestByUUID(ctx context.Context, arg ApproveRequestByUUIDParams) (ApproveRequestByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, approveRequestByUUID, arg.Uuid, arg.DecidedBy)
+	var i ApproveRequestByUUIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -58,19 +111,40 @@ func (q *Queries) ApproveRequestByUUID(ctx context.Context, argUuid uuid.UUID) (
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }
 
 const getApprovalByUUID = `-- name: GetApprovalByUUID :one
-SELECT id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at FROM approvals WHERE uuid = $1
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM approvals a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
+WHERE a.uuid = $1
 `
 
-func (q *Queries) GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (Approval, error) {
+type GetApprovalByUUIDRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (GetApprovalByUUIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getApprovalByUUID, argUuid)
-	var i Approval
+	var i GetApprovalByUUIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -78,8 +152,10 @@ func (q *Queries) GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (App
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }
@@ -88,7 +164,7 @@ const getApprovalRequestForActionAndExec = `-- name: GetApprovalRequestForAction
 WITH exec_lookup AS (
     SELECT id FROM execution_log WHERE exec_id = $1
 )
-SELECT id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at FROM approvals WHERE exec_log_id = (SELECT id FROM exec_lookup) AND action_id = $2
+SELECT id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at FROM approvals WHERE exec_log_id = (SELECT id FROM exec_lookup) AND action_id = $2
 `
 
 type GetApprovalRequestForActionAndExecParams struct {
@@ -106,6 +182,7 @@ func (q *Queries) GetApprovalRequestForActionAndExec(ctx context.Context, arg Ge
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -114,14 +191,33 @@ func (q *Queries) GetApprovalRequestForActionAndExec(ctx context.Context, arg Ge
 
 const getPendingApprovalRequestForExec = `-- name: GetPendingApprovalRequestForExec :one
 WITH exec_lookup AS (
-    SELECT id FROM execution_log WHERE exec_id = $1
+    SELECT id FROM execution_log WHERE execution_log.exec_id = $1
 )
-SELECT id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at FROM approvals WHERE exec_log_id = (SELECT id FROM exec_lookup) AND status = 'pending'
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM approvals a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
+WHERE a.exec_log_id = (SELECT id FROM exec_lookup) AND a.status = 'pending'
 `
 
-func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, execID string) (Approval, error) {
+type GetPendingApprovalRequestForExecRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, execID string) (GetPendingApprovalRequestForExecRow, error) {
 	row := q.db.QueryRowContext(ctx, getPendingApprovalRequestForExec, execID)
-	var i Approval
+	var i GetPendingApprovalRequestForExecRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -129,19 +225,49 @@ func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, execID s
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }
 
 const rejectRequestByUUID = `-- name: RejectRequestByUUID :one
-UPDATE approvals SET status = 'rejected', updated_at = NOW() WHERE uuid = $1 RETURNING id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at
+WITH updated AS (
+    UPDATE approvals SET status = 'rejected', decided_by = $2, updated_at = NOW()
+    WHERE approvals.uuid = $1
+    RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
+)
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM updated a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
 `
 
-func (q *Queries) RejectRequestByUUID(ctx context.Context, argUuid uuid.UUID) (Approval, error) {
-	row := q.db.QueryRowContext(ctx, rejectRequestByUUID, argUuid)
-	var i Approval
+type RejectRequestByUUIDParams struct {
+	Uuid      uuid.UUID     `db:"uuid" json:"uuid"`
+	DecidedBy sql.NullInt32 `db:"decided_by" json:"decided_by"`
+}
+
+type RejectRequestByUUIDRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, rejectRequestByUUID, arg.Uuid, arg.DecidedBy)
+	var i RejectRequestByUUIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -149,19 +275,49 @@ func (q *Queries) RejectRequestByUUID(ctx context.Context, argUuid uuid.UUID) (A
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }
 
 const updateApprovalStatusByUUID = `-- name: UpdateApprovalStatusByUUID :one
-UPDATE approvals SET status = $1, updated_at = NOW() WHERE uuid = $1 RETURNING id, uuid, exec_log_id, action_id, status, approvers, created_at, updated_at
+WITH updated AS (
+    UPDATE approvals SET status = $1, decided_by = $2, updated_at = NOW()
+    WHERE uuid = $1
+    RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
+)
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM updated a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN users u ON el.triggered_by = u.id
 `
 
-func (q *Queries) UpdateApprovalStatusByUUID(ctx context.Context, status ApprovalStatus) (Approval, error) {
-	row := q.db.QueryRowContext(ctx, updateApprovalStatusByUUID, status)
-	var i Approval
+type UpdateApprovalStatusByUUIDParams struct {
+	Status    ApprovalStatus `db:"status" json:"status"`
+	DecidedBy sql.NullInt32  `db:"decided_by" json:"decided_by"`
+}
+
+type UpdateApprovalStatusByUUIDRow struct {
+	ID          int32           `db:"id" json:"id"`
+	Uuid        uuid.UUID       `db:"uuid" json:"uuid"`
+	ExecLogID   int32           `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string          `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus  `db:"status" json:"status"`
+	Approvers   json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy   sql.NullInt32   `db:"decided_by" json:"decided_by"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+	RequestedBy string          `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) UpdateApprovalStatusByUUID(ctx context.Context, arg UpdateApprovalStatusByUUIDParams) (UpdateApprovalStatusByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, updateApprovalStatusByUUID, arg.Status, arg.DecidedBy)
+	var i UpdateApprovalStatusByUUIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -169,8 +325,10 @@ func (q *Queries) UpdateApprovalStatusByUUID(ctx context.Context, status Approva
 		&i.ActionID,
 		&i.Status,
 		&i.Approvers,
+		&i.DecidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RequestedBy,
 	)
 	return i, err
 }

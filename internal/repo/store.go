@@ -13,7 +13,7 @@ import (
 type Store interface {
 	Querier
 	OverwriteGroupsForUserTx(ctx context.Context, userUUID uuid.UUID, groups []string) error
-	RequestApprovalTx(ctx context.Context, execID string, action models.Action) (Approval, error)
+	RequestApprovalTx(ctx context.Context, execID string, action models.Action) (AddApprovalRequestRow, error)
 }
 
 type PostgresStore struct {
@@ -62,25 +62,25 @@ func (p *PostgresStore) OverwriteGroupsForUserTx(ctx context.Context, userUUID u
 	return nil
 }
 
-func (p *PostgresStore) RequestApprovalTx(ctx context.Context, execID string, action models.Action) (Approval, error) {
+func (p *PostgresStore) RequestApprovalTx(ctx context.Context, execID string, action models.Action) (AddApprovalRequestRow, error) {
 	if len(action.Approval) == 0 {
-		return Approval{}, fmt.Errorf("no approvers specified")
+		return AddApprovalRequestRow{}, fmt.Errorf("no approvers specified")
 	}
 
 	tx, err := p.db.Begin()
 	if err != nil {
-		return Approval{}, fmt.Errorf("could not start transaction: %w", err)
+		return AddApprovalRequestRow{}, fmt.Errorf("could not start transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	e, err := p.GetExecutionByExecID(ctx, execID)
 	if err != nil {
-		return Approval{}, fmt.Errorf("could not get exec details for %s: %w", execID, err)
+		return AddApprovalRequestRow{}, fmt.Errorf("could not get exec details for %s: %w", execID, err)
 	}
 
 	approvers, err := json.Marshal(action.Approval)
 	if err != nil {
-		return Approval{}, fmt.Errorf("could not marshal approvers list: %w", err)
+		return AddApprovalRequestRow{}, fmt.Errorf("could not marshal approvers list: %w", err)
 	}
 
 	a, err := p.AddApprovalRequest(ctx, AddApprovalRequestParams{
@@ -89,11 +89,11 @@ func (p *PostgresStore) RequestApprovalTx(ctx context.Context, execID string, ac
 		ActionID:  action.ID,
 	})
 	if err != nil {
-		return Approval{}, fmt.Errorf("could not create approval request: %w", err)
+		return AddApprovalRequestRow{}, fmt.Errorf("could not create approval request: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Approval{}, fmt.Errorf("coudl not commit transaction: %w", err)
+		return AddApprovalRequestRow{}, fmt.Errorf("coudl not commit transaction: %w", err)
 	}
 
 	return a, nil

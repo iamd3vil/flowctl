@@ -20,35 +20,95 @@ var (
 )
 
 const (
-	ApprovalIDPrefix     = "approval:%d"
+	ApprovalIDPrefix     = "approval:execid:%d"
+	ApprovalUUIDPrefix   = "approval:uuid:%s"
 	ApprovalCacheTimeout = 1 * time.Hour
 )
 
-func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID string, status models.ApprovalType) error {
+// Helper function to cache approval in both locations
+func (c *Core) cacheApproval(ctx context.Context, execID int32, approval models.ApprovalRequest) error {
+	// Cache by execID
+	if err := c.redisClient.Set(ctx,
+		fmt.Sprintf(ApprovalIDPrefix, execID),
+		approval,
+		ApprovalCacheTimeout).Err(); err != nil {
+		return fmt.Errorf("failed to cache approval by execID: %w", err)
+	}
+
+	// Cache by UUID
+	if err := c.redisClient.Set(ctx,
+		fmt.Sprintf(ApprovalUUIDPrefix, approval.UUID),
+		approval,
+		ApprovalCacheTimeout).Err(); err != nil {
+		return fmt.Errorf("failed to cache approval by UUID: %w", err)
+	}
+
+	return nil
+}
+
+// ApproveOrRejectAction handles approval or rejection of an action request by a user.
+// It takes the approval UUID, the ID of the user making the decision, and the approval status.
+// The function updates both the database and Redis cache with the decision.
+func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedBy string, status models.ApprovalType) error {
 	var err error
 	uid, err := uuid.Parse(approvalUUID)
 	if err != nil {
 		return fmt.Errorf("approval UUID is not a UUID: %w", err)
 	}
 
-	var approval repo.Approval
+	userid, err := uuid.Parse(decidedBy)
+	if err != nil {
+		return fmt.Errorf("decidedby UUID is not a UUID: %w", err)
+	}
+
+	user, err := c.store.GetUserByUUID(ctx, userid)
+	if err != nil {
+		return err
+	}
+
+	var approval models.ApprovalRequest
+	var execLogID int32
 	switch status {
 	case models.ApprovalStatusApproved:
-		approval, err = c.store.ApproveRequestByUUID(ctx, uid)
+		a, err := c.store.ApproveRequestByUUID(ctx, repo.ApproveRequestByUUIDParams{
+			Uuid:      uid,
+			DecidedBy: sql.NullInt32{Int32: user.ID, Valid: true},
+		})
 		if err != nil {
 			return fmt.Errorf("could not approve request %s: %w", approvalUUID, err)
 		}
+		approval = models.ApprovalRequest{
+			UUID:        a.Uuid.String(),
+			Status:      string(a.Status),
+			ActionID:    a.ActionID,
+			RequestedBy: a.RequestedBy,
+		}
+		execLogID = a.ExecLogID
 	case models.ApprovalStatusRejected:
-		approval, err = c.store.RejectRequestByUUID(ctx, uid)
+		a, err := c.store.RejectRequestByUUID(ctx, repo.RejectRequestByUUIDParams{
+			Uuid:      uid,
+			DecidedBy: sql.NullInt32{Int32: user.ID, Valid: true},
+		})
 		if err != nil {
 			return fmt.Errorf("could not reject request %s: %w", approvalUUID, err)
 		}
+		approval = models.ApprovalRequest{
+			UUID:        a.Uuid.String(),
+			Status:      string(a.Status),
+			ActionID:    a.ActionID,
+			RequestedBy: a.RequestedBy,
+		}
+		execLogID = a.ExecLogID
 	}
 
-	// Update the cache
-	if err := c.redisClient.Set(ctx, fmt.Sprintf(ApprovalIDPrefix, approval.ExecLogID),
-		models.ApprovalRequest{UUID: approval.Uuid.String(), Status: string(approval.Status), ActionID: approval.ActionID},
-		ApprovalCacheTimeout).Err(); err != nil {
+	exec, err := c.store.GetExecutionByID(ctx, execLogID)
+	if err != nil {
+		return fmt.Errorf("could not get execution for approval %s: %w", approvalUUID, err)
+	}
+	approval.ExecID = exec.ExecID
+
+	// Update the cache using approval UUID
+	if err := c.cacheApproval(ctx, execLogID, approval); err != nil {
 		return err
 	}
 
@@ -76,8 +136,15 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 		return "", err
 	}
 
-	if _, err := c.redisClient.Set(ctx, fmt.Sprintf(ApprovalIDPrefix, exec.ID),
-		models.ApprovalRequest{UUID: areq.Uuid.String(), Status: string(areq.Status), ActionID: action.ID}, ApprovalCacheTimeout).Result(); err != nil {
+	approvalReq = models.ApprovalRequest{
+		UUID:        areq.Uuid.String(),
+		Status:      string(areq.Status),
+		ActionID:    action.ID,
+		ExecID:      execID,
+		RequestedBy: areq.RequestedBy,
+	}
+
+	if err := c.cacheApproval(ctx, exec.ID, approvalReq); err != nil {
 		return "", err
 	}
 
@@ -107,11 +174,15 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 			return models.ApprovalRequest{}, ErrNil
 		}
 
-		existingReq = models.ApprovalRequest{UUID: areq.Uuid.String(), Status: string(areq.Status), ActionID: areq.ActionID}
+		existingReq = models.ApprovalRequest{
+			UUID:        areq.Uuid.String(),
+			Status:      string(areq.Status),
+			ActionID:    areq.ActionID,
+			ExecID:      execID,
+			RequestedBy: areq.RequestedBy,
+		}
 
-		// Cache
-		if _, err := c.redisClient.Set(ctx, fmt.Sprintf(ApprovalIDPrefix, exec.ID),
-			existingReq, 0).Result(); err != nil {
+		if err := c.cacheApproval(ctx, exec.ID, existingReq); err != nil {
 			return models.ApprovalRequest{}, err
 		}
 	}
@@ -128,6 +199,7 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string
 		return nil
 	}
 
+	// use parent exec ID if available for approval requests
 	eID := execID
 	if parentExecID != "" {
 		eID = parentExecID
@@ -159,4 +231,46 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string
 	}
 
 	return tasks.ErrPendingApproval
+}
+
+func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string) (models.ApprovalRequest, error) {
+	var approval models.ApprovalRequest
+	err := c.redisClient.Get(ctx, fmt.Sprintf(ApprovalUUIDPrefix, approvalUUID)).Scan(&approval)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return models.ApprovalRequest{}, fmt.Errorf("error getting approval request by UUID %s: %w", approvalUUID, err)
+	}
+
+	if errors.Is(err, redis.Nil) {
+		uid, err := uuid.Parse(approvalUUID)
+		if err != nil {
+			return models.ApprovalRequest{}, fmt.Errorf("invalid approval UUID: %w", err)
+		}
+
+		areq, err := c.store.GetApprovalByUUID(ctx, uid)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return models.ApprovalRequest{}, ErrNil
+			}
+			return models.ApprovalRequest{}, fmt.Errorf("error getting approval from store: %w", err)
+		}
+
+		exec, err := c.store.GetExecutionByID(ctx, areq.ExecLogID)
+		if err != nil {
+			return models.ApprovalRequest{}, fmt.Errorf("error getting execution: %w", err)
+		}
+
+		approval = models.ApprovalRequest{
+			UUID:        areq.Uuid.String(),
+			Status:      string(areq.Status),
+			ActionID:    areq.ActionID,
+			ExecID:      exec.ExecID,
+			RequestedBy: areq.RequestedBy,
+		}
+
+		if err := c.cacheApproval(ctx, areq.ExecLogID, approval); err != nil {
+			return models.ApprovalRequest{}, fmt.Errorf("error caching approval: %w", err)
+		}
+	}
+
+	return approval, nil
 }

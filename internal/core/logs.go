@@ -166,6 +166,7 @@ func (c *Core) checkErrors(ctx context.Context, execID string) (chan models.Stre
 					return
 				}
 			}
+			time.Sleep(5 * time.Second)
 		}
 	}(ch)
 

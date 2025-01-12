@@ -194,6 +194,7 @@ type Approval struct {
 	ActionID  string          `db:"action_id" json:"action_id"`
 	Status    ApprovalStatus  `db:"status" json:"status"`
 	Approvers json.RawMessage `db:"approvers" json:"approvers"`
+	DecidedBy sql.NullInt32   `db:"decided_by" json:"decided_by"`
 	CreatedAt time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time       `db:"updated_at" json:"updated_at"`
 }

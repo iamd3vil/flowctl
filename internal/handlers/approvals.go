@@ -1,37 +1,35 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/cvhariharan/autopilot/internal/models"
+	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleApprovalRequest(c echo.Context) error {
-	execID := c.Param("execID")
-
-	f, _ := h.co.GetFlowFromLogID(execID)
-
-	r, err := h.co.RequestApproval(c.Request().Context(), execID, f.Actions[0])
-	if err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-
-	return c.String(http.StatusOK, r)
-}
-
-func (h *Handler) HandleApprovalAction(c echo.Context) error {
 	approvalID := c.Param("approvalID")
-
 	if approvalID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "approval ID cannot be empty")
 	}
 
-	if err := h.co.ApproveOrRejectAction(c.Request().Context(), approvalID, models.ApprovalStatusApproved); err != nil {
+	areq, err := h.co.GetApprovalRequest(c.Request().Context(), approvalID)
+	if err != nil {
 		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not approve request")
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not get approval request")
 	}
 
-	return c.NoContent(http.StatusOK)
+	f, err := h.co.GetFlowFromLogID(areq.ExecID)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not get flow")
+	}
+
+	return render(c, ui.ApprovalPage(ui.ApprovalRequest{
+		ID:          approvalID,
+		Title:       f.Meta.Name,
+		Description: fmt.Sprintf("Approval request to execute action %q from flow %q", areq.ActionID, f.Meta.Name),
+		RequestedBy: areq.RequestedBy,
+	}), http.StatusOK)
 }
