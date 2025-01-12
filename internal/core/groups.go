@@ -59,6 +59,15 @@ func (c *Core) GetGroupByUUID(ctx context.Context, groupUUID string) (models.Gro
 	return c.repoGroupToGroup(g), nil
 }
 
+func (c *Core) GetGroupByName(ctx context.Context, name string) (models.Group, error) {
+	g, err := c.store.GetGroupByName(ctx, name)
+	if err != nil {
+		return models.Group{}, fmt.Errorf("could not get group with name %s: %w", name, err)
+	}
+
+	return c.repoGroupToGroup(g), nil
+}
+
 func (c *Core) DeleteGroupByUUID(ctx context.Context, groupUUID string) error {
 	gid, err := uuid.Parse(groupUUID)
 	if err != nil {

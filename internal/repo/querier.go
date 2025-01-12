@@ -34,6 +34,7 @@ type Querier interface {
 	GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]ExecutionLog, error)
 	GetFlowBySlug(ctx context.Context, slug string) (Flow, error)
 	GetFlowFromExecID(ctx context.Context, execID string) (GetFlowFromExecIDRow, error)
+	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
 	GetInputForExecByUUID(ctx context.Context, execID string) (json.RawMessage, error)

@@ -41,8 +41,13 @@ func (h *Handler) ApprovalMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 				}
 			case strings.HasPrefix(approver, "groups/"):
 				groupName := strings.TrimPrefix(approver, "groups/")
+				groupID, err := h.co.GetGroupByName(c.Request().Context(), groupName)
+				if err != nil {
+					c.Logger().Error(err)
+					return echo.NewHTTPError(http.StatusInternalServerError, "could not get group from approvers list")
+				}
 				for _, group := range user.Groups {
-					if group == groupName {
+					if group == groupID.ID {
 						authorized = true
 						break
 					}
