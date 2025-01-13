@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -134,7 +133,8 @@ func (r *FlowRunner) runAction(ctx context.Context, action models.Action, srcdir
 		if len(matches) > 0 {
 			inputExpr := matches[0][1]
 			env := map[string]interface{}{
-				"input": input,
+				"input":   input,
+				"secrets": viper.GetStringMapString("secrets"),
 			}
 
 			program, err := expr.Compile(inputExpr, expr.Env(env))
@@ -148,13 +148,11 @@ func (r *FlowRunner) runAction(ctx context.Context, action models.Action, srcdir
 			}
 
 			action.Variables[i][action.Variables[i].Name()] = output
-			log.Println(action.Variables[i])
 		}
 	}
 
 	// Add output env variable
 	action.Variables = append(action.Variables, map[string]interface{}{"OUTPUT": "/tmp/flow/output"})
-	log.Println(filepath.Join(viper.GetString("app.flows_directory"), srcdir))
 	err = runner.NewDockerRunner(action.ID, r.artifactManager, runner.DockerRunnerOptions{
 		ShowImagePull: true,
 		Stdout:        streamlogger,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -47,6 +48,10 @@ func init() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(".")
+	viper.SetEnvPrefix("AUTOPILOT")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.RegisterAlias("AUTOPILOT_SECRETS_", "secrets.")
 
 	// Default Config
 	viper.SetDefault("db.dbname", "autopilot")
