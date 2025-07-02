@@ -59,6 +59,11 @@ func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
 }
 
 func (h *Handler) HandleLoginPage(c echo.Context) error {
+	var req AuthReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(http.StatusUnauthorized, "invalid request", err, nil)
+	}
+
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 
 	if err == simplesessions.ErrInvalidSession {
@@ -72,14 +77,11 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, err)
 	}
 
-	username := c.FormValue("username")
-	password := c.FormValue("password")
-
-	if username == "" || password == "" {
+	if req.Username == "" || req.Password == "" {
 		return wrapError(http.StatusUnauthorized, "username or password cannot be empty", fmt.Errorf("username or password cannot be empty"), nil)
 	}
 
-	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), username)
+	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), req.Username)
 	if err != nil {
 		return wrapError(http.StatusUnauthorized, "could not authenticate user", err, nil)
 	}
@@ -89,7 +91,7 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 		return wrapError(http.StatusUnauthorized, "invalid authentication method", fmt.Errorf("invalid authentication method for user: %s", user.ID), nil)
 	}
 
-	if err := user.CheckPassword(password); err != nil {
+	if err := user.CheckPassword(req.Password); err != nil {
 		return wrapError(http.StatusUnauthorized, "invalid credentials", err, nil)
 	}
 

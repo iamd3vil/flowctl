@@ -151,6 +151,13 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 		log.Fatalf("invalid root_url: %v", err)
 	}
 
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:   "web",
+		Index:  "index.html",
+		HTML5:  true,
+		Browse: false,
+	}))
+
 	log.Fatal(e.Start(u.Host))
 }
 
