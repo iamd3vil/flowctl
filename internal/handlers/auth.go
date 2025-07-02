@@ -1,9 +1,8 @@
-package auth
+package handlers
 
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -11,14 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/models"
-	"github.com/cvhariharan/autopilot/internal/ui"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
-	"github.com/zerodha/simplesessions/stores/postgres/v3"
 	"github.com/zerodha/simplesessions/v3"
 	"golang.org/x/oauth2"
 )
@@ -30,69 +25,7 @@ const (
 	RedirectAfterLogin = "/view/"
 )
 
-type OIDCAuthConfig struct {
-	Issuer       string
-	ClientID     string
-	ClientSecret string
-	Scopes       []string
-	provider     *oidc.Provider
-	verifier     *oidc.IDTokenVerifier
-	oauth2Config *oauth2.Config
-}
-
-func getCookie(name string, r interface{}) (*http.Cookie, error) {
-	rd := r.(echo.Context)
-	return rd.Cookie(name)
-}
-
-func setCookie(cookie *http.Cookie, w interface{}) error {
-	wr := w.(echo.Context)
-	wr.SetCookie(cookie)
-	return nil
-}
-
-type AuthHandler struct {
-	sessMgr    *simplesessions.Manager
-	authconfig OIDCAuthConfig
-	co         *core.Core
-}
-
-func NewAuthHandler(db *sql.DB, co *core.Core, authconfig OIDCAuthConfig) (*AuthHandler, error) {
-	sessMgr := simplesessions.New(simplesessions.Options{
-		EnableAutoCreate: false,
-		Cookie: simplesessions.CookieOptions{
-			IsHTTPOnly: true,
-			MaxAge:     SessionTimeout,
-		},
-	})
-
-	sessMgr.SetCookieHooks(getCookie, setCookie)
-
-	sessionStore, err := postgres.New(postgres.Opt{
-		TTL: SessionTimeout,
-	}, db)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize postgres session store: %w", err)
-	}
-
-	sessMgr.UseStore(sessionStore)
-
-	go func() {
-		if err := sessionStore.Prune(); err != nil {
-			log.Printf("error pruning login sessions: %v", err)
-		}
-		time.Sleep(SessionTimeout / 2)
-	}()
-
-	ah := &AuthHandler{sessMgr: sessMgr, co: co}
-	if err := ah.initOIDC(authconfig); err != nil {
-		return nil, fmt.Errorf("could not initialize OIDC config: %w", err)
-	}
-
-	return ah, nil
-}
-
-func (h *AuthHandler) initOIDC(authconfig OIDCAuthConfig) error {
+func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
 	provider, err := oidc.NewProvider(context.Background(), authconfig.Issuer)
 	if err != nil {
 		return fmt.Errorf("could not initialize new OIDC provider client: %w", err)
@@ -125,59 +58,56 @@ func (h *AuthHandler) initOIDC(authconfig OIDCAuthConfig) error {
 	return nil
 }
 
-func (h *AuthHandler) HandleLoginPage(c echo.Context) error {
-	if c.Request().Method == echo.POST {
-		sess, err := h.sessMgr.Acquire(nil, c, c)
+func (h *Handler) HandleLoginPage(c echo.Context) error {
+	sess, err := h.sessMgr.Acquire(nil, c, c)
 
-		if err == simplesessions.ErrInvalidSession {
-			sess, err = h.sessMgr.NewSession(c, c)
-			if err != nil {
-				return echo.NewHTTPError(http.StatusUnauthorized, err)
-			}
-		}
-
+	if err == simplesessions.ErrInvalidSession {
+		sess, err = h.sessMgr.NewSession(c, c)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized, err)
 		}
-
-		username := c.FormValue("username")
-		password := c.FormValue("password")
-
-		if username == "" || password == "" {
-			return render(c, ui.LoginPage("username or password cannot be empty"))
-		}
-
-		user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), username)
-		if err != nil {
-			return render(c, ui.LoginPage("could not authenticate user"))
-		}
-
-		// not using password based login
-		if user.LoginType != models.StandardLoginType {
-			return render(c, ui.LoginPage("invalid authentication method"))
-		}
-
-		if err := user.CheckPassword(password); err != nil {
-			return render(c, ui.LoginPage("invalid credentials"))
-		}
-
-		sess.Set("method", "password")
-
-		var groups []string
-		for _, v := range user.Groups {
-			groups = append(groups, v.ID)
-		}
-
-		sess.Set("user", user.ToUserInfo())
-
-		c.Logger().Info("login successful")
-		c.Response().Header().Set("HX-Redirect", RedirectAfterLogin)
-		return c.NoContent(http.StatusCreated)
 	}
-	return render(c, ui.LoginPage(""))
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, err)
+	}
+
+	username := c.FormValue("username")
+	password := c.FormValue("password")
+
+	if username == "" || password == "" {
+		return wrapError(http.StatusUnauthorized, "username or password cannot be empty", fmt.Errorf("username or password cannot be empty"), nil)
+	}
+
+	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), username)
+	if err != nil {
+		return wrapError(http.StatusUnauthorized, "could not authenticate user", err, nil)
+	}
+
+	// not using password based login
+	if user.LoginType != models.StandardLoginType {
+		return wrapError(http.StatusUnauthorized, "invalid authentication method", fmt.Errorf("invalid authentication method for user: %s", user.ID), nil)
+	}
+
+	if err := user.CheckPassword(password); err != nil {
+		return wrapError(http.StatusUnauthorized, "invalid credentials", err, nil)
+	}
+
+	sess.Set("method", "password")
+
+	var groups []string
+	for _, v := range user.Groups {
+		groups = append(groups, v.ID)
+	}
+
+	sess.Set("user", user.ToUserInfo())
+
+	c.Logger().Info("login successful")
+	c.Response().Header().Set("HX-Redirect", RedirectAfterLogin)
+	return c.NoContent(http.StatusOK)
 }
 
-func (h *AuthHandler) HandleOIDCLogin(c echo.Context) error {
+func (h *Handler) HandleOIDCLogin(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 
 	if err == simplesessions.ErrInvalidSession {
@@ -212,7 +142,7 @@ func generateRandomState() (string, error) {
 	return state, nil
 }
 
-func (h *AuthHandler) HandleAuthCallback(c echo.Context) error {
+func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "session does not exist")
@@ -270,7 +200,7 @@ func (h *AuthHandler) HandleAuthCallback(c echo.Context) error {
 	return c.Redirect(http.StatusTemporaryRedirect, redirectURL.(string))
 }
 
-func (h *AuthHandler) handleUnauthenticated(c echo.Context) error {
+func (h *Handler) handleUnauthenticated(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 
 	if err == simplesessions.ErrInvalidSession {
@@ -289,12 +219,4 @@ func (h *AuthHandler) handleUnauthenticated(c echo.Context) error {
 
 	// For web requests, redirect to login page
 	return c.Redirect(http.StatusTemporaryRedirect, LoginPath)
-}
-
-func render(c echo.Context, component templ.Component) error {
-	return component.Render(c.Request().Context(), c.Response().Writer)
-}
-
-func showErrorPage(c echo.Context, code int, message string) error {
-	return ui.ErrorPage(code, message).Render(c.Request().Context(), c.Response().Writer)
 }

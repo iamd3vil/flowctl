@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/cvhariharan/autopilot/internal/auth"
 	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/handlers"
 	"github.com/cvhariharan/autopilot/internal/models"
@@ -46,6 +46,16 @@ func init() {
 }
 
 func start(isWorker bool) {
+	loglevel := slog.LevelError
+	if os.Getenv("DEBUG_LOG") == "true" {
+		loglevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: loglevel,
+	}))
+	slog.SetDefault(logger)
+
 	db, err := sqlx.Connect("postgres", fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", viper.GetString("db.user"), viper.GetString("db.password"), viper.GetString("db.host"), viper.GetInt("db.port"), viper.GetString("db.dbname")))
 	if err != nil {
 		log.Fatalf("could not connect to database: %v", err)
@@ -59,13 +69,13 @@ func start(isWorker bool) {
 	defer redisClient.Close()
 
 	if isWorker {
-		startWorker(db, redisClient)
+		startWorker(db, redisClient, logger)
 	} else {
-		startServer(db, redisClient)
+		startServer(db, redisClient, logger)
 	}
 }
 
-func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
+func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Logger) {
 	asynqClient := asynq.NewClientFromRedisClient(redisClient)
 	defer asynqClient.Close()
 
@@ -78,9 +88,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 
 	co := core.NewCore(flows, s, asynqClient, redisClient)
 
-	h := handlers.NewHandler(co)
-
-	ah, err := auth.NewAuthHandler(db.DB, co, auth.OIDCAuthConfig{
+	h, err := handlers.NewHandler(logger, db.DB, co, handlers.OIDCAuthConfig{
 		Issuer:       viper.GetString("app.oidc.issuer"),
 		ClientID:     viper.GetString("app.oidc.client_id"),
 		ClientSecret: viper.GetString("app.oidc.client_secret"),
@@ -93,19 +101,19 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	e.Use(middleware.Logger())
 
 	e.GET("/ping", h.HandlePing)
-	e.GET("/login", ah.HandleLoginPage)
-	e.POST("/login", ah.HandleLoginPage)
+	e.GET("/login", h.HandleLoginPage)
+	e.POST("/login", h.HandleLoginPage)
 
 	// oidc
-	e.GET("/login/oidc", ah.HandleOIDCLogin)
-	e.GET("/auth/callback", ah.HandleAuthCallback)
+	e.GET("/login/oidc", h.HandleOIDCLogin)
+	e.GET("/auth/callback", h.HandleAuthCallback)
 
 	e.Logger.SetLevel(0)
 
-	e.HTTPErrorHandler = handlers.ErrorHandler
+	e.HTTPErrorHandler = h.ErrorHandler
 
 	views := e.Group("/view")
-	views.Use(ah.Authenticate)
+	views.Use(h.Authenticate)
 
 	views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:flow", h.HandleFlowForm)
@@ -118,7 +126,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient) {
 	views.POST("/approvals/:approvalID/:action", h.HandleApprovalAction, h.ApprovalMiddleware)
 
 	admin := e.Group("/admin")
-	admin.Use(ah.AuthorizeForRole("admin"))
+	admin.Use(h.AuthorizeForRole("admin"))
 	admin.GET("/groups", h.HandleGroup)
 	admin.POST("/groups", h.HandleCreateGroup)
 	admin.DELETE("/groups/:groupID", h.HandleDeleteGroup)
@@ -250,7 +258,7 @@ func processYAMLFiles(rootDir string, store repo.Store) (map[string]models.Flow,
 	return m, nil
 }
 
-func startWorker(db *sqlx.DB, redisClient redis.UniversalClient) {
+func startWorker(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Logger) {
 	asynqClient := asynq.NewClientFromRedisClient(redisClient)
 	defer asynqClient.Close()
 

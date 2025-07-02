@@ -1,4 +1,4 @@
-package auth
+package handlers
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
+func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sess, err := h.sessMgr.Acquire(nil, c, c)
 		if err != nil {
@@ -64,7 +64,7 @@ func (h *AuthHandler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func (h *AuthHandler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
+func (h *Handler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			userInfo, err := h.getUserInfo(c)
@@ -76,12 +76,12 @@ func (h *AuthHandler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc 
 				return next(c)
 			}
 
-			return showErrorPage(c, http.StatusForbidden, "not permitted")
+			return wrapError(http.StatusForbidden, "unauthorized", nil, nil)
 		}
 	}
 }
 
-func (h *AuthHandler) getUserInfo(c echo.Context) (models.UserInfo, error) {
+func (h *Handler) getUserInfo(c echo.Context) (models.UserInfo, error) {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 	if err != nil {
 		c.Logger().Error(err)
