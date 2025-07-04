@@ -1,0 +1,37 @@
+{{ define "partials/users_table_rows.html" }} {{ if not . }}
+<tr>
+    <td colspan="4" class="p-4 text-center text-muted-foreground">
+        No users found.
+    </td>
+</tr>
+{{ else }} {{ range . }}
+<tr class="hover:bg-secondary">
+    <td
+        class="whitespace-nowrap py-4 pl-6 pr-3 text-sm font-medium text-gray-900"
+    >
+        {{ .Name }}
+    </td>
+    <td class="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
+        {{ .Username }}
+    </td>
+    <td class="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
+        {{ .NumGroups }} groups
+    </td>
+    <td
+        class="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium"
+    >
+        <button
+            @click="editUser('{{.ID}}')"
+            class="text-primary hover:text-primary/80 mr-4"
+        >
+            Edit
+        </button>
+        <button
+            @click="deleteUser('{{.ID}}')"
+            class="text-destructive hover:text-destructive/80"
+        >
+            Delete
+        </button>
+    </td>
+</tr>
+{{ end }} {{ end }} {{ end }}

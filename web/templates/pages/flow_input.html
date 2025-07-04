@@ -1,0 +1,97 @@
+{{ define "pages/flow_input.html" }} {{ template "layouts/base.html" . }} {{ end
+}} {{ define "content" }}
+<div
+    class="flex h-screen flex-col justify-start items-center"
+    x-data="flowForm('{{.Meta.ID}}')"
+>
+    <div class="py-10 text-center">
+        <h1 class="font-bold text-5xl">{{ .Meta.Name }}</h1>
+        <h3 class="font-light text-xl text-muted-foreground">
+            {{ .Meta.Description }}
+        </h3>
+    </div>
+
+    <form
+        @submit.prevent="submit"
+        id="flow-form"
+        class="max-w-screen-sm py-16 w-screen mx-auto"
+    >
+        {{ range .Inputs }}
+        <div class="mb-5">
+            <label
+                for="{{ .Name }}"
+                class="block mb-2 text-sm font-medium text-muted-foreground"
+                >{{ .Label }}</label
+            >
+            <input
+                type="{{ .Type }}"
+                id="{{ .Name }}"
+                name="{{ .Name }}"
+                placeholder="{{ .Description }}"
+                class="bg-secondary border border-input text-foreground text-sm rounded-lg focus:ring-ring focus:border-ring block w-full p-2.5"
+            />
+            <p
+                class="text-destructive text-sm mt-1"
+                x-text="errors['{{ .Name }}']"
+            ></p>
+        </div>
+        {{ end }}
+        <button
+            type="submit"
+            :disabled="loading"
+            class="text-primary-foreground bg-primary hover:bg-primary/90 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center disabled:opacity-50"
+        >
+            <span x-show="!loading">Submit</span>
+            <span x-show="loading">Submitting...</span>
+        </button>
+    </form>
+</div>
+
+<script>
+    function flowForm(flowId) {
+        return {
+            loading: false,
+            errors: {},
+            async submit(event) {
+                this.loading = true;
+                this.errors = {};
+                const formData = new FormData(event.target);
+
+                try {
+                    const response = await fetch(`/api/v1/trigger/${flowId}`, {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const data = await response.json();
+
+                    if (response.status === 422) {
+                        // Unprocessable Entity for validation errors
+                        this.errors = data.errors || {};
+                        throw new Error(data.message || "Validation failed");
+                    }
+                    if (!response.ok) {
+                        throw new Error(data.message || "An error occurred.");
+                    }
+
+                    window.dispatchEvent(
+                        new CustomEvent("notify", {
+                            detail: { message: data.message, type: "success" },
+                        }),
+                    );
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                } catch (error) {
+                    window.dispatchEvent(
+                        new CustomEvent("notify", {
+                            detail: { message: error.message, type: "error" },
+                        }),
+                    );
+                } finally {
+                    this.loading = false;
+                }
+            },
+        };
+    }
+</script>
+{{ end }}

@@ -1,0 +1,9 @@
+{
+  "name": "autopilot-frontend",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11"
+  }
+}
