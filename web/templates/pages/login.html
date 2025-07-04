@@ -1,5 +1,4 @@
-{{ define "login" }}
-{{ template "partials/header" . }}
+{{ define "login" }} {{ template "partials/header" . }}
 <div
     class="flex h-screen flex-col justify-start items-center"
     x-data="loginform"
@@ -53,62 +52,64 @@
 </div>
 
 <script>
+    document.addEventListener("alpine:init", () => {
+        Alpine.data("loginform", () => ({
+            username: "",
+            password: "",
+            loading: false,
 
-document.addEventListener('alpine:init', () => {
-    Alpine.data('loginform', () => ({
-      username: '',
-      password: '',
-      loading: false,
+            async submit() {
+                this.loading = true;
+                try {
+                    const response = await fetch("/login", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            username: this.username,
+                            password: this.password,
+                        }),
+                    });
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        // Empty response is expected on success
+                        data = {};
+                    }
 
-      async submit() {
-        this.loading = true;
-        try {
-            const response = await fetch("/login", {
-                method: "POST",
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  username: this.username,
-                  password: this.password
-                }),
-            });
-            let data;
-            try {
-                data = await response.json();
-            } catch (e) {
-                // Empty response is expected on success
-                data = {};
-            }
+                    if (!response.ok || data.error) {
+                        throw new Error(data.error || "Login failed");
+                    }
 
-            if (!response.ok || data.error) {
-                throw new Error(data.error || "Login failed");
-            }
+                    // Only show success message if there's a message
+                    if (data.message) {
+                        window.dispatchEvent(
+                            new CustomEvent("notify", {
+                                detail: {
+                                    message: data.message,
+                                    type: "success",
+                                },
+                            }),
+                        );
+                    }
 
-            // Only show success message if there's a message
-            if (data.message) {
-                window.dispatchEvent(
-                  new CustomEvent("notify", {
-                      detail: { message: data.message, type: "success" },
-                  }),
-                );
-            }
-
-            if(response.headers.get("x-redirect")) {
-              window.location.href = response.headers.get("x-redirect");
-            }
-        } catch (error) {
-            window.dispatchEvent(
-                new CustomEvent("notify", {
-                    detail: { message: error.message, type: "error" },
-                }),
-            );
-        } finally {
-            this.loading = false;
-        }
-      }
-    }))
-})
+                    if (response.headers.get("x-redirect")) {
+                        window.location.href =
+                            response.headers.get("x-redirect");
+                    }
+                } catch (error) {
+                    window.dispatchEvent(
+                        new CustomEvent("notify", {
+                            detail: { message: error.message, type: "error" },
+                        }),
+                    );
+                } finally {
+                    this.loading = false;
+                }
+            },
+        }));
+    });
 </script>
-{{ template "partials/footer" . }}
-{{ end }}
+{{ template "partials/footer" . }} {{ end }}

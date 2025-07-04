@@ -78,3 +78,9 @@ func coreGroupToGroup(gu models.Group) Group {
 		Description: gu.Description,
 	}
 }
+
+
+type FlowInputValidationError struct {
+	FieldName string `json:"field"`
+	ErrMessage string `json:"error"`
+}

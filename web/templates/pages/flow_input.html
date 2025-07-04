@@ -1,13 +1,12 @@
-{{ define "pages/flow_input.html" }} {{ template "layouts/base.html" . }} {{ end
-}} {{ define "content" }}
+{{ define "flow_input" }} {{ template "partials/header" . }}
 <div
     class="flex h-screen flex-col justify-start items-center"
-    x-data="flowForm('{{.Meta.ID}}')"
+    x-data="flowForm('{{.Flow.Meta.ID}}')"
 >
     <div class="py-10 text-center">
-        <h1 class="font-bold text-5xl">{{ .Meta.Name }}</h1>
+        <h1 class="font-bold text-5xl">{{ .Flow.Meta.Name }}</h1>
         <h3 class="font-light text-xl text-muted-foreground">
-            {{ .Meta.Description }}
+            {{ .Flow.Meta.Description }}
         </h3>
     </div>
 
@@ -16,7 +15,7 @@
         id="flow-form"
         class="max-w-screen-sm py-16 w-screen mx-auto"
     >
-        {{ range .Inputs }}
+        {{ range .Flow.Inputs }}
         <div class="mb-5">
             <label
                 for="{{ .Name }}"
@@ -56,30 +55,29 @@
                 this.loading = true;
                 this.errors = {};
                 const formData = new FormData(event.target);
+                const jsonData = {};
+
+                // Convert FormData to JSON object
+                formData.forEach((value, key) => {
+                    jsonData[key] = value;
+                });
 
                 try {
                     const response = await fetch(`/api/v1/trigger/${flowId}`, {
                         method: "POST",
-                        body: formData,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(jsonData),
                     });
                     const data = await response.json();
 
-                    if (response.status === 422) {
-                        // Unprocessable Entity for validation errors
-                        this.errors = data.errors || {};
-                        throw new Error(data.message || "Validation failed");
-                    }
                     if (!response.ok) {
-                        throw new Error(data.message || "An error occurred.");
-                    }
-
-                    window.dispatchEvent(
-                        new CustomEvent("notify", {
-                            detail: { message: data.message, type: "success" },
-                        }),
-                    );
-                    if (data.redirect) {
-                        window.location.href = data.redirect;
+                        if (data.field) {
+                            this.errors[data.field] = data.error
+                        } else {
+                          throw new Error(data.error || "An error occurred.");
+                        }
                     }
                 } catch (error) {
                     window.dispatchEvent(
@@ -94,4 +92,4 @@
         };
     }
 </script>
-{{ end }}
+{{ template "partials/footer" .}} {{ end }}

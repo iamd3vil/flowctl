@@ -126,7 +126,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	views.Use(h.Authenticate)
 
 	// views.POST("/trigger/:flow", h.HandleFlowTrigger)
-	// views.GET("/:flow", h.HandleFlowForm)
+	views.GET("/:flow", h.HandleFlowFormView)
 	views.GET("/", h.HandleFlowsListView)
 	// views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
 	// views.GET("/logs/:logID", h.HandleLogStreaming)
@@ -134,6 +134,9 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	views.GET("/approvals/:approvalID", h.HandleApprovalRequest, h.ApprovalMiddleware)
 	views.POST("/approvals/:approvalID/:action", h.HandleApprovalAction, h.ApprovalMiddleware)
+
+	api := e.Group("/api/v1", h.Authenticate)
+	api.POST("/trigger/:flow", h.HandleFlowTrigger)
 
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("admin"))
