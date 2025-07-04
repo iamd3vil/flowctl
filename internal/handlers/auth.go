@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -104,8 +103,12 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 
 	sess.Set("user", user.ToUserInfo())
 
-	c.Logger().Info("login successful")
-	c.Response().Header().Set("HX-Redirect", RedirectAfterLogin)
+	redirectAfterLogin := RedirectAfterLogin
+	if redirect, _ := sess.String(sess.Get("redirect_after_login")); redirect != "" {
+		redirectAfterLogin = redirect
+	}
+
+	c.Response().Header().Set("x-redirect", redirectAfterLogin)
 	return c.NoContent(http.StatusOK)
 }
 
@@ -147,32 +150,31 @@ func generateRandomState() (string, error) {
 func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "session does not exist")
+		return wrapError(http.StatusBadRequest, "session does not exist", err, nil)
 	}
 
 	state, err := sess.Get("state")
 	if err != nil {
-		log.Println(err)
-		return echo.NewHTTPError(http.StatusBadRequest, "state not found")
+		return wrapError(http.StatusBadRequest, "state not found", err, nil)
 	}
 
 	if state.(string) != c.QueryParam("state") {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid state parameter")
+		return wrapError(http.StatusBadRequest, "invalid state parameter", nil, nil)
 	}
 
 	token, err := h.authconfig.oauth2Config.Exchange(context.Background(), c.QueryParam("code"))
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to exchange token")
+		return wrapError(http.StatusInternalServerError, "failed to exchange token", err, nil)
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return echo.NewHTTPError(http.StatusInternalServerError, "no id_token in token response")
+		return wrapError(http.StatusInternalServerError, "no id_token in token response", nil, nil)
 	}
 
 	idToken, err := h.authconfig.verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to verify ID token")
+		return wrapError(http.StatusInternalServerError, "failed to verify ID token", err, nil)
 	}
 
 	var claims struct {
@@ -181,12 +183,12 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 		Groups []string `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to parse claims")
+		return wrapError(http.StatusInternalServerError, "failed to parse claims", err, nil)
 	}
 
 	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), claims.Email)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusForbidden, "user does not exist in autopilot")
+		return wrapError(http.StatusForbidden, "user does not exist in autopilot", err, nil)
 	}
 
 	sess.Set("method", "oidc")
@@ -216,7 +218,7 @@ func (h *Handler) handleUnauthenticated(c echo.Context) error {
 
 	// For API requests, return 401
 	if strings.HasPrefix(c.Request().URL.Path, "/api/") {
-		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+		return wrapError(http.StatusUnauthorized, "authentication required", nil, nil)
 	}
 
 	// For web requests, redirect to login page

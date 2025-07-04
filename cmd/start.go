@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"log"
 	"log/slog"
 	"net/url"
@@ -23,7 +24,6 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,7 +52,7 @@ func start(isWorker bool) {
 		loglevel = slog.LevelDebug
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: loglevel,
 	}))
 	slog.SetDefault(logger)
@@ -99,10 +99,19 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	}
 
 	e := echo.New()
-	e.Use(middleware.Logger())
+	// e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+	//   Format: "method=${method}, uri=${uri}, status=${status}\n",
+	// }))
+
+	t := handlers.Template{
+		Templates: template.Must(template.ParseGlob("web/**/**/*.html")),
+	}
+	e.Renderer = t
+
+	e.Static("/static", "web/static")
 
 	e.GET("/ping", h.HandlePing)
-	e.GET("/login", h.HandleLoginPage)
+	e.GET("/login", h.HandleLoginView)
 	e.POST("/login", h.HandleLoginPage)
 
 	// oidc
@@ -118,7 +127,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	// views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	// views.GET("/:flow", h.HandleFlowForm)
-	// views.GET("/", h.HandleFlowsList)
+	views.GET("/", h.HandleFlowsListView)
 	// views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
 	// views.GET("/logs/:logID", h.HandleLogStreaming)
 	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
@@ -150,13 +159,6 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	if err != nil {
 		log.Fatalf("invalid root_url: %v", err)
 	}
-
-	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Root:   "web",
-		Index:  "index.html",
-		HTML5:  true,
-		Browse: false,
-	}))
 
 	log.Fatal(e.Start(u.Host))
 }

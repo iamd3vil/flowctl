@@ -1,8 +1,8 @@
-{{ define "pages/login.html" }} {{ template "layouts/base.html" . }} {{ end }}
-{{ define "content" }}
+{{ define "login" }}
+{{ template "partials/header" . }}
 <div
     class="flex h-screen flex-col justify-start items-center"
-    x-data="loginForm()"
+    x-data="loginform"
 >
     <p class="font-bold text-5xl pt-24 pb-16">Autopilot</p>
     <form @submit.prevent="submit" class="max-w-sm py-16 w-screen mx-auto">
@@ -14,7 +14,7 @@
             >
             <input
                 type="text"
-                x-model="formData.username"
+                x-model="username"
                 id="username"
                 name="username"
                 class="bg-secondary border border-input text-foreground text-sm rounded-lg focus:ring-ring focus:border-ring block w-full p-2.5"
@@ -28,7 +28,7 @@
             >
             <input
                 type="password"
-                x-model="formData.password"
+                x-model="password"
                 id="password"
                 name="password"
                 class="bg-secondary border border-input text-foreground text-sm rounded-lg focus:ring-ring focus:border-ring block w-full p-2.5"
@@ -53,47 +53,62 @@
 </div>
 
 <script>
-    function loginForm() {
-        return {
-            formData: {
-                username: "",
-                password: "",
-            },
-            loading: false,
-            async submit() {
-                this.loading = true;
-                const body = new URLSearchParams();
-                body.append("username", this.formData.username);
-                body.append("password", this.formData.password);
 
-                try {
-                    const response = await fetch("/api/v1/login", {
-                        method: "POST",
-                        body: body,
-                    });
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.message || "Login failed");
-                    }
-                    window.dispatchEvent(
-                        new CustomEvent("notify", {
-                            detail: { message: data.message, type: "success" },
-                        }),
-                    );
-                    if (data.redirect) {
-                        window.location.href = data.redirect;
-                    }
-                } catch (error) {
-                    window.dispatchEvent(
-                        new CustomEvent("notify", {
-                            detail: { message: error.message, type: "error" },
-                        }),
-                    );
-                } finally {
-                    this.loading = false;
-                }
-            },
-        };
-    }
+document.addEventListener('alpine:init', () => {
+    Alpine.data('loginform', () => ({
+      username: '',
+      password: '',
+      loading: false,
+
+      async submit() {
+        this.loading = true;
+        try {
+            const response = await fetch("/login", {
+                method: "POST",
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  username: this.username,
+                  password: this.password
+                }),
+            });
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                // Empty response is expected on success
+                data = {};
+            }
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error || "Login failed");
+            }
+
+            // Only show success message if there's a message
+            if (data.message) {
+                window.dispatchEvent(
+                  new CustomEvent("notify", {
+                      detail: { message: data.message, type: "success" },
+                  }),
+                );
+            }
+
+            if(response.headers.get("x-redirect")) {
+              window.location.href = response.headers.get("x-redirect");
+            }
+        } catch (error) {
+            window.dispatchEvent(
+                new CustomEvent("notify", {
+                    detail: { message: error.message, type: "error" },
+                }),
+            );
+        } finally {
+            this.loading = false;
+        }
+      }
+    }))
+})
 </script>
+{{ template "partials/footer" . }}
 {{ end }}

@@ -15,19 +15,17 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sess, err := h.sessMgr.Acquire(nil, c, c)
 		if err != nil {
-			c.Logger().Error(err)
 			return h.handleUnauthenticated(c)
 		}
 
 		user, err := sess.Get("user")
 		if err != nil {
-			c.Logger().Error(err)
 			return h.handleUnauthenticated(c)
 		}
 
 		method, err := sess.String(sess.Get("method"))
 		if err != nil {
-			c.Logger().Infof("could not get method: %v", err)
+			h.logger.Error("could not get login method from session", "error", err)
 		}
 
 		// if using oidc, validate the token to check if they have not expired
@@ -50,7 +48,6 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		var userInfo models.UserInfo
 		userBytes, err := json.Marshal(user)
 		if err != nil {
-			c.Logger().Error(err)
 			return h.handleUnauthenticated(c)
 		}
 

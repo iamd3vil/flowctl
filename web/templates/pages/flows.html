@@ -1,0 +1,18 @@
+{{ define "flows" }}
+{{ template "partials/header" . }}
+
+<div class="flex h-screen flex-col justify-start items-center">
+    <p class="font-bold text-5xl p-10">Autopilot</p>
+    {{ range $_, $v := . }}
+        <div hx-get="{{ printf "/view/%s" $v.Meta.ID }}" hx-push-url="true" hx-target="body" hx-swap="innerHTML"
+            class="max-w-screen-sm w-screen max-h-24 min-h-24 mx-auto border-2
+                    rounded-md border-solid m-3 px-8 flex flex-col justify-center content-start
+                    transition-all duration-200 hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.995]">
+            <p class="font-semibold text-xl">{{ $v.Meta.Name }}</p>
+            <p class="font-light text-base">{{ $v.Meta.Description }}</p>
+        </div>
+    {{ end }}
+</div>
+
+{{ template "partials/footer" . }}
+{{ end }}

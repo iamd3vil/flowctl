@@ -1,3 +1,4 @@
+{{ define "partials/notifications" }}
 <div
     x-data="notifications()"
     @notify.window="show($event.detail)"
@@ -55,3 +56,4 @@
         }));
     });
 </script>
+{{ end }}
