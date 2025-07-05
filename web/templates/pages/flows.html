@@ -1,4 +1,5 @@
-{{ define "flows" }} {{ template "partials/header" . }}
+{{ define "flows" }}
+{{ template "partials/header" . }}
 
 {{ if not .Page.ErrMessage }}
 <div class="flex h-screen flex-col justify-start items-center">
@@ -18,4 +19,5 @@
 {{ template "partials/error_message" . }}
 {{ end }}
 
-{{ template "partials/footer" . }} {{ end }}
+{{ template "partials/footer" . }}
+{{ end }}

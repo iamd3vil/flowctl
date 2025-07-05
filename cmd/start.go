@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"html/template"
 	"log"
 	"log/slog"
 	"net/url"
@@ -93,7 +92,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 		Issuer:       viper.GetString("app.oidc.issuer"),
 		ClientID:     viper.GetString("app.oidc.client_id"),
 		ClientSecret: viper.GetString("app.oidc.client_secret"),
-	})
+	}, viper.GetString("app.root_url"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,10 +102,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	//   Format: "method=${method}, uri=${uri}, status=${status}\n",
 	// }))
 
-	t := handlers.Template{
-		Templates: template.Must(template.ParseGlob("web/**/**/*.html")),
-	}
-	e.Renderer = t
+	e.Renderer = handlers.NewTemplateRenderer("web/**/**/*.html")
 
 	e.Static("/static", "web/static")
 
@@ -128,7 +124,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	// views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:flow", h.HandleFlowFormView)
 	views.GET("/", h.HandleFlowsListView)
-	// views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
+	views.GET("/results/:flowID/:logID", h.HandleFlowExecutionResults)
 	// views.GET("/logs/:logID", h.HandleLogStreaming)
 	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
@@ -137,6 +133,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	api := e.Group("/api/v1", h.Authenticate)
 	api.POST("/trigger/:flow", h.HandleFlowTrigger)
+	api.GET("/logs/:logID", h.HandleLogStreaming)
 
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("admin"))

@@ -33,30 +33,29 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 	}
 
 	go func(ch chan models.StreamMessage) {
-		defer func() {
-			// copy pending log messages
-			for logMsg := range logCh {
-				ch <- logMsg
-			}
-			close(ch)
-		}()
+		defer close(ch)
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case errMsg, ok := <-errCh:
-				if ok {
-					ch <- errMsg
+				if !ok {
+					errCh = nil
+					continue
 				}
-				return
+				ch <- errMsg
 			case approvalReq, ok := <-approvalCh:
-				if ok {
-					ch <- approvalReq
+				if !ok {
+					approvalCh = nil
+					continue
 				}
-				return
-			default:
-				ch <- <-logCh
+				ch <- approvalReq
+			case logMsg, ok := <-logCh:
+				if !ok {
+					return
+				}
+				ch <- logMsg
 			}
 		}
 	}(ch)

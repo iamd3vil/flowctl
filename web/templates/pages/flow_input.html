@@ -1,4 +1,5 @@
-{{ define "flow_input" }} {{ template "partials/header" . }}
+{{ define "flow_input" }}
+{{ template "partials/header" . }}
 <div
     class="flex h-screen flex-col justify-start items-center"
     x-data="flowForm('{{.Flow.Meta.ID}}')"
@@ -70,7 +71,13 @@
                         },
                         body: JSON.stringify(jsonData),
                     });
-                    const data = await response.json();
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        // Empty response is expected on success
+                        data = {};
+                    }
 
                     if (!response.ok) {
                         if (data.field) {
@@ -78,6 +85,11 @@
                         } else {
                           throw new Error(data.error || "An error occurred.");
                         }
+                    }
+
+                    if (response.headers.get("x-redirect")) {
+                        window.location.href =
+                            response.headers.get("x-redirect");
                     }
                 } catch (error) {
                     window.dispatchEvent(
@@ -92,4 +104,5 @@
         };
     }
 </script>
-{{ template "partials/footer" .}} {{ end }}
+{{ template "partials/footer" .}}
+{{ end }}

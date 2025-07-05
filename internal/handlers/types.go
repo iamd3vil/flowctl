@@ -79,8 +79,17 @@ func coreGroupToGroup(gu models.Group) Group {
 	}
 }
 
-
 type FlowInputValidationError struct {
-	FieldName string `json:"field"`
+	FieldName  string `json:"field"`
 	ErrMessage string `json:"error"`
+}
+
+type FlowLogResp struct {
+	MType   string            `json:"messsage_type"`
+	Value   string            `json:"value"`
+	Results map[string]string `json:"results,omitempty"`
+}
+
+type Redirect struct {
+	URL string `json:"redirect_url"`
 }
