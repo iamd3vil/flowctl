@@ -9,6 +9,23 @@ import (
 	"github.com/spf13/viper"
 )
 
+func (h *Handler) HandleGetUser(c echo.Context) error {
+	userID := c.Param("userID")
+	if userID == "" {
+		return wrapError(http.StatusBadRequest, "user ID cannot be empty", nil, nil)
+	}
+
+	u, err := h.co.GetUserWithUUIDWithGroups(c.Request().Context(), userID)
+	if err != nil {
+		return wrapError(http.StatusNotFound, "user not found", err, nil)
+	}
+
+	return c.JSON(http.StatusOK, UserWithGroups{
+		User:   coreUsertoUser(u.User),
+		Groups: coreGroupArrayCast(u.Groups),
+	})
+}
+
 func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	userID := c.Param("userID")
 	if userID == "" {
@@ -23,11 +40,13 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 	var req struct {
 		Name     string   `json:"name" validate:"required,min=4,max=30,alphanum_whitespace"`
 		Username string   `json:"username" validate:"required,email"`
-		Groups   []string `json:"groups[]"`
+		Groups   []string `json:"groups"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return wrapError(http.StatusBadRequest, "could not decode request", err, nil)
 	}
+
+	h.logger.Debug("update user request", "userID", userID, "name", req.Name, "username", req.Username, "groups", req.Groups)
 
 	if err := h.validate.Struct(req); err != nil {
 		return wrapError(http.StatusBadRequest, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
@@ -66,7 +85,7 @@ func (h *Handler) HandleUserPagination(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 	h.logger.Debug("user pagination", "filter", req.Filter)
-	u, pageCount, totalCount, err := h.co.SearchUser(c.Request().Context(), req.Filter, req.Count, req.Count * req.Page)
+	u, pageCount, totalCount, err := h.co.SearchUser(c.Request().Context(), req.Filter, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(http.StatusInternalServerError, "could not search for users", err, nil)
 	}

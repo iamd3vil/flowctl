@@ -135,19 +135,21 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	api.POST("/trigger/:flow", h.HandleFlowTrigger)
 	api.GET("/logs/:logID", h.HandleLogStreaming)
 
+	api.GET("/groups", h.HandleGroupPagination)
+	api.POST("/groups", h.HandleCreateGroup)
+	api.DELETE("/groups/:groupID", h.HandleDeleteGroup)
+
+	api.GET("/users", h.HandleUserPagination)
+	api.GET("/users/:userID", h.HandleGetUser)
+	api.POST("/users", h.HandleCreateUser)
+	api.DELETE("/users/:userID", h.HandleDeleteUser)
+	api.PUT("/users/:userID", h.HandleUpdateUser)
+
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("admin"))
 
-	admin.GET("/groups", h.HandleGroupPagination)
-	admin.POST("/groups", h.HandleCreateGroup)
-	admin.DELETE("/groups/:groupID", h.HandleDeleteGroup)
-
-	admin.GET("/users", h.HandleUserPagination)
-	admin.POST("/users", h.HandleCreateUser)
-	admin.DELETE("/users/:userID", h.HandleDeleteUser)
-	admin.PUT("/users/:userID", h.HandleUpdateUser)
-
 	admin.GET("/requests/:execID", h.HandleApprovalRequest)
+	admin.GET("/users", h.HandleUserManagementView)
 
 	rootURL := viper.GetString("app.root_url")
 	if !strings.Contains(rootURL, "://") {

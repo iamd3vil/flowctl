@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"html/template"
 	"io"
 	"net/http"
-	"encoding/json"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/labstack/echo/v4"
@@ -68,7 +68,7 @@ func (h *Handler) HandleFlowsListView(c echo.Context) error {
 func (h *Handler) HandleFlowFormView(c echo.Context) error {
 	data := struct {
 		Page
-		Flow       models.Flow
+		Flow        models.Flow
 		InputErrors map[string]string
 	}{
 		Page: Page{
@@ -85,12 +85,10 @@ func (h *Handler) HandleFlowFormView(c echo.Context) error {
 	return c.Render(http.StatusOK, "flow_input", data)
 }
 
-
-
 func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 	data := struct {
 		Page
-		Flow models.Flow
+		Flow  models.Flow
 		LogID string
 	}{
 		Page: Page{
@@ -136,6 +134,18 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 	data.LogID = logID
 
 	return c.Render(http.StatusOK, "flow_status", data)
+}
+
+func (h *Handler) HandleUserManagementView(c echo.Context) error {
+	data := struct {
+		Page
+	}{
+		Page: Page{
+			Title: "User Management",
+		},
+	}
+
+	return c.Render(http.StatusOK, "user_management", data)
 }
 
 // func (h *Handler) HandleExecutionSummary(c echo.Context) error {

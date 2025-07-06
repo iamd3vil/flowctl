@@ -56,7 +56,7 @@ func coreUsertoUser(u models.User) User {
 }
 
 func coreGroupArrayCast(gu []models.Group) []Group {
-	var g []Group
+	g := make([]Group, 0)
 	for _, v := range gu {
 		g = append(g, coreGroupToGroup(v))
 	}
@@ -64,7 +64,7 @@ func coreGroupArrayCast(gu []models.Group) []Group {
 }
 
 func coreUserArrayCast(gu []models.User) []User {
-	var u []User
+	u := make([]User, 0)
 	for _, v := range gu {
 		u = append(u, coreUsertoUser(v))
 	}
