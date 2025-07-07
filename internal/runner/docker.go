@@ -270,6 +270,7 @@ func (d *DockerRunner) createContainer(ctx context.Context, cli *client.Client) 
 		WorkingDir: WORKING_DIR,
 	}, &container.HostConfig{
 		Mounts: d.mounts,
+		SecurityOpt: []string{"label=disable"},
 	}, nil, nil, d.name)
 	if err != nil {
 		return container.CreateResponse{}, err

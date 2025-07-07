@@ -12,17 +12,27 @@
     </div>
 
     <!-- Execution Output (if any) -->
-    <template x-if="Object.keys(results).length > 0">
-        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 shadow max-w-screen-md w-full mb-4">
-            <h3 class="font-semibold mb-2 text-white">Execution Output</h3>
-            <template x-for="(val, key) in results" :key="key">
-                <div class="flex justify-between">
-                    <span class="font-mono text-gray-300" x-text="key"></span>
-                    <span class="font-mono text-green-400" x-text="val"></span>
-                </div>
-            </template>
-        </div>
-    </template>
+<template x-if="Object.keys(results).length > 0">
+    <div class="relative overflow-x-auto shadow-md sm:rounded-lg max-w-screen-md w-full mb-4">
+        <h3 class="font-semibold mb-2 text-white">Execution Output</h3>
+        <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th scope="col" class="px-6 py-3">Key</th>
+                    <th scope="col" class="px-6 py-3">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(val, key) in results" :key="key">
+                    <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                        <td class="px-6 py-4 font-mono text-gray-900 dark:text-white" x-text="key"></td>
+                        <td class="px-6 py-4 font-mono text-green-600 dark:text-green-400" x-text="val"></td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+</template>
 
     {{ if .Page.ErrMessage }}
     {{ template "partials/error_message" . }}
@@ -47,7 +57,7 @@ function flowStatusComponent(logID, actions) {
                         this.logOutput += (msg.value || '') + '\n';
                         break;
                     case 'result':
-                        this.results = msg.Results || {};
+                        this.results = msg.results || {};
                         this.currentStep = this.actions.length;
                         break;
                     case 'state':

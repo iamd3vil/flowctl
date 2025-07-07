@@ -103,7 +103,7 @@ type UsersPaginateResponse struct {
 }
 
 type GroupsPaginateResponse struct {
-	Groups      []GroupWithUsers `json:"groups"`
+	Groups     []GroupWithUsers `json:"groups"`
 	PageCount  int64            `json:"page_count"`
 	TotalCount int64            `json:"total_count"`
 }
