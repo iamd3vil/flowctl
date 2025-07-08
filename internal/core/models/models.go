@@ -21,7 +21,7 @@ const (
 	LogMessageType    MessageType = "log"
 	ErrMessageType    MessageType = "error"
 	ResultMessageType MessageType = "result"
-	StateMessageType  MessageType = "state"
+	ApprovalMessageType  MessageType = "approval"
 )
 
 type StreamMessage struct {

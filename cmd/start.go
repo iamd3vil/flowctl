@@ -128,7 +128,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	// views.GET("/logs/:logID", h.HandleLogStreaming)
 	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
-	views.GET("/approvals/:approvalID", h.HandleApprovalRequest, h.ApprovalMiddleware)
+	views.GET("/approvals/:approvalID", h.HandleApprovalView, h.ApprovalMiddleware)
 	views.POST("/approvals/:approvalID/:action", h.HandleApprovalAction, h.ApprovalMiddleware)
 
 	api := e.Group("/api/v1", h.Authenticate)
@@ -147,10 +147,11 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	api.DELETE("/users/:userID", h.HandleDeleteUser)
 	api.PUT("/users/:userID", h.HandleUpdateUser)
 
+	api.POST("/approvals/:approvalID", h.HandleApprovalAction, h.ApprovalMiddleware)
+
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("admin"))
 
-	admin.GET("/requests/:execID", h.HandleApprovalRequest)
 	admin.GET("/users", h.HandleUserManagementView)
 	admin.GET("/groups", h.HandleGroupManagementView)
 

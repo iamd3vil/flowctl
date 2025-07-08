@@ -58,6 +58,15 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		return fmt.Errorf("approval UUID is not a UUID: %w", err)
 	}
 
+	areq, err := c.GetApprovalRequest(ctx, approvalUUID)
+	if err != nil {
+		return fmt.Errorf("could not retrieve approval request %s: %w", approvalUUID, err)
+	}
+
+	if areq.Status != models.ApprovalStatusPending {
+		return fmt.Errorf("request has already been processed")
+	}
+
 	userid, err := uuid.Parse(decidedBy)
 	if err != nil {
 		return fmt.Errorf("decidedby UUID is not a UUID: %w", err)

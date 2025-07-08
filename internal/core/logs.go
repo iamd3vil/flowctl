@@ -35,7 +35,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 	go func(ch chan models.StreamMessage) {
 		defer close(ch)
 
-		for {
+		for errCh != nil || approvalCh != nil || logCh != nil {
 			select {
 			case <-ctx.Done():
 				return
@@ -53,7 +53,8 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 				ch <- approvalReq
 			case logMsg, ok := <-logCh:
 				if !ok {
-					return
+					logCh = nil
+					continue
 				}
 				ch <- logMsg
 			}
@@ -198,7 +199,7 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan m
 				}
 
 				if a.Status == "pending" {
-					ch <- models.StreamMessage{MType: models.StateMessageType, Val: []byte(a.UUID)}
+					ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: []byte(a.UUID)}
 					return
 				}
 			}

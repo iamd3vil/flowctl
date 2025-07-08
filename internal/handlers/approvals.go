@@ -1,33 +1,30 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/labstack/echo/v4"
+	"slices"
 )
 
 func (h *Handler) ApprovalMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		approvalID := c.Param("approvalID")
 		if approvalID == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "approval ID cannot be empty")
+			return wrapError(http.StatusBadRequest, "approval ID cannot be empty", nil, nil)
 		}
 
 		user, ok := c.Get("user").(models.UserInfo)
 		if !ok {
-			return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+			return wrapError(http.StatusForbidden, "could not get user details", nil, nil)
 		}
 
 		areq, err := h.co.GetApprovalRequest(c.Request().Context(), approvalID)
 		if err != nil {
-			c.Logger().Error(err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "could not get approval request")
+			return wrapError(http.StatusInternalServerError, "could not get approval request", err, nil)
 		}
-
-		c.Logger().Infof("user info: %+v\n", user)
 
 		// Check if user is in approvers list
 		var authorized bool
@@ -42,14 +39,10 @@ func (h *Handler) ApprovalMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 				groupName := strings.TrimPrefix(approver, "groups/")
 				groupID, err := h.co.GetGroupByName(c.Request().Context(), groupName)
 				if err != nil {
-					c.Logger().Error(err)
-					return echo.NewHTTPError(http.StatusInternalServerError, "could not get group from approvers list")
+					return wrapError(http.StatusInternalServerError, "could not get group from approvers list", err, nil)
 				}
-				for _, group := range user.Groups {
-					if group == groupID.ID {
-						authorized = true
-						break
-					}
+				if slices.Contains(user.Groups, groupID.ID) {
+					authorized = true
 				}
 			}
 			if authorized {
@@ -58,62 +51,36 @@ func (h *Handler) ApprovalMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		if !authorized {
-			return echo.NewHTTPError(http.StatusForbidden, "user is not authorized to perform this action")
+			return wrapError(http.StatusForbidden, "user is not authorized to perform this action", nil, nil)
 		}
 
 		return next(c)
 	}
 }
 
-func (h *Handler) HandleApprovalRequest(c echo.Context) error {
-	approvalID := c.Param("approvalID")
-	if approvalID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "approval ID cannot be empty")
-	}
-
-	areq, err := h.co.GetApprovalRequest(c.Request().Context(), approvalID)
-	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not get approval request")
-	}
-
-	if areq.Status != models.ApprovalStatusPending {
-		return wrapError(http.StatusBadRequest, "request has already been processed", nil, nil)
-	}
-
-	f, err := h.co.GetFlowFromLogID(areq.ExecID)
-	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not get flow")
-	}
-
-	return c.JSON(http.StatusOK, ApprovalRequestResp{
-		ID:          approvalID,
-		Title:       f.Meta.Name,
-		Description: fmt.Sprintf("Approval request to execute action %q from flow %q", areq.ActionID, f.Meta.Name),
-		RequestedBy: areq.RequestedBy,
-	})
-}
-
 func (h *Handler) HandleApprovalAction(c echo.Context) error {
 	approvalID := c.Param("approvalID")
 	if approvalID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "approval ID cannot be empty")
+		return wrapError(http.StatusBadRequest, "approval ID cannot be empty", nil, nil)
 	}
 
-	action := c.Param("action")
-	if action != "approve" && action != "reject" {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid action, must be approve or reject")
+	var req ApprovalActionReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(http.StatusBadRequest, "invalid request", err, nil)
+	}
+
+	if req.Action != "approve" && req.Action != "reject" {
+		return wrapError(http.StatusBadRequest, "invalid action, must be approve or reject", nil, nil)
 	}
 
 	user, ok := c.Get("user").(models.UserInfo)
 	if !ok {
-		return echo.NewHTTPError(http.StatusForbidden, "could not get user details")
+		return wrapError(http.StatusForbidden, "could not get user details", nil, nil)
 	}
 
 	var status models.ApprovalType
 	var message string
-	if action == "approve" {
+	if req.Action == "approve" {
 		status = models.ApprovalStatusApproved
 		message = "The request has been approved successfully."
 	} else {
@@ -123,8 +90,7 @@ func (h *Handler) HandleApprovalAction(c echo.Context) error {
 
 	err := h.co.ApproveOrRejectAction(c.Request().Context(), approvalID, user.ID, status)
 	if err != nil {
-		c.Logger().Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "could not process approval action")
+		return wrapError(http.StatusInternalServerError, "could not process approval action", err, nil)
 	}
 
 	return c.JSON(http.StatusOK, ApprovalActionResp{

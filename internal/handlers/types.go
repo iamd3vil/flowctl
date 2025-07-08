@@ -7,19 +7,6 @@ type AuthReq struct {
 	Password string `json:"password"`
 }
 
-type ApprovalRequestResp struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	RequestedBy string `json:"requested_by"`
-}
-
-type ApprovalActionResp struct {
-	ID      string `json:"id"`
-	Status  string `json:"status"`
-	Message string `json:"messages"`
-}
-
 type User struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`
@@ -106,4 +93,14 @@ type GroupsPaginateResponse struct {
 	Groups     []GroupWithUsers `json:"groups"`
 	PageCount  int64            `json:"page_count"`
 	TotalCount int64            `json:"total_count"`
+}
+
+type ApprovalActionReq struct {
+	Action string `json:"action"`
+}
+
+type ApprovalActionResp struct {
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	Message string `json:"messages"`
 }

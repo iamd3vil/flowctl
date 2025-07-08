@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"fmt"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/labstack/echo/v4"
@@ -158,6 +159,52 @@ func (h *Handler) HandleGroupManagementView(c echo.Context) error {
 	}
 
 	return c.Render(http.StatusOK, "group_management", data)
+}
+
+func (h *Handler) HandleApprovalView(c echo.Context) error {
+	data := struct {
+		Page
+		Request struct {
+			ID string
+			Title string
+			Description string
+			RequestedBy string
+		}
+	}{
+		Page: Page{
+			Title: "Approval Requests",
+		},
+	}
+
+	approvalID := c.Param("approvalID")
+	if approvalID == "" {
+		data.ErrMessage = "approval ID cannot be empty"
+		return c.Render(http.StatusBadRequest, "approval", data)
+	}
+
+	areq, err := h.co.GetApprovalRequest(c.Request().Context(), approvalID)
+	if err != nil {
+		data.ErrMessage = err.Error()
+		return c.Render(http.StatusBadRequest, "approval", data)
+	}
+
+	if areq.Status != models.ApprovalStatusPending {
+		data.ErrMessage = "request has already been processed"
+		return c.Render(http.StatusBadRequest, "approval", data)
+	}
+
+	f, err := h.co.GetFlowFromLogID(areq.ExecID)
+	if err != nil {
+		data.ErrMessage = err.Error()
+		return c.Render(http.StatusBadRequest, "approval", data)
+	}
+
+	data.Request.ID = approvalID
+	data.Request.Title = f.Meta.Name
+	data.Request.Description = fmt.Sprintf("Approval request to execute action %q from flow %q", areq.ActionID, f.Meta.Name)
+	data.Request.RequestedBy = areq.RequestedBy
+
+	return c.Render(http.StatusOK, "approval", data)
 }
 
 // func (h *Handler) HandleExecutionSummary(c echo.Context) error {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -70,8 +71,18 @@ func (h *Handler) ErrorHandler(err error, c echo.Context) {
 	if customResponse != nil {
 		c.JSON(code, customResponse)
 	} else {
-		c.JSON(code, map[string]string{
-			"error": msg,
-		})
+		if strings.Contains(c.Request().URL.Path, "/view") {
+			c.Render(code, "error_page", struct{
+				ErrorCode int
+				Message string
+			}{
+				ErrorCode: code,
+				Message: msg,
+			})
+		} else {
+			c.JSON(code, map[string]string{
+				"error": msg,
+			})
+		}
 	}
 }

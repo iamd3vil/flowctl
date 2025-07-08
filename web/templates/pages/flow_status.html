@@ -37,6 +37,12 @@
     {{ if .Page.ErrMessage }}
     {{ template "partials/error_message" . }}
     {{ end }}
+
+    <div x-show="showApproval" class="p-5 opacity-100 transition-opacity duration-300">
+        <div class="transition-opacity duration-300 bg-yellow-100 p-8 rounded-lg max-w-screen-sm w-screen mx-auto text-yellow-600">
+            Approval required: <a :href="`/view/approvals/${approvalID}`" class="underline">Review request</a>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -47,6 +53,8 @@ function flowStatusComponent(logID, actions) {
         logOutput: '',
         results: {},
         ws: null,
+        approvalID: null,
+        showApproval: false,
         init() {
             this.ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/v1/logs/${logID}`);
             this.ws.onmessage = (event) => {
@@ -56,12 +64,14 @@ function flowStatusComponent(logID, actions) {
                     case 'log':
                         this.logOutput += (msg.value || '') + '\n';
                         break;
-                    case 'result':
-                        this.results = msg.results || {};
-                        this.currentStep = this.actions.length;
-                        break;
-                    case 'state':
-                        // Optionally handle approval/state messages
+                        case 'result':
+                            // Append new results to existing ones
+                            this.results = { ...this.results, ...(msg.results || {}) };
+                            this.currentStep = this.actions.length;
+                            break;
+                    case 'approval':
+                        this.approvalID = msg.value;
+                        this.showApproval = true;
                         break;
                     case 'error':
                         window.dispatchEvent(
