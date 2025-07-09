@@ -57,6 +57,48 @@ func (ns NullApprovalStatus) Value() (driver.Value, error) {
 	return string(ns.ApprovalStatus), nil
 }
 
+type AuthenticationMethod string
+
+const (
+	AuthenticationMethodSshKey   AuthenticationMethod = "ssh_key"
+	AuthenticationMethodPassword AuthenticationMethod = "password"
+)
+
+func (e *AuthenticationMethod) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AuthenticationMethod(s)
+	case string:
+		*e = AuthenticationMethod(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AuthenticationMethod: %T", src)
+	}
+	return nil
+}
+
+type NullAuthenticationMethod struct {
+	AuthenticationMethod AuthenticationMethod `json:"authentication_method"`
+	Valid                bool                 `json:"valid"` // Valid is true if AuthenticationMethod is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAuthenticationMethod) Scan(value interface{}) error {
+	if value == nil {
+		ns.AuthenticationMethod, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AuthenticationMethod.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAuthenticationMethod) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AuthenticationMethod), nil
+}
+
 type ExecutionStatus string
 
 const (
@@ -199,6 +241,16 @@ type Approval struct {
 	UpdatedAt time.Time       `db:"updated_at" json:"updated_at"`
 }
 
+type Credential struct {
+	ID         int32          `db:"id" json:"id"`
+	Uuid       uuid.UUID      `db:"uuid" json:"uuid"`
+	Name       string         `db:"name" json:"name"`
+	PrivateKey sql.NullString `db:"private_key" json:"private_key"`
+	Password   sql.NullString `db:"password" json:"password"`
+	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time      `db:"updated_at" json:"updated_at"`
+}
+
 type ExecutionLog struct {
 	ID           int32           `db:"id" json:"id"`
 	ExecID       string          `db:"exec_id" json:"exec_id"`
@@ -246,6 +298,21 @@ type GroupView struct {
 	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 	Users       interface{}    `db:"users" json:"users"`
+}
+
+type Node struct {
+	ID           int32                `db:"id" json:"id"`
+	Uuid         uuid.UUID            `db:"uuid" json:"uuid"`
+	Name         string               `db:"name" json:"name"`
+	Hostname     string               `db:"hostname" json:"hostname"`
+	Port         int32                `db:"port" json:"port"`
+	Username     string               `db:"username" json:"username"`
+	OsFamily     string               `db:"os_family" json:"os_family"`
+	Tags         []string             `db:"tags" json:"tags"`
+	AuthMethod   AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	CredentialID int32                `db:"credential_id" json:"credential_id"`
+	CreatedAt    time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time            `db:"updated_at" json:"updated_at"`
 }
 
 type Session struct {

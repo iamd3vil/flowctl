@@ -1,0 +1,205 @@
+package core
+
+import (
+	"context"
+	"errors"
+
+	"github.com/cvhariharan/autopilot/internal/core/models"
+	"github.com/cvhariharan/autopilot/internal/repo"
+	"github.com/google/uuid"
+)
+
+func (c *Core) CreateNode(ctx context.Context, node *models.Node) (*models.Node, error) {
+	if node.Name == "" {
+		return nil, errors.New("node name is required")
+	}
+	if node.Hostname == "" {
+		return nil, errors.New("hostname is required")
+	}
+
+	credID, err := uuid.Parse(node.Auth.CredentialID)
+	if err != nil {
+		return nil, errors.New("invalid credential ID format")
+	}
+
+	credential, err := c.store.GetCredentialByUUID(ctx, credID)
+	if err != nil {
+		return nil, errors.New("credential not found")
+	}
+
+	created, err := c.store.CreateNode(ctx, repo.CreateNodeParams{
+		Name:         node.Name,
+		Hostname:     node.Hostname,
+		Port:         int32(node.Port),
+		Username:     node.Username,
+		OsFamily:     node.OSFamily,
+		Tags:         node.Tags,
+		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
+		CredentialID: credential.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := extractAuthKey(node.Auth.Method, credential)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Node{
+		ID:       created.Uuid.String(),
+		Name:     created.Name,
+		Hostname: created.Hostname,
+		Port:     int(created.Port),
+		Username: created.Username,
+		OSFamily: created.OsFamily,
+		Tags:     created.Tags,
+		Auth: models.NodeAuth{
+			Method:       node.Auth.Method,
+			CredentialID: credential.Uuid.String(),
+			Key:          key,
+		},
+	}, nil
+}
+
+func (c *Core) GetNodeByID(ctx context.Context, id string) (*models.Node, error) {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := c.store.GetNodeByUUID(ctx, uuidID)
+	if err != nil {
+		return nil, err
+	}
+
+	credential, err := c.store.GetCredentialByID(ctx, node.CredentialID)
+	if err != nil {
+		return nil, errors.New("credential not found")
+	}
+
+	key, err := extractAuthKey(models.AuthMethod(node.AuthMethod), credential)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Node{
+		ID:       node.Uuid.String(),
+		Name:     node.Name,
+		Hostname: node.Hostname,
+		Port:     int(node.Port),
+		Username: node.Username,
+		OSFamily: node.OsFamily,
+		Tags:     node.Tags,
+		Auth: models.NodeAuth{
+			Method:       models.AuthMethod(node.AuthMethod),
+			CredentialID: credential.Uuid.String(),
+			Key:          key,
+		},
+	}, nil
+}
+
+func (c *Core) ListNodes(ctx context.Context, limit, offset int) ([]*models.Node, int64, int64, error) {
+	nodes, err := c.store.ListNodes(ctx, repo.ListNodesParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		return nil, -1, -1, err
+	}
+
+	results := make([]*models.Node, 0)
+	for _, n := range nodes {
+		res, err := c.GetNodeByID(ctx, n.Uuid.String())
+		if err != nil {
+			return nil, -1, -1, err
+		}
+		results = append(results, res)
+	}
+
+	// Get pagination metadata
+	if len(nodes) > 0 {
+		return results, nodes[0].PageCount, nodes[0].TotalCount, nil
+	}
+	return results, 0, 0, nil
+}
+
+func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node) (*models.Node, error) {
+	if node.Name == "" {
+		return nil, errors.New("node name is required")
+	}
+	if node.Hostname == "" {
+		return nil, errors.New("hostname is required")
+	}
+
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	credID, _ := uuid.Parse(node.Auth.CredentialID)
+	credential, err := c.store.GetCredentialByUUID(ctx, credID)
+	if err != nil {
+		return nil, errors.New("credential not found")
+	}
+
+	updated, err := c.store.UpdateNode(ctx, repo.UpdateNodeParams{
+		Uuid:         uuidID,
+		Name:         node.Name,
+		Hostname:     node.Hostname,
+		Port:         int32(node.Port),
+		Username:     node.Username,
+		OsFamily:     node.OSFamily,
+		Tags:         node.Tags,
+		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
+		CredentialID: credential.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := extractAuthKey(models.AuthMethod(updated.AuthMethod), credential)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Node{
+		ID:       updated.Uuid.String(),
+		Name:     updated.Name,
+		Hostname: updated.Hostname,
+		Port:     int(updated.Port),
+		Username: updated.Username,
+		OSFamily: updated.OsFamily,
+		Tags:     updated.Tags,
+		Auth: models.NodeAuth{
+			Method:       models.AuthMethod(updated.AuthMethod),
+			CredentialID: credential.Uuid.String(),
+			Key:          key,
+		},
+	}, nil
+}
+
+func (c *Core) DeleteNode(ctx context.Context, id string) error {
+	uuidID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return c.store.DeleteNode(ctx, uuidID)
+}
+
+func extractAuthKey(method models.AuthMethod, credential repo.Credential) (string, error) {
+	switch method {
+	case models.AuthMethodSSHKey:
+		if !credential.PrivateKey.Valid {
+			return "", errors.New("private key is required for SSH key authentication")
+		}
+		return credential.PrivateKey.String, nil
+	case models.AuthMethodPassword:
+		if !credential.Password.Valid {
+			return "", errors.New("password is required for password authentication")
+		}
+		return credential.Password.String, nil
+	default:
+		return "", errors.New("unsupported authentication method")
+	}
+}
