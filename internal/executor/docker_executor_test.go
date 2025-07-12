@@ -3,7 +3,6 @@ package executor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -31,7 +30,7 @@ func TestDockerExecutor_Execute(t *testing.T) {
 		}
 
 		// Create a new DockerExecutor
-		executor := NewDockerExecutor("test-local", DockerRunnerOptions{ShowImagePull: false})
+		executor := NewDockerExecutor("test-local", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
 
 		// Execute the executor
 		outputs, err := executor.Execute(context.Background(), execCtx)
@@ -54,21 +53,12 @@ func TestDockerExecutor_Execute(t *testing.T) {
 		remoteHost := os.Getenv("TEST_REMOTE_HOST")
 		remoteUser := os.Getenv("TEST_REMOTE_USER")
 		remoteKey := os.Getenv("TEST_REMOTE_KEY")
-		remotePortStr := os.Getenv("TEST_REMOTE_PORT")
 
 		if remoteHost == "" || remoteUser == "" || remoteKey == "" {
 			t.Skip("Skipping remote execution test: TEST_REMOTE_HOST, TEST_REMOTE_USER, and TEST_REMOTE_KEY must be set")
 		}
 
 		remotePort := 22
-		if remotePortStr != "" {
-			var err error
-			_, err = fmt.Sscanf(remotePortStr, "%d", &remotePort)
-			if err != nil {
-				t.Fatalf("failed to parse remote port: %v", err)
-			}
-		}
-
 		// Create a mock execution context
 		config := DockerWithConfig{
 			Image:  "ubuntu:latest",
@@ -98,13 +88,10 @@ func TestDockerExecutor_Execute(t *testing.T) {
 		}
 
 		// Create a new DockerExecutor
-		executor := NewDockerExecutor("test-remote", DockerRunnerOptions{ShowImagePull: false})
+		executor := NewDockerExecutor("test-remote", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
 
 		// Execute the executor
 		outputs, err := executor.Execute(context.Background(), execCtx)
-
-		t.Log("STDOUT:", stdoutBuf.String())
-		t.Log("STDERR:", stderrBuf.String())
 
 		// Assert that there is no error
 		assert.NoError(t, err)
