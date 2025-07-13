@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
@@ -145,6 +146,8 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to task model: %w", err)
 	}
+
+	log.Println(taskFlow)
 
 	task, err := tasks.NewFlowExecution(taskFlow, input, actionIndex, execID, parentExecID)
 	if err != nil {

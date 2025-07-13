@@ -152,11 +152,34 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 		return nil, fmt.Errorf("failed to marshal 'with' config: %w", err)
 	}
 
-	return exec.Execute(jobCtx, executor.ExecutionContext{
-		Inputs:     inputVars,
-		WithConfig: withConfig,
-		Artifacts:  action.Artifacts,
-		Stdout:     streamlogger,
-		Stderr:     streamlogger,
-	})
+	if len(action.On) == 0 {
+		return exec.Execute(jobCtx, executor.ExecutionContext{
+			Inputs:     inputVars,
+			WithConfig: withConfig,
+			Artifacts:  action.Artifacts,
+			Stdout:     streamlogger,
+			Stderr:     streamlogger,
+		})
+	}
+
+	for _, node := range action.On {
+		return exec.Execute(jobCtx, executor.ExecutionContext{
+			Inputs:     inputVars,
+			WithConfig: withConfig,
+			Artifacts:  action.Artifacts,
+			Stdout:     streamlogger,
+			Stderr:     streamlogger,
+			Node: executor.Node{
+				Hostname: node.Hostname,
+				Port:     node.Port,
+				Username: node.Username,
+				Auth: executor.NodeAuth{
+					Method: string(node.Auth.Method),
+					Key:    node.Auth.Key,
+				},
+			},
+		})
+	}
+
+	return nil, fmt.Errorf("could not run action %s on any nodes", action.ID)
 }
