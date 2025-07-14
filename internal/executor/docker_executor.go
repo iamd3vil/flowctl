@@ -40,7 +40,6 @@ type DockerWithConfig struct {
 type DockerExecutor struct {
 	name               string
 	image              string
-	src                string
 	env                []string
 	cmd                []string
 	entrypoint         []string
@@ -73,11 +72,6 @@ func NewDockerExecutor(name string, dockerOptions DockerRunnerOptions) (Executor
 
 func (d *DockerExecutor) withImage(image string) *DockerExecutor {
 	d.image = image
-	return d
-}
-
-func (d *DockerExecutor) withSrc(src string) *DockerExecutor {
-	d.src = filepath.Clean(src)
 	return d
 }
 
@@ -253,12 +247,6 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx ExecutionContext) erro
 		}()
 	}
 
-	if d.src != "" {
-		if err := d.createSrcDirectories(ctx, d.client); err != nil {
-			return fmt.Errorf("unable to create source directories: %v", err)
-		}
-	}
-
 	// Copy the artifacts directory to the container
 	if err := d.copyArtifactsToContainer(ctx, resp.ID); err != nil {
 		return fmt.Errorf("unable to copy artifacts to container: %v", err)
@@ -357,15 +345,6 @@ func (d *DockerExecutor) createFileOrDirectory(name string, dir bool) error {
 		return err
 	}
 	return nil
-}
-
-func (d *DockerExecutor) createSrcDirectories(ctx context.Context, cli *client.Client) error {
-	tar, err := archive.TarWithOptions(d.src, &archive.TarOptions{})
-	if err != nil {
-		return err
-	}
-
-	return cli.CopyToContainer(ctx, d.containerID, WORKING_DIR, tar, container.CopyToContainerOptions{})
 }
 
 func (d *DockerExecutor) pullImage(ctx context.Context, cli *client.Client) error {
