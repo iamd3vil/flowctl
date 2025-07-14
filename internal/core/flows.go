@@ -89,12 +89,15 @@ func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID 
 
 // getNodesByNames retrieves nodes by their names and returns a slice of models.Node
 // This is used as a lookup function for converting flows to task models
-func (c *Core) getNodesByNames(ctx context.Context, nodeNames []string) ([]models.Node, error) {
+func (c *Core) getNodesByNames(ctx context.Context, nodeNames []string, namespaceUUID uuid.UUID) ([]models.Node, error) {
 	if len(nodeNames) == 0 {
 		return nil, nil
 	}
 
-	n, err := c.store.GetNodesByNames(ctx, nodeNames)
+	n, err := c.store.GetNodesByNames(ctx, repo.GetNodesByNamesParams{
+		Column1: nodeNames,
+		Uuid:    namespaceUUID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get nodes by names %v: %w", nodeNames, err)
 	}
@@ -154,7 +157,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	}
 
 	taskFlow, err := models.ToTaskFlowModel(f, func(nodeNames []string) ([]models.Node, error) {
-		return c.getNodesByNames(ctx, nodeNames)
+		return c.getNodesByNames(ctx, nodeNames, uuid.Nil) // TODO: Pass actual namespace UUID
 	})
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to task model: %w", err)

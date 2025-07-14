@@ -198,3 +198,34 @@ func coreCredentialArrayToCredentialRespArray(creds []*models.Credential) []Cred
 	}
 	return resp
 }
+
+// Namespace related types
+type NamespaceReq struct {
+	Name string `json:"name" validate:"required,min=1,max=150"`
+}
+
+type NamespaceResp struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type NamespacesPaginateResponse struct {
+	Namespaces []NamespaceResp `json:"namespaces"`
+	PageCount  int64           `json:"page_count"`
+	TotalCount int64           `json:"total_count"`
+}
+
+func coreNamespaceToNamespaceResp(n *models.Namespace) NamespaceResp {
+	return NamespaceResp{
+		ID:   n.ID,
+		Name: n.Name,
+	}
+}
+
+func coreNamespaceArrayToNamespaceRespArray(namespaces []*models.Namespace) []NamespaceResp {
+	resp := make([]NamespaceResp, len(namespaces))
+	for i, n := range namespaces {
+		resp[i] = coreNamespaceToNamespaceResp(n)
+	}
+	return resp
+}

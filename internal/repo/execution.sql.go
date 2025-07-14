@@ -216,7 +216,7 @@ const getFlowFromExecID = `-- name: GetFlowFromExecID :one
 WITH exec_log AS (
     SELECT flow_id FROM execution_log WHERE exec_id = $1
 )
-SELECT id, slug, name, checksum, description, created_at, updated_at, flow_id FROM flows inner join exec_log on exec_log.flow_id = flows.id
+SELECT id, slug, name, checksum, description, created_at, updated_at, namespace_id, flow_id FROM flows inner join exec_log on exec_log.flow_id = flows.id
 `
 
 type GetFlowFromExecIDRow struct {
@@ -227,6 +227,7 @@ type GetFlowFromExecIDRow struct {
 	Description sql.NullString `db:"description" json:"description"`
 	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
 	FlowID      int32          `db:"flow_id" json:"flow_id"`
 }
 
@@ -241,6 +242,7 @@ func (q *Queries) GetFlowFromExecID(ctx context.Context, execID string) (GetFlow
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NamespaceID,
 		&i.FlowID,
 	)
 	return i, err

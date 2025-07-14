@@ -81,6 +81,7 @@ type Metadata struct {
 	Name        string `yaml:"name" validate:"required"`
 	Description string `yaml:"description"`
 	SrcDir      string `yaml:"-"`
+	Namespace   string `yaml:"namespace"`
 }
 
 type Variable map[string]any

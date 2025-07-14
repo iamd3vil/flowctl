@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
@@ -9,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *Core) CreateNode(ctx context.Context, node *models.Node) (*models.Node, error) {
+func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceUUID uuid.UUID) (*models.Node, error) {
 	if node.Name == "" {
 		return nil, errors.New("node name is required")
 	}
@@ -22,7 +23,10 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node) (*models.Node,
 		return nil, errors.New("invalid credential ID format")
 	}
 
-	credential, err := c.store.GetCredentialByUUID(ctx, credID)
+	credential, err := c.store.GetCredentialByUUID(ctx, repo.GetCredentialByUUIDParams{
+		Uuid:   credID,
+		Uuid_2: namespaceUUID,
+	})
 	if err != nil {
 		return nil, errors.New("credential not found")
 	}
@@ -35,13 +39,18 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node) (*models.Node,
 		OsFamily:     node.OSFamily,
 		Tags:         node.Tags,
 		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
-		CredentialID: credential.ID,
+		CredentialID: sql.NullInt32{Int32: credential.ID, Valid: true},
+		Uuid:         namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	key, err := extractAuthKey(node.Auth.Method, credential)
+	key, err := extractAuthKey(node.Auth.Method, repo.Credential{
+		Uuid:       credential.Uuid,
+		PrivateKey: credential.PrivateKey,
+		Password:   credential.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +87,11 @@ func (c *Core) GetNodeByID(ctx context.Context, id string) (*models.Node, error)
 		return nil, errors.New("credential not found")
 	}
 
-	key, err := extractAuthKey(models.AuthMethod(node.AuthMethod), credential)
+	key, err := extractAuthKey(models.AuthMethod(node.AuthMethod), repo.Credential{
+		Uuid:       credential.Uuid,
+		PrivateKey: credential.PrivateKey,
+		Password:   credential.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +112,9 @@ func (c *Core) GetNodeByID(ctx context.Context, id string) (*models.Node, error)
 	}, nil
 }
 
-func (c *Core) ListNodes(ctx context.Context, limit, offset int) ([]*models.Node, int64, int64, error) {
+func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceUUID uuid.UUID) ([]*models.Node, int64, int64, error) {
 	nodes, err := c.store.ListNodes(ctx, repo.ListNodesParams{
+		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -110,7 +124,7 @@ func (c *Core) ListNodes(ctx context.Context, limit, offset int) ([]*models.Node
 
 	results := make([]*models.Node, 0)
 	for _, n := range nodes {
-		res, err := c.GetNodeByID(ctx, n.Uuid.String())
+		res, err := c.GetNodeByID(ctx, n.Uuid.String(), namespaceUUID)
 		if err != nil {
 			return nil, -1, -1, err
 		}
@@ -124,7 +138,7 @@ func (c *Core) ListNodes(ctx context.Context, limit, offset int) ([]*models.Node
 	return results, 0, 0, nil
 }
 
-func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node) (*models.Node, error) {
+func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, namespaceUUID uuid.UUID) (*models.Node, error) {
 	if node.Name == "" {
 		return nil, errors.New("node name is required")
 	}
@@ -138,7 +152,10 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node) (*m
 	}
 
 	credID, _ := uuid.Parse(node.Auth.CredentialID)
-	credential, err := c.store.GetCredentialByUUID(ctx, credID)
+	credential, err := c.store.GetCredentialByUUID(ctx, repo.GetCredentialByUUIDParams{
+		Uuid:   credID,
+		Uuid_2: namespaceUUID,
+	})
 	if err != nil {
 		return nil, errors.New("credential not found")
 	}
@@ -152,13 +169,18 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node) (*m
 		OsFamily:     node.OSFamily,
 		Tags:         node.Tags,
 		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
-		CredentialID: credential.ID,
+		CredentialID: sql.NullInt32{Int32: credential.ID, Valid: true},
+		Uuid_2:       namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	key, err := extractAuthKey(models.AuthMethod(updated.AuthMethod), credential)
+	key, err := extractAuthKey(models.AuthMethod(updated.AuthMethod), repo.Credential{
+		Uuid:       credential.Uuid,
+		PrivateKey: credential.PrivateKey,
+		Password:   credential.Password,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -179,12 +201,15 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node) (*m
 	}, nil
 }
 
-func (c *Core) DeleteNode(ctx context.Context, id string) error {
+func (c *Core) DeleteNode(ctx context.Context, id string, namespaceUUID uuid.UUID) error {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return err
 	}
-	return c.store.DeleteNode(ctx, uuidID)
+	return c.store.DeleteNode(ctx, repo.DeleteNodeParams{
+		Uuid:   uuidID,
+		Uuid_2: namespaceUUID,
+	})
 }
 
 func extractAuthKey(method models.AuthMethod, credential repo.Credential) (string, error) {

@@ -175,6 +175,12 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	api.PUT("/credentials/:credID", h.HandleUpdateCredential)
 	api.DELETE("/credentials/:credID", h.HandleDeleteCredential)
 
+	api.GET("/namespaces", h.HandleListNamespaces, h.AuthorizeForRole("admin"))
+	api.GET("/namespaces/:namespaceID", h.HandleGetNamespace, h.AuthorizeForRole("admin"))
+	api.POST("/namespaces", h.HandleCreateNamespace, h.AuthorizeForRole("admin"))
+	api.PUT("/namespaces/:namespaceID", h.HandleUpdateNamespace, h.AuthorizeForRole("admin"))
+	api.DELETE("/namespaces/:namespaceID", h.HandleDeleteNamespace, h.AuthorizeForRole("admin"))
+
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("admin"))
 

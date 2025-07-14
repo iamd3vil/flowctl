@@ -242,13 +242,14 @@ type Approval struct {
 }
 
 type Credential struct {
-	ID         int32          `db:"id" json:"id"`
-	Uuid       uuid.UUID      `db:"uuid" json:"uuid"`
-	Name       string         `db:"name" json:"name"`
-	PrivateKey sql.NullString `db:"private_key" json:"private_key"`
-	Password   sql.NullString `db:"password" json:"password"`
-	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt  time.Time      `db:"updated_at" json:"updated_at"`
+	ID          int32          `db:"id" json:"id"`
+	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
+	Name        string         `db:"name" json:"name"`
+	PrivateKey  sql.NullString `db:"private_key" json:"private_key"`
+	Password    sql.NullString `db:"password" json:"password"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
 }
 
 type ExecutionLog struct {
@@ -272,6 +273,7 @@ type Flow struct {
 	Description sql.NullString `db:"description" json:"description"`
 	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
 }
 
 type Group struct {
@@ -290,6 +292,13 @@ type GroupMembership struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
+type GroupNamespaceAccess struct {
+	ID          int32     `db:"id" json:"id"`
+	GroupID     int32     `db:"group_id" json:"group_id"`
+	NamespaceID int32     `db:"namespace_id" json:"namespace_id"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
+
 type GroupView struct {
 	ID          int32          `db:"id" json:"id"`
 	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
@@ -298,6 +307,14 @@ type GroupView struct {
 	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 	Users       interface{}    `db:"users" json:"users"`
+}
+
+type Namespace struct {
+	ID        int32     `db:"id" json:"id"`
+	Uuid      uuid.UUID `db:"uuid" json:"uuid"`
+	Name      string    `db:"name" json:"name"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type Node struct {
@@ -310,9 +327,10 @@ type Node struct {
 	OsFamily     string               `db:"os_family" json:"os_family"`
 	Tags         []string             `db:"tags" json:"tags"`
 	AuthMethod   AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID int32                `db:"credential_id" json:"credential_id"`
+	CredentialID sql.NullInt32        `db:"credential_id" json:"credential_id"`
 	CreatedAt    time.Time            `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time            `db:"updated_at" json:"updated_at"`
+	NamespaceID  int32                `db:"namespace_id" json:"namespace_id"`
 }
 
 type Session struct {

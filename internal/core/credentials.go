@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential) (*models.Credential, error) {
+func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential, namespaceUUID uuid.UUID) (*models.Credential, error) {
 	if cred.Name == "" {
 		return nil, errors.New("credential name is required")
 	}
@@ -50,6 +50,7 @@ func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential) (*
 			String: encryptedPassword,
 			Valid:  encryptedPassword != "",
 		},
+		Uuid: namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
@@ -63,13 +64,16 @@ func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential) (*
 	}, nil
 }
 
-func (c *Core) GetCredentialByID(ctx context.Context, id string) (*models.Credential, error) {
+func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceUUID uuid.UUID) (*models.Credential, error) {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	cred, err := c.store.GetCredentialByUUID(ctx, uuidID)
+	cred, err := c.store.GetCredentialByUUID(ctx, repo.GetCredentialByUUIDParams{
+		Uuid:   uuidID,
+		Uuid_2: namespaceUUID,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +86,9 @@ func (c *Core) GetCredentialByID(ctx context.Context, id string) (*models.Creden
 	}, nil
 }
 
-func (c *Core) ListCredentials(ctx context.Context, limit, offset int) ([]*models.Credential, int64, int64, error) {
+func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespaceUUID uuid.UUID) ([]*models.Credential, int64, int64, error) {
 	creds, err := c.store.ListCredentials(ctx, repo.ListCredentialsParams{
+		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -108,7 +113,7 @@ func (c *Core) ListCredentials(ctx context.Context, limit, offset int) ([]*model
 	return results, 0, 0, nil
 }
 
-func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Credential) (*models.Credential, error) {
+func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Credential, namespaceUUID uuid.UUID) (*models.Credential, error) {
 	if cred.Name == "" {
 		return nil, errors.New("credential name is required")
 	}
@@ -151,6 +156,7 @@ func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Cre
 			String: encryptedPassword,
 			Valid:  encryptedPassword != "",
 		},
+		Uuid_2: namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
@@ -164,10 +170,13 @@ func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Cre
 	}, nil
 }
 
-func (c *Core) DeleteCredential(ctx context.Context, id string) error {
+func (c *Core) DeleteCredential(ctx context.Context, id string, namespaceUUID uuid.UUID) error {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return err
 	}
-	return c.store.DeleteCredential(ctx, uuidID)
+	return c.store.DeleteCredential(ctx, repo.DeleteCredentialParams{
+		Uuid:   uuidID,
+		Uuid_2: namespaceUUID,
+	})
 }

@@ -8,6 +8,9 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 const createFlow = `-- name: CreateFlow :one
@@ -15,10 +18,11 @@ INSERT INTO flows (
     slug,
     name,
     description,
-    checksum
+    checksum,
+    namespace_id
 ) VALUES (
-    $1, $2, $3, $4
-) RETURNING id, slug, name, checksum, description, created_at, updated_at
+    $1, $2, $3, $4, (SELECT id FROM namespaces WHERE namespaces.uuid = $5)
+) RETURNING id, slug, name, checksum, description, created_at, updated_at, namespace_id
 `
 
 type CreateFlowParams struct {
@@ -26,6 +30,7 @@ type CreateFlowParams struct {
 	Name        string         `db:"name" json:"name"`
 	Description sql.NullString `db:"description" json:"description"`
 	Checksum    string         `db:"checksum" json:"checksum"`
+	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error) {
@@ -34,6 +39,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		arg.Name,
 		arg.Description,
 		arg.Checksum,
+		arg.Uuid,
 	)
 	var i Flow
 	err := row.Scan(
@@ -44,6 +50,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NamespaceID,
 	)
 	return i, err
 }
@@ -58,12 +65,31 @@ func (q *Queries) DeleteAllFlows(ctx context.Context) error {
 }
 
 const getFlowBySlug = `-- name: GetFlowBySlug :one
-SELECT id, slug, name, checksum, description, created_at, updated_at FROM flows where slug = $1
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id, n.uuid AS namespace_uuid FROM flows f
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE f.slug = $1 AND n.uuid = $2
 `
 
-func (q *Queries) GetFlowBySlug(ctx context.Context, slug string) (Flow, error) {
-	row := q.db.QueryRowContext(ctx, getFlowBySlug, slug)
-	var i Flow
+type GetFlowBySlugParams struct {
+	Slug string    `db:"slug" json:"slug"`
+	Uuid uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+type GetFlowBySlugRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+}
+
+func (q *Queries) GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (GetFlowBySlugRow, error) {
+	row := q.db.QueryRowContext(ctx, getFlowBySlug, arg.Slug, arg.Uuid)
+	var i GetFlowBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.Slug,
@@ -72,8 +98,140 @@ func (q *Queries) GetFlowBySlug(ctx context.Context, slug string) (Flow, error) 
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NamespaceID,
+		&i.NamespaceUuid,
 	)
 	return i, err
+}
+
+const getFlowsByNamespace = `-- name: GetFlowsByNamespace :many
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id, n.uuid AS namespace_uuid FROM flows f
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE n.uuid = $1
+`
+
+type GetFlowsByNamespaceRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+}
+
+func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFlowsByNamespace, argUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFlowsByNamespaceRow
+	for rows.Next() {
+		var i GetFlowsByNamespaceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.NamespaceID,
+			&i.NamespaceUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFlows = `-- name: ListFlows :many
+WITH filtered AS (
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id, n.uuid AS namespace_uuid FROM flows f
+    JOIN namespaces n ON f.namespace_id = n.id
+    WHERE n.uuid = $1
+),
+total AS (
+    SELECT COUNT(*) AS total_count FROM filtered
+),
+paged AS (
+    SELECT id, slug, name, checksum, description, created_at, updated_at, namespace_id, namespace_uuid FROM filtered
+    ORDER BY created_at DESC
+    LIMIT $2 OFFSET $3
+),
+page_count AS (
+    SELECT COUNT(*) AS page_count FROM paged
+)
+SELECT 
+    p.id, p.slug, p.name, p.checksum, p.description, p.created_at, p.updated_at, p.namespace_id, p.namespace_uuid,
+    pc.page_count,
+    t.total_count
+FROM paged p, page_count pc, total t
+`
+
+type ListFlowsParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Limit  int32     `db:"limit" json:"limit"`
+	Offset int32     `db:"offset" json:"offset"`
+}
+
+type ListFlowsRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	PageCount     int64          `db:"page_count" json:"page_count"`
+	TotalCount    int64          `db:"total_count" json:"total_count"`
+}
+
+func (q *Queries) ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFlows, arg.Uuid, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFlowsRow
+	for rows.Next() {
+		var i ListFlowsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.NamespaceID,
+			&i.NamespaceUuid,
+			&i.PageCount,
+			&i.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateFlow = `-- name: UpdateFlow :one
@@ -82,8 +240,8 @@ UPDATE flows SET
     description = $2,
     checksum = $3,
     updated_at = NOW()
-WHERE slug = $4
-RETURNING id, slug, name, checksum, description, created_at, updated_at
+WHERE slug = $4 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $5)
+RETURNING id, slug, name, checksum, description, created_at, updated_at, namespace_id
 `
 
 type UpdateFlowParams struct {
@@ -91,6 +249,7 @@ type UpdateFlowParams struct {
 	Description sql.NullString `db:"description" json:"description"`
 	Checksum    string         `db:"checksum" json:"checksum"`
 	Slug        string         `db:"slug" json:"slug"`
+	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error) {
@@ -99,6 +258,7 @@ func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, e
 		arg.Description,
 		arg.Checksum,
 		arg.Slug,
+		arg.Uuid,
 	)
 	var i Flow
 	err := row.Scan(
@@ -109,6 +269,7 @@ func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, e
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NamespaceID,
 	)
 	return i, err
 }

@@ -163,18 +163,15 @@ CREATE TABLE IF NOT EXISTS credentials (
 CREATE UNIQUE INDEX idx_credentials_uuid ON credentials(uuid);
 CREATE UNIQUE INDEX idx_credentials_name ON credentials(name);
 
-CREATE TABLE IF NOT EXISTS auth_configs (
+CREATE TABLE IF NOT EXISTS namespaces (
     id SERIAL PRIMARY KEY,
-    node_id INTEGER NOT NULL,
-    credential_id INTEGER NOT NULL,
-    username VARCHAR(150) NOT NULL,
-    auth_method authentication_method NOT NULL DEFAULT 'ssh_key',
+    uuid UUID NOT NULL DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE,
-    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE CASCADE
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
-CREATE UNIQUE INDEX idx_auth_configs_node_credential ON auth_configs(node_id, credential_id);
+CREATE UNIQUE INDEX idx_namespaces_uuid ON namespaces(uuid);
+CREATE UNIQUE INDEX idx_namespaces_name ON namespaces(name);
 
 CREATE TABLE IF NOT EXISTS nodes (
     id SERIAL PRIMARY KEY,
@@ -182,10 +179,14 @@ CREATE TABLE IF NOT EXISTS nodes (
     name VARCHAR(150) NOT NULL,
     hostname VARCHAR(255) NOT NULL,
     port INTEGER NOT NULL DEFAULT 22,
+    username VARCHAR(150) NOT NULL,
     os_family VARCHAR(50) NOT NULL,
     tags TEXT[],
+    auth_method authentication_method NOT NULL DEFAULT 'ssh_key',
+    credential_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX idx_nodes_uuid ON nodes(uuid);
 CREATE UNIQUE INDEX idx_nodes_name ON nodes(name);

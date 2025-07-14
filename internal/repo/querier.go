@@ -17,15 +17,18 @@ type Querier interface {
 	AddExecutionLog(ctx context.Context, arg AddExecutionLogParams) (ExecutionLog, error)
 	AddGroupToUserByUUID(ctx context.Context, arg AddGroupToUserByUUIDParams) error
 	ApproveRequestByUUID(ctx context.Context, arg ApproveRequestByUUIDParams) (ApproveRequestByUUIDRow, error)
+	CheckUserNamespaceAccess(ctx context.Context, arg CheckUserNamespaceAccessParams) (bool, error)
 	CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
+	CreateNamespace(ctx context.Context, name string) (Namespace, error)
 	CreateNode(ctx context.Context, arg CreateNodeParams) (Node, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAllFlows(ctx context.Context) error
-	DeleteCredential(ctx context.Context, argUuid uuid.UUID) error
+	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
-	DeleteNode(ctx context.Context, argUuid uuid.UUID) error
+	DeleteNamespace(ctx context.Context, argUuid uuid.UUID) error
+	DeleteNode(ctx context.Context, arg DeleteNodeParams) error
 	DeleteUserByUUID(ctx context.Context, argUuid uuid.UUID) error
 	GetAllGroups(ctx context.Context) ([]Group, error)
 	GetAllGroupsWithUsers(ctx context.Context) ([]GroupView, error)
@@ -33,30 +36,39 @@ type Querier interface {
 	GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (GetApprovalByUUIDRow, error)
 	GetApprovalRequestForActionAndExec(ctx context.Context, arg GetApprovalRequestForActionAndExecParams) (Approval, error)
 	GetChildrenByParentUUID(ctx context.Context, parentExecID sql.NullString) ([]ExecutionLog, error)
-	GetCredentialByID(ctx context.Context, id int32) (Credential, error)
-	GetCredentialByUUID(ctx context.Context, argUuid uuid.UUID) (Credential, error)
+	GetCredentialByID(ctx context.Context, arg GetCredentialByIDParams) (GetCredentialByIDRow, error)
+	GetCredentialByUUID(ctx context.Context, arg GetCredentialByUUIDParams) (GetCredentialByUUIDRow, error)
 	GetExecutionByExecID(ctx context.Context, execID string) (GetExecutionByExecIDRow, error)
 	GetExecutionByID(ctx context.Context, id int32) (ExecutionLog, error)
 	GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]ExecutionLog, error)
-	GetFlowBySlug(ctx context.Context, slug string) (Flow, error)
+	GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (GetFlowBySlugRow, error)
 	GetFlowFromExecID(ctx context.Context, execID string) (GetFlowFromExecIDRow, error)
+	GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error)
 	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
+	GetGroupsWithNamespaceAccess(ctx context.Context, argUuid uuid.UUID) ([]GetGroupsWithNamespaceAccessRow, error)
 	GetInputForExecByUUID(ctx context.Context, execID string) (json.RawMessage, error)
-	GetNodeByName(ctx context.Context, name string) (Node, error)
-	GetNodeByUUID(ctx context.Context, argUuid uuid.UUID) (Node, error)
-	GetNodesByNames(ctx context.Context, dollar_1 []string) ([]GetNodesByNamesRow, error)
+	GetNamespaceByName(ctx context.Context, name string) (Namespace, error)
+	GetNamespaceByUUID(ctx context.Context, argUuid uuid.UUID) (Namespace, error)
+	GetNamespacesForGroup(ctx context.Context, argUuid uuid.UUID) ([]GetNamespacesForGroupRow, error)
+	GetNodeByName(ctx context.Context, arg GetNodeByNameParams) (GetNodeByNameRow, error)
+	GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (GetNodeByUUIDRow, error)
+	GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams) ([]GetNodesByNamesRow, error)
 	GetPendingApprovalRequestForExec(ctx context.Context, execID string) (GetPendingApprovalRequestForExecRow, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserByUUIDWithGroups(ctx context.Context, argUuid uuid.UUID) (UserView, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserByUsernameWithGroups(ctx context.Context, username string) (UserView, error)
+	GrantGroupNamespaceAccess(ctx context.Context, arg GrantGroupNamespaceAccessParams) (GroupNamespaceAccess, error)
 	ListCredentials(ctx context.Context, arg ListCredentialsParams) ([]ListCredentialsRow, error)
+	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
+	ListNamespaces(ctx context.Context, arg ListNamespacesParams) ([]ListNamespacesRow, error)
 	ListNodes(ctx context.Context, arg ListNodesParams) ([]ListNodesRow, error)
 	RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error)
 	RemoveAllGroupsForUserByUUID(ctx context.Context, userUuid uuid.UUID) error
+	RevokeGroupNamespaceAccess(ctx context.Context, arg RevokeGroupNamespaceAccessParams) error
 	SearchGroup(ctx context.Context, arg SearchGroupParams) ([]SearchGroupRow, error)
 	SearchUsersWithGroups(ctx context.Context, arg SearchUsersWithGroupsParams) ([]SearchUsersWithGroupsRow, error)
 	UpdateApprovalStatusByUUID(ctx context.Context, arg UpdateApprovalStatusByUUIDParams) (UpdateApprovalStatusByUUIDRow, error)
@@ -64,6 +76,7 @@ type Querier interface {
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
 	UpdateGroupByUUID(ctx context.Context, arg UpdateGroupByUUIDParams) (Group, error)
+	UpdateNamespace(ctx context.Context, arg UpdateNamespaceParams) (Namespace, error)
 	UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, error)
 	UpdateUserByUUID(ctx context.Context, arg UpdateUserByUUIDParams) (User, error)
 }

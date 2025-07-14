@@ -1,17 +1,23 @@
 -- name: CreateCredential :one
-INSERT INTO credentials (name, private_key, password)
-VALUES ($1, $2, $3)
+INSERT INTO credentials (name, private_key, password, namespace_id)
+VALUES ($1, $2, $3, (SELECT id FROM namespaces WHERE namespaces.uuid = $4))
 RETURNING *;
 
 -- name: GetCredentialByUUID :one
-SELECT * FROM credentials WHERE uuid = $1;
+SELECT c.*, ns.uuid AS namespace_uuid FROM credentials c
+JOIN namespaces ns ON c.namespace_id = ns.id
+WHERE c.uuid = $1 AND ns.uuid = $2;
 
 -- name: GetCredentialByID :one
-SELECT * FROM credentials WHERE id = $1;
+SELECT c.*, ns.uuid AS namespace_uuid FROM credentials c
+JOIN namespaces ns ON c.namespace_id = ns.id
+WHERE c.id = $1 AND ns.uuid = $2;
 
 -- name: ListCredentials :many
 WITH filtered AS (
-    SELECT * FROM credentials
+    SELECT c.*, ns.uuid AS namespace_uuid FROM credentials c
+    JOIN namespaces ns ON c.namespace_id = ns.id
+    WHERE ns.uuid = $1
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -19,7 +25,7 @@ total AS (
 paged AS (
     SELECT * FROM filtered
     ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
+    LIMIT $2 OFFSET $3
 ),
 page_count AS (
     SELECT COUNT(*) AS page_count FROM paged
@@ -33,8 +39,8 @@ FROM paged p, page_count pc, total t;
 -- name: UpdateCredential :one
 UPDATE credentials
 SET name = $2, private_key = $3, password = $4, updated_at = NOW()
-WHERE uuid = $1
+WHERE credentials.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $5)
 RETURNING *;
 
 -- name: DeleteCredential :exec
-DELETE FROM credentials WHERE uuid = $1;
+DELETE FROM credentials WHERE credentials.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $2);
