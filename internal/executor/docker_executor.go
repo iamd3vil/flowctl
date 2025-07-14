@@ -65,26 +65,9 @@ type DockerRunnerOptions struct {
 func NewDockerExecutor(name string, dockerOptions DockerRunnerOptions) (Executor, error) {
 	jobName := slug.Make(fmt.Sprintf("%s-%s", name, xid.New().String()))
 
-	tempDir, err := os.MkdirTemp("", fmt.Sprintf("docker-executor-%s-*", jobName))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
-	}
-
-	pushDir := filepath.Join(tempDir, PUSH_DIR)
-	pullDir := filepath.Join(tempDir, PULL_DIR)
-
-	if err := os.MkdirAll(pushDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create push directory: %w", err)
-	}
-
-	if err := os.MkdirAll(pullDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create pull directory: %w", err)
-	}
-
 	return &DockerExecutor{
-		name:               jobName,
-		dockerOptions:      dockerOptions,
-		artifactsDirectory: tempDir,
+		name:          jobName,
+		dockerOptions: dockerOptions,
 	}, nil
 }
 
@@ -168,9 +151,20 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx ExecutionContext) 
 
 	d.client = cli
 
-	tempFile, err := d.createTemp("docker-executor-output", false)
+	// create a file for storing output
+	tempFile := fmt.Sprintf("/tmp/docker-executor-output-%s", xid.New().String())
+	err = d.createFileOrDirectory(tempFile, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for output: %w", err)
+	}
+
+	// create artifacts directory
+	d.artifactsDirectory = fmt.Sprintf("/tmp/docker-artifacts-%s", xid.New().String())
+	if err := d.createFileOrDirectory(filepath.Join(d.artifactsDirectory, PUSH_DIR), true); err != nil {
+		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
+	}
+	if err := d.createFileOrDirectory(filepath.Join(d.artifactsDirectory, PULL_DIR), true); err != nil {
+		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
 	d.mounts = append(d.mounts, mount.Mount{
@@ -327,15 +321,12 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 		}
 		defer tar.Close()
 
-		artifactFile, err := os.Create(filepath.Join(d.artifactsDirectory, PULL_DIR, filepath.Clean(f)))
-		if err != nil {
-			return fmt.Errorf("unable to create local file for artifact %s: %v", f, err)
+		// create artifact file
+		if err := d.createFileOrDirectory(filepath.Join(d.artifactsDirectory, PULL_DIR, f), false); err != nil {
+			return fmt.Errorf("unable to create artifact file %s: %v", f, err)
 		}
-		defer artifactFile.Close()
 
-		if err := archive.Untar(tar, filepath.Join(d.artifactsDirectory, PULL_DIR), &archive.TarOptions{
-			NoLchown: true,
-		}); err != nil {
+		if err := archive.Untar(tar, filepath.Join(d.artifactsDirectory, PULL_DIR), &archive.TarOptions{}); err != nil {
 			return fmt.Errorf("unable to untar artifact %s: %v", f, err)
 		}
 	}
@@ -343,28 +334,29 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 	return nil
 }
 
-// createTemp creates a temporary directory or file, handling local and remote execution.
-func (d *DockerExecutor) createTemp(name string, dir bool) (string, error) {
+// createFileOrDirectory creates a temporary directory or file, handling local and remote execution.
+func (d *DockerExecutor) createFileOrDirectory(name string, dir bool) error {
 	if d.remoteClient == nil {
 		if dir {
-			return os.MkdirTemp("", fmt.Sprintf("%s-%s-*", name, d.name))
+			return os.MkdirAll(name, 0755)
 		}
-		f, err := os.CreateTemp("", fmt.Sprintf("%s-%s-*", name, d.name))
+		_, err := os.Create(name)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return f.Name(), nil
+		return nil
 	}
 
-	cmd := "mktemp"
+	cmd := "touch %s && chmod 755 %s"
 	if dir {
-		cmd = "mktemp -d"
+		cmd = "mkdir -p %s && chmod 755 %s"
 	}
-	path, err := d.remoteClient.RunCommand(cmd)
+	cmd = fmt.Sprintf(cmd, name, name)
+	_, err := d.remoteClient.RunCommand(cmd)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return strings.TrimSpace(path), nil
+	return nil
 }
 
 func (d *DockerExecutor) createSrcDirectories(ctx context.Context, cli *client.Client) error {
@@ -486,7 +478,7 @@ func createSSHTunnel(ctx context.Context, client RemoteClient) (net.Listener, er
 	return localListener, nil
 }
 
-// PushFile uploads a file from the local machine to the remote Docker container's artifacts directory.
+// PushFile uploads a file from the local machine to the remote Docker container.
 // This should be used before calling the `Execute` method to ensure that the file is available in the container's context.
 // remoteFilePath is the path inside the container where the file should be uploaded
 func (d *DockerExecutor) PushFile(ctx context.Context, localFilePath string, remoteFilePath string) error {
@@ -530,7 +522,7 @@ func (d *DockerExecutor) PullFile(ctx context.Context, remoteFilePath string, lo
 	if d.remoteClient == nil {
 		srcFile, err := os.Open(filepath.Clean(srcFile))
 		if err != nil {
-			return fmt.Errorf("failed to open source file %s: %w", srcFile.Name(), err)
+			return fmt.Errorf("failed to open source file: %w", err)
 		}
 		defer srcFile.Close()
 
