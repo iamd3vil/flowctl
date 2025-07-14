@@ -14,7 +14,7 @@ import (
 
 // StreamLogs reads values from a redis stream from the beginning and returns a channel to which
 // all the messages are sent. logID is the ID sent to the NewFlowExecution task
-func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.StreamMessage, error) {
+func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
 	errCh, err := c.checkErrors(ctx, logID)
@@ -27,7 +27,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string) (chan models.Stream
 		return nil, err
 	}
 
-	approvalCh, err := c.checkApprovalRequests(ctx, logID)
+	approvalCh, err := c.checkApprovalRequests(ctx, logID, namespaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,10 +173,10 @@ func (c *Core) checkErrors(ctx context.Context, execID string) (chan models.Stre
 	return ch, nil
 }
 
-func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan models.StreamMessage, error) {
+func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
-	f, err := c.GetFlowFromLogID(execID)
+	f, err := c.GetFlowFromLogID(execID, namespaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string) (chan m
 			case <-ctx.Done():
 				return
 			default:
-				a, err := c.GetPendingApprovalsForExec(ctx, execID)
+				a, err := c.GetPendingApprovalsForExec(ctx, execID, namespaceID)
 				if err != nil && !errors.Is(err, ErrNil) {
 					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
 					return

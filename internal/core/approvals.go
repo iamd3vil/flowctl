@@ -51,14 +51,14 @@ func (c *Core) cacheApproval(ctx context.Context, execID int32, approval models.
 // It takes the approval UUID, the ID of the user making the decision, and the approval status.
 // The function updates both the database and Redis cache with the decision.
 // Once approved, the task is moved to a resume queue for further processing.
-func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedBy string, status models.ApprovalType) error {
+func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedBy string, status models.ApprovalType, namespaceID string) error {
 	var err error
 	uid, err := uuid.Parse(approvalUUID)
 	if err != nil {
 		return fmt.Errorf("approval UUID is not a UUID: %w", err)
 	}
 
-	areq, err := c.GetApprovalRequest(ctx, approvalUUID)
+	areq, err := c.GetApprovalRequest(ctx, approvalUUID, namespaceID)
 	if err != nil {
 		return fmt.Errorf("could not retrieve approval request %s: %w", approvalUUID, err)
 	}
@@ -77,6 +77,11 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		return err
 	}
 
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	var approval models.ApprovalRequest
 	var execLogID int32
 	switch status {
@@ -84,6 +89,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		a, err := c.store.ApproveRequestByUUID(ctx, repo.ApproveRequestByUUIDParams{
 			Uuid:      uid,
 			DecidedBy: sql.NullInt32{Int32: user.ID, Valid: true},
+			Uuid_2:    namespaceUUID,
 		})
 		if err != nil {
 			return fmt.Errorf("could not approve request %s: %w", approvalUUID, err)
@@ -105,6 +111,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		a, err := c.store.RejectRequestByUUID(ctx, repo.RejectRequestByUUIDParams{
 			Uuid:      uid,
 			DecidedBy: sql.NullInt32{Int32: user.ID, Valid: true},
+			Uuid_2:    namespaceUUID,
 		})
 		if err != nil {
 			return fmt.Errorf("could not reject request %s: %w", approvalUUID, err)
@@ -136,7 +143,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 
 	// If approved, move to resume queue
 	if status == models.ApprovalStatusApproved {
-		if err := c.ResumeFlowExecution(ctx, exec.ExecID, approval.ActionID, decidedBy); err != nil {
+		if err := c.ResumeFlowExecution(ctx, exec.ExecID, approval.ActionID, decidedBy, namespaceID); err != nil {
 			return fmt.Errorf("could not resume task %s: %w", exec.ExecID, err)
 		}
 	}
@@ -186,7 +193,7 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 	return areq.Uuid.String(), nil
 }
 
-func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (models.ApprovalRequest, error) {
+func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string, namespaceID string) (models.ApprovalRequest, error) {
 	exec, err := c.store.GetExecutionByExecID(ctx, execID)
 	if err != nil {
 		return models.ApprovalRequest{}, fmt.Errorf("error getting execution for exec ID %s: %w", execID, err)
@@ -200,7 +207,15 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 
 	// Get from DB
 	if errors.Is(err, redis.Nil) {
-		areq, err := c.store.GetPendingApprovalRequestForExec(ctx, execID)
+		namespaceUUID, err := uuid.Parse(namespaceID)
+		if err != nil {
+			return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
+		}
+
+		areq, err := c.store.GetPendingApprovalRequestForExec(ctx, repo.GetPendingApprovalRequestForExecParams{
+			ExecID: execID,
+			Uuid:   namespaceUUID,
+		})
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return models.ApprovalRequest{}, fmt.Errorf("could not get approval request from DB for exec %s: %w", execID, err)
 		}
@@ -235,7 +250,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string) (m
 	return models.ApprovalRequest{}, nil
 }
 
-func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string, action tasks.Action) error {
+func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string, action tasks.Action, namespaceID string) error {
 	if len(action.Approval) == 0 {
 		return nil
 	}
@@ -246,10 +261,16 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string
 		eID = parentExecID
 	}
 
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	// check if pending approval, exit if not approved
 	a, err := c.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
 		ExecID:   eID,
 		ActionID: action.ID,
+		Uuid:     namespaceUUID,
 	})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
@@ -274,7 +295,7 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID, parentExecID string
 	return tasks.ErrPendingApproval
 }
 
-func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string) (models.ApprovalRequest, error) {
+func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string, namespaceID string) (models.ApprovalRequest, error) {
 	var approval models.ApprovalRequest
 	err := c.redisClient.Get(ctx, fmt.Sprintf(ApprovalUUIDPrefix, approvalUUID)).Scan(&approval)
 	if err != nil && !errors.Is(err, redis.Nil) {
@@ -287,7 +308,15 @@ func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string) (mod
 			return models.ApprovalRequest{}, fmt.Errorf("invalid approval UUID: %w", err)
 		}
 
-		areq, err := c.store.GetApprovalByUUID(ctx, uid)
+		namespaceUUID, err := uuid.Parse(namespaceID)
+		if err != nil {
+			return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
+		}
+
+		areq, err := c.store.GetApprovalByUUID(ctx, repo.GetApprovalByUUIDParams{
+			Uuid:   uid,
+			Uuid_2: namespaceUUID,
+		})
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return models.ApprovalRequest{}, ErrNil

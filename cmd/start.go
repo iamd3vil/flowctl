@@ -263,8 +263,21 @@ func processYAMLFiles(rootDir string, store repo.Store) (map[string]models.Flow,
 			f.Meta.SrcDir = entry.Name()
 			yamlFound = true
 
+			if f.Meta.Namespace == "" {
+				f.Meta.Namespace = "default"
+			}
+
+			ns, err := store.GetNamespaceByName(context.Background(), f.Meta.Namespace)
+			if err != nil {
+				log.Printf("error getting namespace %s: %v", f.Meta.Namespace, err)
+				continue
+			}
+
 			// Database operations
-			fd, err := store.GetFlowBySlug(context.Background(), f.Meta.ID)
+			fd, err := store.GetFlowBySlug(context.Background(), repo.GetFlowBySlugParams{
+				Slug: f.Meta.ID,
+				Uuid: ns.Uuid,
+			})
 			if err != nil {
 				// Create new flow
 				fd, err = store.CreateFlow(context.Background(), repo.CreateFlowParams{
@@ -292,7 +305,8 @@ func processYAMLFiles(rootDir string, store repo.Store) (map[string]models.Flow,
 			}
 
 			f.Meta.DBID = fd.ID
-			m[f.Meta.ID] = f
+
+			m[fmt.Sprintf("%s:%s", f.Meta.ID, ns.Uuid.String())] = f
 		}
 
 		if !yamlFound {

@@ -21,8 +21,8 @@ var (
 	ErrFlowNotFound = errors.New("flow not found")
 )
 
-func (c *Core) GetFlowByID(id string) (models.Flow, error) {
-	f, ok := c.flows[id]
+func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
+	f, ok := c.flows[fmt.Sprintf("%s:%s", id, namespaceID)]
 	if !ok {
 		return models.Flow{}, ErrFlowNotFound
 	}
@@ -30,32 +30,42 @@ func (c *Core) GetFlowByID(id string) (models.Flow, error) {
 	return f, nil
 }
 
-func (c *Core) GetAllFlows() ([]models.Flow, error) {
+func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Flow, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	flows, err := c.store.GetFlowsByNamespace(ctx, namespaceUUID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get flows for namespace %s: %w", namespaceID, err)
+	}
+
 	var fs []models.Flow
-	for _, v := range c.flows {
-		fs = append(fs, v)
+	for _, v := range flows {
+		fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
 	}
 	return fs, nil
 }
 
-func (c *Core) GetFlowFromLogID(logID string) (models.Flow, error) {
+func (c *Core) GetFlowFromLogID(logID string, namespaceID string) (models.Flow, error) {
 	f, ok := c.logMap[logID]
 	if !ok {
 		df, err := c.store.GetFlowFromExecID(context.Background(), logID)
 		if err != nil {
 			return models.Flow{}, fmt.Errorf("could not get flow for exec id %s: %w", logID, err)
 		}
-		return c.GetFlowByID(df.Slug)
+		return c.GetFlowByID(df.Slug, namespaceID)
 	}
 
-	return c.GetFlowByID(f)
+	return c.GetFlowByID(f, namespaceID)
 }
 
 // QueueFlowExecution adds a flow in the execution queue. The ID returned is the execution queue ID.
 // Exec ID should be universally unique, this is used to create the log stream and identify each execution
-func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string) (string, error) {
+func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string, namespaceID string) (string, error) {
 
-	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID)
+	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID)
 	if err != nil {
 		return "", err
 	}
@@ -64,13 +74,13 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 }
 
 // ResumeFlowExecution moves the task to a resume queue for further processing.
-func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID string, userUUID string) error {
+func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID string, userUUID string, namespaceID string) error {
 	exec, err := c.GetExecutionByExecID(ctx, execID)
 	if err != nil {
 		return fmt.Errorf("could not get exec %s: %w", execID, err)
 	}
 
-	f, err := c.GetFlowFromLogID(execID)
+	f, err := c.GetFlowFromLogID(execID, namespaceID)
 	if err != nil {
 		return err
 	}
@@ -80,7 +90,7 @@ func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID 
 		return err
 	}
 
-	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID); err != nil {
+	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID, namespaceID); err != nil {
 		return err
 	}
 
@@ -146,7 +156,7 @@ func (c *Core) getNodesByNames(ctx context.Context, nodeNames []string, namespac
 }
 
 // queueFlow adds a flow to the execution queue. If the actionIndex is not zero, it is moved to a resume queue.
-func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, parentExecID string, actionIndex int, userUUID string) (string, error) {
+func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, parentExecID string, actionIndex int, userUUID string, namespaceID string) (string, error) {
 	execID := uuid.NewString()
 	// store the mapping between logID and flowID
 	c.logMap[execID] = f.Meta.ID
@@ -156,8 +166,13 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		return "", fmt.Errorf("user id is not a UUID: %w", err)
 	}
 
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return "", fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	taskFlow, err := models.ToTaskFlowModel(f, func(nodeNames []string) ([]models.Node, error) {
-		return c.getNodesByNames(ctx, nodeNames, uuid.Nil) // TODO: Pass actual namespace UUID
+		return c.getNodesByNames(ctx, nodeNames, namespaceUUID)
 	})
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to task model: %w", err)
@@ -198,15 +213,21 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	return execID, err
 }
 
-func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, triggeredBy string) ([]models.ExecutionSummary, error) {
+func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, triggeredBy string, namespaceID string) ([]models.ExecutionSummary, error) {
 	userID, err := uuid.Parse(triggeredBy)
 	if err != nil {
 		return nil, fmt.Errorf("user id is not a UUID: %w", err)
 	}
 
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	execs, err := c.store.GetExecutionsByFlow(ctx, repo.GetExecutionsByFlowParams{
-		FlowID: f.Meta.DBID,
+		ID:     f.Meta.DBID,
 		Uuid:   userID,
+		Uuid_2: namespaceUUID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not get executions for %s: %w", f.Meta.ID, err)
@@ -226,13 +247,13 @@ func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, trigge
 	return m, nil
 }
 
-func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string) (models.ExecutionSummary, error) {
+func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, namespaceID string) (models.ExecutionSummary, error) {
 	e, err := c.store.GetExecutionByExecID(ctx, execID)
 	if err != nil {
 		return models.ExecutionSummary{}, fmt.Errorf("could not get exec %s by exec id: %w", execID, err)
 	}
 
-	f, err := c.GetFlowFromLogID(execID)
+	f, err := c.GetFlowFromLogID(execID, namespaceID)
 	if err != nil {
 		return models.ExecutionSummary{}, fmt.Errorf("could not get flow for exec %s: %w", execID, err)
 	}

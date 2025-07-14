@@ -16,9 +16,16 @@ JOIN execution_log el ON a.exec_log_id = el.id
 JOIN users u ON el.triggered_by = u.id;
 
 -- name: ApproveRequestByUUID :one
-WITH updated AS (
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), updated AS (
     UPDATE approvals SET status = 'approved', decided_by = $2, updated_at = NOW()
-    WHERE approvals.uuid = $1
+    WHERE approvals.uuid = $1 
+    AND approvals.exec_log_id IN (
+        SELECT el.id FROM execution_log el
+        JOIN flows f ON el.flow_id = f.id
+        WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    )
     RETURNING *
 )
 SELECT
@@ -29,9 +36,16 @@ JOIN execution_log el ON a.exec_log_id = el.id
 JOIN users u ON el.triggered_by = u.id;
 
 -- name: RejectRequestByUUID :one
-WITH updated AS (
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), updated AS (
     UPDATE approvals SET status = 'rejected', decided_by = $2, updated_at = NOW()
     WHERE approvals.uuid = $1
+    AND approvals.exec_log_id IN (
+        SELECT el.id FROM execution_log el
+        JOIN flows f ON el.flow_id = f.id
+        WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    )
     RETURNING *
 )
 SELECT
@@ -55,28 +69,44 @@ JOIN execution_log el ON a.exec_log_id = el.id
 JOIN users u ON el.triggered_by = u.id;
 
 -- name: GetApprovalByUUID :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+)
 SELECT
     a.*,
     u.name as requested_by
 FROM approvals a
 JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
 JOIN users u ON el.triggered_by = u.id
-WHERE a.uuid = $1;
+WHERE a.uuid = $1 AND f.namespace_id = (SELECT id FROM namespace_lookup);
 
 -- name: GetApprovalRequestForActionAndExec :one
 WITH exec_lookup AS (
-    SELECT id FROM execution_log WHERE exec_id = $1
+    SELECT id FROM execution_log WHERE execution_log.exec_id = $1
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
 )
-SELECT * FROM approvals WHERE exec_log_id = (SELECT id FROM exec_lookup) AND action_id = $2;
+SELECT a.* FROM approvals a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
+WHERE a.exec_log_id = (SELECT id FROM exec_lookup) 
+  AND a.action_id = $2
+  AND f.namespace_id = (SELECT id FROM namespace_lookup);
 
 -- name: GetPendingApprovalRequestForExec :one
 WITH exec_lookup AS (
     SELECT id FROM execution_log WHERE execution_log.exec_id = $1
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
 )
 SELECT
     a.*,
     u.name as requested_by
 FROM approvals a
 JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
 JOIN users u ON el.triggered_by = u.id
-WHERE a.exec_log_id = (SELECT id FROM exec_lookup) AND a.status = 'pending';
+WHERE a.exec_log_id = (SELECT id FROM exec_lookup) 
+  AND a.status = 'pending'
+  AND f.namespace_id = (SELECT id FROM namespace_lookup);

@@ -70,9 +70,16 @@ func (q *Queries) AddApprovalRequest(ctx context.Context, arg AddApprovalRequest
 }
 
 const approveRequestByUUID = `-- name: ApproveRequestByUUID :one
-WITH updated AS (
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), updated AS (
     UPDATE approvals SET status = 'approved', decided_by = $2, updated_at = NOW()
-    WHERE approvals.uuid = $1
+    WHERE approvals.uuid = $1 
+    AND approvals.exec_log_id IN (
+        SELECT el.id FROM execution_log el
+        JOIN flows f ON el.flow_id = f.id
+        WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    )
     RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
 )
 SELECT
@@ -86,6 +93,7 @@ JOIN users u ON el.triggered_by = u.id
 type ApproveRequestByUUIDParams struct {
 	Uuid      uuid.UUID     `db:"uuid" json:"uuid"`
 	DecidedBy sql.NullInt32 `db:"decided_by" json:"decided_by"`
+	Uuid_2    uuid.UUID     `db:"uuid_2" json:"uuid_2"`
 }
 
 type ApproveRequestByUUIDRow struct {
@@ -102,7 +110,7 @@ type ApproveRequestByUUIDRow struct {
 }
 
 func (q *Queries) ApproveRequestByUUID(ctx context.Context, arg ApproveRequestByUUIDParams) (ApproveRequestByUUIDRow, error) {
-	row := q.db.QueryRowContext(ctx, approveRequestByUUID, arg.Uuid, arg.DecidedBy)
+	row := q.db.QueryRowContext(ctx, approveRequestByUUID, arg.Uuid, arg.DecidedBy, arg.Uuid_2)
 	var i ApproveRequestByUUIDRow
 	err := row.Scan(
 		&i.ID,
@@ -120,14 +128,23 @@ func (q *Queries) ApproveRequestByUUID(ctx context.Context, arg ApproveRequestBy
 }
 
 const getApprovalByUUID = `-- name: GetApprovalByUUID :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+)
 SELECT
     a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
     u.name as requested_by
 FROM approvals a
 JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
 JOIN users u ON el.triggered_by = u.id
-WHERE a.uuid = $1
+WHERE a.uuid = $1 AND f.namespace_id = (SELECT id FROM namespace_lookup)
 `
+
+type GetApprovalByUUIDParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+}
 
 type GetApprovalByUUIDRow struct {
 	ID          int32           `db:"id" json:"id"`
@@ -142,8 +159,8 @@ type GetApprovalByUUIDRow struct {
 	RequestedBy string          `db:"requested_by" json:"requested_by"`
 }
 
-func (q *Queries) GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (GetApprovalByUUIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getApprovalByUUID, argUuid)
+func (q *Queries) GetApprovalByUUID(ctx context.Context, arg GetApprovalByUUIDParams) (GetApprovalByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getApprovalByUUID, arg.Uuid, arg.Uuid_2)
 	var i GetApprovalByUUIDRow
 	err := row.Scan(
 		&i.ID,
@@ -162,18 +179,26 @@ func (q *Queries) GetApprovalByUUID(ctx context.Context, argUuid uuid.UUID) (Get
 
 const getApprovalRequestForActionAndExec = `-- name: GetApprovalRequestForActionAndExec :one
 WITH exec_lookup AS (
-    SELECT id FROM execution_log WHERE exec_id = $1
+    SELECT id FROM execution_log WHERE execution_log.exec_id = $1
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
 )
-SELECT id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at FROM approvals WHERE exec_log_id = (SELECT id FROM exec_lookup) AND action_id = $2
+SELECT a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at FROM approvals a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
+WHERE a.exec_log_id = (SELECT id FROM exec_lookup) 
+  AND a.action_id = $2
+  AND f.namespace_id = (SELECT id FROM namespace_lookup)
 `
 
 type GetApprovalRequestForActionAndExecParams struct {
-	ExecID   string `db:"exec_id" json:"exec_id"`
-	ActionID string `db:"action_id" json:"action_id"`
+	ExecID   string    `db:"exec_id" json:"exec_id"`
+	ActionID string    `db:"action_id" json:"action_id"`
+	Uuid     uuid.UUID `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) GetApprovalRequestForActionAndExec(ctx context.Context, arg GetApprovalRequestForActionAndExecParams) (Approval, error) {
-	row := q.db.QueryRowContext(ctx, getApprovalRequestForActionAndExec, arg.ExecID, arg.ActionID)
+	row := q.db.QueryRowContext(ctx, getApprovalRequestForActionAndExec, arg.ExecID, arg.ActionID, arg.Uuid)
 	var i Approval
 	err := row.Scan(
 		&i.ID,
@@ -192,15 +217,25 @@ func (q *Queries) GetApprovalRequestForActionAndExec(ctx context.Context, arg Ge
 const getPendingApprovalRequestForExec = `-- name: GetPendingApprovalRequestForExec :one
 WITH exec_lookup AS (
     SELECT id FROM execution_log WHERE execution_log.exec_id = $1
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
 )
 SELECT
     a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.approvers, a.decided_by, a.created_at, a.updated_at,
     u.name as requested_by
 FROM approvals a
 JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
 JOIN users u ON el.triggered_by = u.id
-WHERE a.exec_log_id = (SELECT id FROM exec_lookup) AND a.status = 'pending'
+WHERE a.exec_log_id = (SELECT id FROM exec_lookup) 
+  AND a.status = 'pending'
+  AND f.namespace_id = (SELECT id FROM namespace_lookup)
 `
+
+type GetPendingApprovalRequestForExecParams struct {
+	ExecID string    `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+}
 
 type GetPendingApprovalRequestForExecRow struct {
 	ID          int32           `db:"id" json:"id"`
@@ -215,8 +250,8 @@ type GetPendingApprovalRequestForExecRow struct {
 	RequestedBy string          `db:"requested_by" json:"requested_by"`
 }
 
-func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, execID string) (GetPendingApprovalRequestForExecRow, error) {
-	row := q.db.QueryRowContext(ctx, getPendingApprovalRequestForExec, execID)
+func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, arg GetPendingApprovalRequestForExecParams) (GetPendingApprovalRequestForExecRow, error) {
+	row := q.db.QueryRowContext(ctx, getPendingApprovalRequestForExec, arg.ExecID, arg.Uuid)
 	var i GetPendingApprovalRequestForExecRow
 	err := row.Scan(
 		&i.ID,
@@ -234,9 +269,16 @@ func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, execID s
 }
 
 const rejectRequestByUUID = `-- name: RejectRequestByUUID :one
-WITH updated AS (
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), updated AS (
     UPDATE approvals SET status = 'rejected', decided_by = $2, updated_at = NOW()
     WHERE approvals.uuid = $1
+    AND approvals.exec_log_id IN (
+        SELECT el.id FROM execution_log el
+        JOIN flows f ON el.flow_id = f.id
+        WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    )
     RETURNING id, uuid, exec_log_id, action_id, status, approvers, decided_by, created_at, updated_at
 )
 SELECT
@@ -250,6 +292,7 @@ JOIN users u ON el.triggered_by = u.id
 type RejectRequestByUUIDParams struct {
 	Uuid      uuid.UUID     `db:"uuid" json:"uuid"`
 	DecidedBy sql.NullInt32 `db:"decided_by" json:"decided_by"`
+	Uuid_2    uuid.UUID     `db:"uuid_2" json:"uuid_2"`
 }
 
 type RejectRequestByUUIDRow struct {
@@ -266,7 +309,7 @@ type RejectRequestByUUIDRow struct {
 }
 
 func (q *Queries) RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error) {
-	row := q.db.QueryRowContext(ctx, rejectRequestByUUID, arg.Uuid, arg.DecidedBy)
+	row := q.db.QueryRowContext(ctx, rejectRequestByUUID, arg.Uuid, arg.DecidedBy, arg.Uuid_2)
 	var i RejectRequestByUUIDRow
 	err := row.Scan(
 		&i.ID,

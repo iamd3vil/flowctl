@@ -4,13 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/google/uuid"
 )
 
-func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceUUID uuid.UUID) (*models.Node, error) {
+func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID string) (*models.Node, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	if node.Name == "" {
 		return nil, errors.New("node name is required")
 	}
@@ -71,18 +77,29 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceUUID 
 	}, nil
 }
 
-func (c *Core) GetNodeByID(ctx context.Context, id string) (*models.Node, error) {
+func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (*models.Node, error) {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
 	}
 
-	node, err := c.store.GetNodeByUUID(ctx, uuidID)
+	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, err
 	}
 
-	credential, err := c.store.GetCredentialByID(ctx, node.CredentialID)
+	node, err := c.store.GetNodeByUUID(ctx, repo.GetNodeByUUIDParams{
+		Uuid:   uuidID,
+		Uuid_2: namespaceUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	credential, err := c.store.GetCredentialByID(ctx, repo.GetCredentialByIDParams{
+		ID:   node.CredentialID.Int32,
+		Uuid: namespaceUUID,
+	})
 	if err != nil {
 		return nil, errors.New("credential not found")
 	}
@@ -112,7 +129,12 @@ func (c *Core) GetNodeByID(ctx context.Context, id string) (*models.Node, error)
 	}, nil
 }
 
-func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceUUID uuid.UUID) ([]*models.Node, int64, int64, error) {
+func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceID string) ([]*models.Node, int64, int64, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, -1, -1, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	nodes, err := c.store.ListNodes(ctx, repo.ListNodesParams{
 		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
@@ -124,7 +146,7 @@ func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceUUID u
 
 	results := make([]*models.Node, 0)
 	for _, n := range nodes {
-		res, err := c.GetNodeByID(ctx, n.Uuid.String(), namespaceUUID)
+		res, err := c.GetNodeByID(ctx, n.Uuid.String(), namespaceID)
 		if err != nil {
 			return nil, -1, -1, err
 		}
@@ -138,7 +160,12 @@ func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceUUID u
 	return results, 0, 0, nil
 }
 
-func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, namespaceUUID uuid.UUID) (*models.Node, error) {
+func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, namespaceID string) (*models.Node, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	if node.Name == "" {
 		return nil, errors.New("node name is required")
 	}
@@ -201,10 +228,15 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, nam
 	}, nil
 }
 
-func (c *Core) DeleteNode(ctx context.Context, id string, namespaceUUID uuid.UUID) error {
+func (c *Core) DeleteNode(ctx context.Context, id string, namespaceID string) error {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid node UUID: %w", err)
 	}
 	return c.store.DeleteNode(ctx, repo.DeleteNodeParams{
 		Uuid:   uuidID,

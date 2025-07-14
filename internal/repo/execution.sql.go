@@ -144,6 +144,62 @@ func (q *Queries) GetExecutionByExecID(ctx context.Context, execID string) (GetE
 	return i, err
 }
 
+const getExecutionByExecIDWithNamespace = `-- name: GetExecutionByExecIDWithNamespace :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+)
+SELECT
+    el.id, el.exec_id, el.flow_id, el.parent_exec_id, el.input, el.error, el.status, el.triggered_by, el.created_at, el.updated_at,
+    u.uuid AS triggered_by_uuid
+FROM
+    execution_log el
+INNER JOIN
+    users u ON el.triggered_by = u.id
+INNER JOIN
+    flows f ON el.flow_id = f.id
+WHERE
+    el.exec_id = $1
+    AND f.namespace_id = (SELECT id FROM namespace_lookup)
+`
+
+type GetExecutionByExecIDWithNamespaceParams struct {
+	ExecID string    `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+type GetExecutionByExecIDWithNamespaceRow struct {
+	ID              int32           `db:"id" json:"id"`
+	ExecID          string          `db:"exec_id" json:"exec_id"`
+	FlowID          int32           `db:"flow_id" json:"flow_id"`
+	ParentExecID    sql.NullString  `db:"parent_exec_id" json:"parent_exec_id"`
+	Input           json.RawMessage `db:"input" json:"input"`
+	Error           sql.NullString  `db:"error" json:"error"`
+	Status          ExecutionStatus `db:"status" json:"status"`
+	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
+	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
+	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+}
+
+func (q *Queries) GetExecutionByExecIDWithNamespace(ctx context.Context, arg GetExecutionByExecIDWithNamespaceParams) (GetExecutionByExecIDWithNamespaceRow, error) {
+	row := q.db.QueryRowContext(ctx, getExecutionByExecIDWithNamespace, arg.ExecID, arg.Uuid)
+	var i GetExecutionByExecIDWithNamespaceRow
+	err := row.Scan(
+		&i.ID,
+		&i.ExecID,
+		&i.FlowID,
+		&i.ParentExecID,
+		&i.Input,
+		&i.Error,
+		&i.Status,
+		&i.TriggeredBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.TriggeredByUuid,
+	)
+	return i, err
+}
+
 const getExecutionByID = `-- name: GetExecutionByID :one
 SELECT id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE id = $1
 `
@@ -168,18 +224,25 @@ func (q *Queries) GetExecutionByID(ctx context.Context, id int32) (ExecutionLog,
 
 const getExecutionsByFlow = `-- name: GetExecutionsByFlow :many
 WITH user_lookup AS (
-    SELECT id FROM users WHERE uuid = $2
+    SELECT id FROM users WHERE users.uuid = $2
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
 )
-SELECT id, exec_id, flow_id, parent_exec_id, input, error, status, triggered_by, created_at, updated_at FROM execution_log WHERE flow_id = $1 and triggered_by = (SELECT id FROM user_lookup)
+SELECT el.id, el.exec_id, el.flow_id, el.parent_exec_id, el.input, el.error, el.status, el.triggered_by, el.created_at, el.updated_at FROM execution_log el
+INNER JOIN flows f ON el.flow_id = f.id
+WHERE f.id = $1 
+  AND el.triggered_by = (SELECT id FROM user_lookup)
+  AND f.namespace_id = (SELECT id FROM namespace_lookup)
 `
 
 type GetExecutionsByFlowParams struct {
-	FlowID int32     `db:"flow_id" json:"flow_id"`
+	ID     int32     `db:"id" json:"id"`
 	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
 }
 
 func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]ExecutionLog, error) {
-	rows, err := q.db.QueryContext(ctx, getExecutionsByFlow, arg.FlowID, arg.Uuid)
+	rows, err := q.db.QueryContext(ctx, getExecutionsByFlow, arg.ID, arg.Uuid, arg.Uuid_2)
 	if err != nil {
 		return nil, err
 	}
@@ -244,6 +307,38 @@ func (q *Queries) GetFlowFromExecID(ctx context.Context, execID string) (GetFlow
 		&i.UpdatedAt,
 		&i.NamespaceID,
 		&i.FlowID,
+	)
+	return i, err
+}
+
+const getFlowFromExecIDWithNamespace = `-- name: GetFlowFromExecIDWithNamespace :one
+WITH exec_log AS (
+    SELECT flow_id FROM execution_log WHERE exec_id = $1
+), namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+)
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id FROM flows f
+INNER JOIN exec_log el ON el.flow_id = f.id
+WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+`
+
+type GetFlowFromExecIDWithNamespaceParams struct {
+	ExecID string    `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) GetFlowFromExecIDWithNamespace(ctx context.Context, arg GetFlowFromExecIDWithNamespaceParams) (Flow, error) {
+	row := q.db.QueryRowContext(ctx, getFlowFromExecIDWithNamespace, arg.ExecID, arg.Uuid)
+	var i Flow
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Checksum,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.NamespaceID,
 	)
 	return i, err
 }

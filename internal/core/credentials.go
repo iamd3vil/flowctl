@@ -5,13 +5,19 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/google/uuid"
 )
 
-func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential, namespaceUUID uuid.UUID) (*models.Credential, error) {
+func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential, namespaceID string) (*models.Credential, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	if cred.Name == "" {
 		return nil, errors.New("credential name is required")
 	}
@@ -64,10 +70,15 @@ func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential, na
 	}, nil
 }
 
-func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceUUID uuid.UUID) (*models.Credential, error) {
+func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceID string) (*models.Credential, error) {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, err
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
 	cred, err := c.store.GetCredentialByUUID(ctx, repo.GetCredentialByUUIDParams{
@@ -86,7 +97,12 @@ func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceUUID u
 	}, nil
 }
 
-func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespaceUUID uuid.UUID) ([]*models.Credential, int64, int64, error) {
+func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespaceID string) ([]*models.Credential, int64, int64, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, -1, -1, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	creds, err := c.store.ListCredentials(ctx, repo.ListCredentialsParams{
 		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
@@ -113,7 +129,12 @@ func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespace
 	return results, 0, 0, nil
 }
 
-func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Credential, namespaceUUID uuid.UUID) (*models.Credential, error) {
+func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Credential, namespaceID string) (*models.Credential, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	if cred.Name == "" {
 		return nil, errors.New("credential name is required")
 	}
@@ -170,11 +191,17 @@ func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Cre
 	}, nil
 }
 
-func (c *Core) DeleteCredential(ctx context.Context, id string, namespaceUUID uuid.UUID) error {
+func (c *Core) DeleteCredential(ctx context.Context, id string, namespaceID string) error {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid credential UUID: %w", err)
 	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
 	return c.store.DeleteCredential(ctx, repo.DeleteCredentialParams{
 		Uuid:   uuidID,
 		Uuid_2: namespaceUUID,
