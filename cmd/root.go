@@ -83,5 +83,5 @@ func genKey(bytes int) string {
 	if _, err := rand.Read(key); err != nil {
 		log.Fatalf("could not generate random key for securecookie encryption: %v", err)
 	}
-	return base64.StdEncoding.EncodeToString(key)
+	return base64.URLEncoding.EncodeToString(key)
 }

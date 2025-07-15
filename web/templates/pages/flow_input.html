@@ -86,11 +86,7 @@
                           throw new Error(data.error || "An error occurred.");
                         }
                     }
-
-                    if (response.headers.get("x-redirect")) {
-                        window.location.href =
-                            response.headers.get("x-redirect");
-                    }
+                    window.location.href = `/view/results/{{ .Page.Namespace }}/{{ .Flow.Meta.ID }}/${data.exec_id}`;
                 } catch (error) {
                     window.dispatchEvent(
                         new CustomEvent("notify", {

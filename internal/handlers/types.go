@@ -7,6 +7,10 @@ type AuthReq struct {
 	Password string `json:"password"`
 }
 
+type FlowTriggerResp struct {
+	ExecID string `json:"exec_id"`
+}
+
 type User struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`

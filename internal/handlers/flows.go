@@ -53,9 +53,9 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	if err != nil {
 		return wrapError(http.StatusBadRequest, "could not trigger flow", err, nil)
 	}
-
-	c.Response().Header().Set("x-redirect", fmt.Sprintf("%s/view/results/%s/%s", h.appRoot, f.Meta.ID, execID))
-	return c.NoContent(http.StatusOK)
+	return c.JSON(http.StatusOK, FlowTriggerResp{
+		ExecID: execID,
+	})
 }
 
 func (h *Handler) HandleLogStreaming(c echo.Context) error {

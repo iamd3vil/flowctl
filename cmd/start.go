@@ -200,6 +200,8 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	admin.GET("/users", h.HandleUserManagementView)
 	admin.GET("/groups", h.HandleGroupManagementView)
+	admin.GET("/nodes", h.HandleNodeView)
+	admin.GET("/credentials", h.HandleCredentialView)
 
 	rootURL := viper.GetString("app.root_url")
 	if !strings.Contains(rootURL, "://") {

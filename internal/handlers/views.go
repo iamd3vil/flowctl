@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
-	"fmt"
 
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/labstack/echo/v4"
@@ -54,7 +54,7 @@ func (h *Handler) HandleFlowsListView(c echo.Context) error {
 		Flows []models.Flow
 	}{
 		Page: Page{
-			Title: "Flows",
+			Title:     "Flows",
 			Namespace: namespace,
 		},
 	}
@@ -83,7 +83,7 @@ func (h *Handler) HandleFlowFormView(c echo.Context) error {
 		InputErrors map[string]string
 	}{
 		Page: Page{
-			Title: "Flow Input",
+			Title:     "Flow Input",
 			Namespace: namespace,
 		},
 	}
@@ -112,7 +112,7 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 		LogID string
 	}{
 		Page: Page{
-			Title: "Flow Execution Results",
+			Title:     "Flow Execution Results",
 			Namespace: namespace,
 		},
 	}
@@ -191,14 +191,14 @@ func (h *Handler) HandleApprovalView(c echo.Context) error {
 	data := struct {
 		Page
 		Request struct {
-			ID string
-			Title string
+			ID          string
+			Title       string
 			Description string
 			RequestedBy string
 		}
 	}{
 		Page: Page{
-			Title: "Approval Requests",
+			Title:     "Approval Requests",
 			Namespace: namespace,
 		},
 	}
@@ -237,6 +237,36 @@ func (h *Handler) HandleApprovalView(c echo.Context) error {
 	data.Request.RequestedBy = areq.RequestedBy
 
 	return c.Render(http.StatusOK, "approval", data)
+}
+
+func (h *Handler) HandleNodeView(c echo.Context) error {
+	namespace := c.Param("namespace")
+	data := struct {
+		Page
+		Node models.Node
+	}{
+		Page: Page{
+			Title:     "Node Details",
+			Namespace: namespace,
+		},
+	}
+
+	return c.Render(http.StatusOK, "node_management", data)
+}
+
+func (h *Handler) HandleCredentialView(c echo.Context) error {
+	namespace := c.Param("namespace")
+	data := struct {
+		Page
+		Credential models.Credential
+	}{
+		Page: Page{
+			Title:     "Credential Details",
+			Namespace: namespace,
+		},
+	}
+
+	return c.Render(http.StatusOK, "credential_management", data)
 }
 
 // func (h *Handler) HandleExecutionSummary(c echo.Context) error {
