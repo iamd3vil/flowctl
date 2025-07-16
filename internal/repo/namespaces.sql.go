@@ -218,14 +218,21 @@ func (q *Queries) GrantGroupNamespaceAccess(ctx context.Context, arg GrantGroupN
 
 const listNamespaces = `-- name: ListNamespaces :many
 WITH filtered AS (
-    SELECT id, uuid, name, created_at, updated_at FROM namespaces
+    SELECT DISTINCT n.id, n.uuid, n.name, n.created_at, n.updated_at FROM namespaces n
+    LEFT JOIN group_namespace_access gna ON n.id = gna.namespace_id
+    LEFT JOIN group_memberships gm ON gna.group_id = gm.group_id
+    LEFT JOIN users u ON gm.user_id = u.id
+    WHERE (
+        (SELECT role FROM users WHERE users.uuid = $1) = 'admin'
+        OR (u.uuid = $1 AND gna.namespace_id IS NOT NULL)
+    )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
     SELECT id, uuid, name, created_at, updated_at FROM filtered
-    LIMIT $1 OFFSET $2
+    LIMIT $2 OFFSET $3
 ),
 page_count AS (
     SELECT COUNT(*) AS page_count FROM paged
@@ -238,8 +245,9 @@ FROM paged p, page_count pc, total t
 `
 
 type ListNamespacesParams struct {
-	Limit  int32 `db:"limit" json:"limit"`
-	Offset int32 `db:"offset" json:"offset"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Limit  int32     `db:"limit" json:"limit"`
+	Offset int32     `db:"offset" json:"offset"`
 }
 
 type ListNamespacesRow struct {
@@ -253,7 +261,7 @@ type ListNamespacesRow struct {
 }
 
 func (q *Queries) ListNamespaces(ctx context.Context, arg ListNamespacesParams) ([]ListNamespacesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listNamespaces, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listNamespaces, arg.Uuid, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

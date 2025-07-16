@@ -67,11 +67,11 @@ func (h *Handler) HandleFlowsListView(c echo.Context) error {
 	flows, err := h.co.GetAllFlows(c.Request().Context(), namespaceID)
 	if err != nil {
 		data.ErrMessage = err.Error()
-		return c.Render(http.StatusBadRequest, "flows", data)
+		return c.Render(http.StatusBadRequest, "flows_test", data)
 	}
 
 	data.Flows = flows
-	return c.Render(http.StatusOK, "flows", data)
+	return c.Render(http.StatusOK, "flows_test", data)
 }
 
 func (h *Handler) HandleFlowFormView(c echo.Context) error {

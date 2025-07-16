@@ -159,9 +159,9 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	api.POST("/groups", h.HandleCreateGroup)
 	api.DELETE("/groups/:groupID", h.HandleDeleteGroup)
 
-	// Namespace management endpoints (admin only)
-	api.GET("/namespaces", h.HandleListNamespaces, h.AuthorizeForRole("admin"))
-	api.GET("/namespaces/:namespaceID", h.HandleGetNamespace, h.AuthorizeForRole("admin"))
+	// Namespace management
+	api.GET("/namespaces", h.HandleListNamespaces)
+	api.GET("/namespaces/:namespaceID", h.HandleGetNamespace, h.NamespaceMiddleware)
 	api.POST("/namespaces", h.HandleCreateNamespace, h.AuthorizeForRole("admin"))
 	api.PUT("/namespaces/:namespaceID", h.HandleUpdateNamespace, h.AuthorizeForRole("admin"))
 	api.DELETE("/namespaces/:namespaceID", h.HandleDeleteNamespace, h.AuthorizeForRole("admin"))

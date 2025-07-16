@@ -62,7 +62,12 @@ func (h *Handler) HandleListNamespaces(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	namespaces, pageCount, totalCount, err := h.co.ListNamespaces(c.Request().Context(), req.Count, req.Count*req.Page)
+	userInfo, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(http.StatusUnauthorized, "could not get user info", err, nil)
+	}
+
+	namespaces, pageCount, totalCount, err := h.co.ListNamespaces(c.Request().Context(), userInfo.ID, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(http.StatusInternalServerError, "could not list namespaces", err, nil)
 	}
