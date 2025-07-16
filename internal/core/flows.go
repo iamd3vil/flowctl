@@ -30,22 +30,34 @@ func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 	return f, nil
 }
 
-func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Flow, error) {
+// GetAllFlows returns a list of Flows and a map containing last run times for the flows
+func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Flow, map[string]string, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+		return nil, nil, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
 	flows, err := c.store.GetFlowsByNamespace(ctx, namespaceUUID)
 	if err != nil {
-		return nil, fmt.Errorf("could not get flows for namespace %s: %w", namespaceID, err)
+		return nil, nil, fmt.Errorf("could not get flows for namespace %s: %w", namespaceID, err)
 	}
 
+	lastRuns := make(map[string]string)
 	var fs []models.Flow
 	for _, v := range flows {
 		fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
+
+		// Format last run time
+		var lastRunStr string
+		if v.LastRunTime.IsZero() {
+			lastRunStr = "never"
+		} else {
+			lastRunStr = v.LastRunTime.Format("2006-01-02T15:04:05.999999999-07:00")
+		}
+
+		lastRuns[c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)].Meta.ID] = lastRunStr
 	}
-	return fs, nil
+	return fs, lastRuns, nil
 }
 
 func (c *Core) GetFlowFromLogID(logID string, namespaceID string) (models.Flow, error) {

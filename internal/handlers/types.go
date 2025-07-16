@@ -1,6 +1,8 @@
 package handlers
 
-import "github.com/cvhariharan/autopilot/internal/core/models"
+import (
+	"github.com/cvhariharan/autopilot/internal/core/models"
+)
 
 type AuthReq struct {
 	Username string `json:"username"`
@@ -232,4 +234,36 @@ func coreNamespaceArrayToNamespaceRespArray(namespaces []models.Namespace) []Nam
 		resp[i] = coreNamespaceToNamespaceResp(n)
 	}
 	return resp
+}
+
+// Flow list response type
+type FlowListItem struct {
+	ID          string     `json:"id"`
+	Slug        string     `json:"slug"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	LastRunTime string `json:"last_run_time"`
+}
+
+type FlowListResponse struct {
+	Flows []FlowListItem `json:"flows"`
+}
+
+func coreFlowToFlow(flow models.Flow, lastRunTimeStr string) FlowListItem {
+	return FlowListItem{
+		ID:          flow.Meta.ID,
+		Slug:        flow.Meta.ID,
+		Name:        flow.Meta.Name,
+		Description: flow.Meta.Description,
+		LastRunTime: lastRunTimeStr,
+	}
+}
+
+func coreFlowsToFlows(flows []models.Flow, lastRunTimes map[string]string) FlowListResponse {
+	flowItems := make([]FlowListItem, len(flows))
+	for i, flow := range flows {
+		lastRunTimeStr := lastRunTimes[flow.Meta.ID]
+		flowItems[i] = coreFlowToFlow(flow, lastRunTimeStr)
+	}
+	return FlowListResponse{Flows: flowItems}
 }

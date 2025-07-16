@@ -134,12 +134,13 @@ func (h *Handler) HandleListFlows(c echo.Context) error {
 		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
 	}
 
-	flows, err := h.co.GetAllFlows(c.Request().Context(), namespace)
+	flows, lastRuns, err := h.co.GetAllFlows(c.Request().Context(), namespace)
 	if err != nil {
 		return wrapError(http.StatusInternalServerError, "could not list flows", err, nil)
 	}
 
-	return c.JSON(http.StatusOK, flows)
+	response := coreFlowsToFlows(flows, lastRuns)
+	return c.JSON(http.StatusOK, response)
 }
 
 func (h *Handler) HandleGetFlow(c echo.Context) error {

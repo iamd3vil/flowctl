@@ -27,8 +27,16 @@ WHERE slug = $4 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.n
 RETURNING *;
 
 -- name: GetFlowsByNamespace :many
-SELECT f.*, n.uuid AS namespace_uuid FROM flows f
+SELECT f.*, n.uuid AS namespace_uuid, el.updated_at AS last_run_time 
+FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
+LEFT JOIN LATERAL (
+    SELECT updated_at 
+    FROM execution_log 
+    WHERE flow_id = f.id 
+    ORDER BY updated_at DESC 
+    LIMIT 1
+) el ON true
 WHERE n.uuid = $1;
 
 -- name: ListFlows :many

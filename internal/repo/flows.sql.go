@@ -92,8 +92,16 @@ func (q *Queries) GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (F
 }
 
 const getFlowsByNamespace = `-- name: GetFlowsByNamespace :many
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id, n.uuid AS namespace_uuid FROM flows f
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.created_at, f.updated_at, f.namespace_id, n.uuid AS namespace_uuid, el.updated_at AS last_run_time 
+FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
+LEFT JOIN LATERAL (
+    SELECT updated_at 
+    FROM execution_log 
+    WHERE flow_id = f.id 
+    ORDER BY updated_at DESC 
+    LIMIT 1
+) el ON true
 WHERE n.uuid = $1
 `
 
@@ -107,6 +115,7 @@ type GetFlowsByNamespaceRow struct {
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
 	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
 	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	LastRunTime   time.Time      `db:"last_run_time" json:"last_run_time"`
 }
 
 func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error) {
@@ -128,6 +137,7 @@ func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([
 			&i.UpdatedAt,
 			&i.NamespaceID,
 			&i.NamespaceUuid,
+			&i.LastRunTime,
 		); err != nil {
 			return nil, err
 		}
