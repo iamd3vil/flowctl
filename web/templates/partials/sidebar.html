@@ -1,6 +1,6 @@
 {{ define "partials/sidebar" }}
 <!-- Sidebar Navigation -->
-<div class="w-60 bg-slate-800 flex flex-col">
+<div class="w-60 bg-slate-800 flex flex-col" x-data="sidebarManager()">
     <!-- Logo -->
     <div class="flex items-center px-6 py-6">
         <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -9,33 +9,70 @@
         <span class="ml-3 text-white font-semibold text-xl">Autopilot</span>
     </div>
 
+    <!-- Namespace Dropdown -->
+    <div class="px-4 mb-4">
+        <div class="relative">
+            <label class="block text-xs font-medium text-gray-400 mb-1">Namespace</label>
+            <button @click="namespaceDropdownOpen = !namespaceDropdownOpen" 
+                    class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+                <span x-text="selectedNamespace || 'Select namespace'"></span>
+                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': namespaceDropdownOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            
+            <!-- Dropdown Menu -->
+            <div x-show="namespaceDropdownOpen" @click.away="namespaceDropdownOpen = false" 
+                 x-transition:enter="transition ease-out duration-100"
+                 x-transition:enter-start="transform opacity-0 scale-95"
+                 x-transition:enter-end="transform opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-75"
+                 x-transition:leave-start="transform opacity-100 scale-100"
+                 x-transition:leave-end="transform opacity-0 scale-95"
+                 class="absolute z-50 w-full mt-1 bg-slate-700 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 max-h-48 overflow-y-auto">
+                <div class="py-1">
+                    <template x-for="namespace in namespaces" :key="namespace.id">
+                        <button @click="selectNamespace(namespace)" 
+                                class="w-full text-left px-3 py-2 text-sm text-white hover:bg-slate-600 transition-colors"
+                                :class="{ 'bg-slate-600': namespace.name === selectedNamespace }"
+                                x-text="namespace.name">
+                        </button>
+                    </template>
+                    <div x-show="namespaces.length === 0" class="px-3 py-2 text-sm text-gray-400">
+                        No namespaces available
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="flex-1 px-4 space-y-1">
-        <a href="/flows/{{ .Page.Namespace }}" class="flex items-center px-4 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg transition-colors">
+        <a :href="`/view/${selectedNamespace}/flows`" class="flex items-center px-4 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg transition-colors">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
             </svg>
             Flows
         </a>
-        <a href="/nodes/{{ .Page.Namespace }}" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
+        <a :href="`/view/${selectedNamespace}/nodes`" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
             </svg>
             Nodes
         </a>
-        <a href="/credentials/{{ .Page.Namespace }}" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
+        <a :href="`/view/${selectedNamespace}/credentials`" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2 12 12 0 01-7 10.7A12 12 0 015 11a2 2 0 012-2m0 0a2 2 0 012-2 7 7 0 017 0zm-3 7h3m-3 0a3 3 0 01-3-3M12 10a3 3 0 013 3m-3-3a3 3 0 00-3 3m3-3V8a2 2 0 012-2h.01M12 14c1.38 0 2.5-1.12 2.5-2.5S13.38 9 12 9s-2.5 1.12-2.5 2.5 1.12 2.5 2.5 2.5z"></path>
             </svg>
             Credentials
         </a>
-        <a href="/approvals/{{ .Page.Namespace }}" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
+        <a :href="`/view/${selectedNamespace}/approvals`" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             Approvals
         </a>
-        <a href="/history/{{ .Page.Namespace }}" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
+        <a :href="`/view/${selectedNamespace}/history`" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
@@ -56,4 +93,37 @@
         </a>
     </nav>
 </div>
+
+<script>
+function sidebarManager() {
+    return {
+        namespaceDropdownOpen: false,
+        namespaces: [],
+        selectedNamespace: '{{ .Page.Namespace }}',
+        
+        init() {
+            this.fetchNamespaces();
+        },
+        
+        async fetchNamespaces() {
+            try {
+                const response = await fetch('/api/v1/namespaces?count=100');
+                const data = await response.json();
+                this.namespaces = data.namespaces || [];
+            } catch (error) {
+                console.error('Failed to fetch namespaces:', error);
+                this.namespaces = [];
+            }
+        },
+        
+        selectNamespace(namespace) {
+            this.selectedNamespace = namespace.name;
+            this.namespaceDropdownOpen = false;
+            
+            // Redirect to namespace view
+            window.location.href = `/view/${namespace.name}`;
+        }
+    };
+}
+</script>
 {{ end }}
