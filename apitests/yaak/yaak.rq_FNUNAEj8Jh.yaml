@@ -2,7 +2,7 @@ type: http_request
 model: http_request
 id: rq_FNUNAEj8Jh
 createdAt: 2025-07-15T07:29:26.169538232
-updatedAt: 2025-07-16T14:08:54.909512038
+updatedAt: 2025-07-17T09:18:29.956533125
 workspaceId: wk_f7os23Vq2X
 folderId: fl_Vn6oHBwHpL
 authentication: {}
@@ -14,5 +14,5 @@ headers: []
 method: GET
 name: List Namespaces
 sortPriority: 3000.0
-url: http://localhost:7000/api/v1/namespaces
+url: http://localhost:7000/api/v1/namespaces?count_per_page=10
 urlParameters: []

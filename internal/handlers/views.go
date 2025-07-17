@@ -186,6 +186,20 @@ func (h *Handler) HandleGroupManagementView(c echo.Context) error {
 	return c.Render(http.StatusOK, "group_management", data)
 }
 
+func (h *Handler) HandleNodesView(c echo.Context) error {
+	namespace := c.Param("namespace")
+	data := struct {
+		Page
+	}{
+		Page: Page{
+			Title: "Nodes",
+			Namespace: namespace,
+		},
+	}
+
+	return c.Render(http.StatusOK, "nodes_test", data)
+}
+
 func (h *Handler) HandleApprovalView(c echo.Context) error {
 	namespace := c.Param("namespace")
 	data := struct {
