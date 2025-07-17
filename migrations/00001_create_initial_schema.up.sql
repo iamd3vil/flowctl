@@ -1,17 +1,34 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE TABLE IF NOT EXISTS namespaces (
+    id SERIAL PRIMARY KEY,
+    uuid UUID NOT NULL DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_namespaces_uuid ON namespaces(uuid);
+CREATE UNIQUE INDEX idx_namespaces_name ON namespaces(name);
+
+-- Create default namespace
+INSERT INTO namespaces (name, created_at, updated_at)
+VALUES ('default', NOW(), NOW())
+ON CONFLICT (name) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS flows (
     id SERIAL PRIMARY KEY,
     slug VARCHAR(100) NOT NULL,
     name VARCHAR(150) NOT NULL,
     checksum VARCHAR(128) NOT NULL,
     description TEXT,
-    namespace_id INTEGER
+    namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_flows_slug ON flows(slug);
-CREATE UNIQUE INDEX idx_flows_slug ON flows(slug, namespace_id);
+CREATE UNIQUE INDEX idx_flows_slug_namespace ON flows(slug, namespace_id);
+CREATE INDEX idx_flows_namespace_id ON flows(namespace_id);
 
 CREATE TYPE user_login_type AS ENUM (
     'oidc',
@@ -111,10 +128,12 @@ CREATE TABLE IF NOT EXISTS execution_log (
     error TEXT,
     status execution_status NOT NULL DEFAULT 'pending',
     triggered_by INTEGER NOT NULL,
+    namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE CASCADE,
-    FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_execution_log_exec_id ON execution_log(exec_id);
 CREATE INDEX idx_execution_log_triggered_by ON execution_log(triggered_by);
@@ -133,10 +152,12 @@ CREATE TABLE IF NOT EXISTS approvals (
     status approval_status NOT NULL DEFAULT 'pending',
     approvers JSONB DEFAULT '{}'::jsonb NOT NULL,
     decided_by INTEGER,
+    namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     FOREIGN KEY (exec_log_id) REFERENCES execution_log(id) ON DELETE CASCADE,
-    FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_approvals_uuid ON approvals(uuid);
 CREATE UNIQUE INDEX idx_approvals_exec_action_id ON approvals(exec_log_id, action_id);
@@ -159,21 +180,15 @@ CREATE TABLE IF NOT EXISTS credentials (
     name VARCHAR(150) NOT NULL,
     private_key TEXT,
     password TEXT,
+    namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_credentials_uuid ON credentials(uuid);
-CREATE UNIQUE INDEX idx_credentials_name ON credentials(name);
-
-CREATE TABLE IF NOT EXISTS namespaces (
-    id SERIAL PRIMARY KEY,
-    uuid UUID NOT NULL DEFAULT uuid_generate_v4(),
-    name VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-);
-CREATE UNIQUE INDEX idx_namespaces_uuid ON namespaces(uuid);
-CREATE UNIQUE INDEX idx_namespaces_name ON namespaces(name);
+CREATE UNIQUE INDEX idx_credentials_name_namespace ON credentials(name, namespace_id);
+CREATE INDEX idx_credentials_name ON credentials(name);
+CREATE INDEX idx_credentials_namespace_id ON credentials(namespace_id);
 
 CREATE TABLE IF NOT EXISTS nodes (
     id SERIAL PRIMARY KEY,
@@ -186,12 +201,16 @@ CREATE TABLE IF NOT EXISTS nodes (
     tags TEXT[],
     auth_method authentication_method NOT NULL DEFAULT 'ssh_key',
     credential_id INTEGER,
+    namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE SET NULL
+    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE SET NULL,
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_nodes_uuid ON nodes(uuid);
-CREATE UNIQUE INDEX idx_nodes_name ON nodes(name);
+CREATE UNIQUE INDEX idx_nodes_name_namespace ON nodes(name, namespace_id);
+CREATE INDEX idx_nodes_name ON nodes(name);
+CREATE INDEX idx_nodes_namespace_id ON nodes(namespace_id);
 
 CREATE TABLE namespace_members (
     id SERIAL PRIMARY KEY,
@@ -220,3 +239,13 @@ CREATE TABLE casbin_rule (
     v5 VARCHAR(100),
     CONSTRAINT idx_casbin_rule UNIQUE(ptype, v0, v1, v2, v3, v4, v5)
 );
+
+CREATE TABLE IF NOT EXISTS group_namespace_access (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(group_id, namespace_id)
+);
+CREATE INDEX idx_group_namespace_access_group_id ON group_namespace_access(group_id);
+CREATE INDEX idx_group_namespace_access_namespace_id ON group_namespace_access(namespace_id);
