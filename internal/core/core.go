@@ -9,6 +9,10 @@ import (
 	"gocloud.dev/secrets"
 )
 
+const (
+	TimeFormat = "2006-01-02T15:04:05Z"
+)
+
 type Core struct {
 	redisClient redis.UniversalClient
 	store       repo.Store

@@ -176,9 +176,10 @@ type CredentialReq struct {
 }
 
 type CredentialResp struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	KeyType string `json:"key_type"`
+	ID      	 string `json:"id"`
+	Name    	 string `json:"name"`
+	KeyType 	 string `json:"key_type"`
+	LastAccessed string `json:"last_accessed"`
 }
 
 type CredentialsPaginateResponse struct {
@@ -189,9 +190,10 @@ type CredentialsPaginateResponse struct {
 
 func coreCredentialToCredentialResp(c *models.Credential) CredentialResp {
 	return CredentialResp{
-		ID:      c.ID,
-		Name:    c.Name,
-		KeyType: c.KeyType,
+		ID:      	  c.ID,
+		Name:    	  c.Name,
+		KeyType:  	  c.KeyType,
+		LastAccessed: c.LastAccessed,
 	}
 }
 

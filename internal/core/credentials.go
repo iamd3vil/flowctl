@@ -45,12 +45,7 @@ func (c *Core) CreateCredential(ctx context.Context, cred *models.Credential, na
 		return nil, err
 	}
 
-	return &models.Credential{
-		ID:      created.Uuid.String(),
-		Name:    created.Name,
-		KeyType: created.KeyType,
-		KeyData: created.KeyData,
-	}, nil
+	return models.RepoCredentialToCredential(created), nil
 }
 
 func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceID string) (*models.Credential, error) {
@@ -72,12 +67,7 @@ func (c *Core) GetCredentialByID(ctx context.Context, id string, namespaceID str
 		return nil, err
 	}
 
-	return &models.Credential{
-		ID:      cred.Uuid.String(),
-		Name:    cred.Name,
-		KeyType: cred.KeyType,
-		KeyData: cred.KeyData,
-	}, nil
+	return models.RepoCredentialByUUIDToCredential(cred), nil
 }
 
 func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespaceID string) ([]*models.Credential, int64, int64, error) {
@@ -95,15 +85,7 @@ func (c *Core) ListCredentials(ctx context.Context, limit, offset int, namespace
 		return nil, -1, -1, err
 	}
 
-	results := make([]*models.Credential, 0)
-	for _, cred := range creds {
-		results = append(results, &models.Credential{
-			ID:      cred.Uuid.String(),
-			Name:    cred.Name,
-			KeyType: cred.KeyType,
-			KeyData: cred.KeyData,
-		})
-	}
+	results := models.RepoCredentialListToCredential(creds)
 
 	if len(creds) > 0 {
 		return results, creds[0].PageCount, creds[0].TotalCount, nil
@@ -151,12 +133,7 @@ func (c *Core) UpdateCredential(ctx context.Context, id string, cred *models.Cre
 		return nil, err
 	}
 
-	return &models.Credential{
-		ID:      updated.Uuid.String(),
-		Name:    updated.Name,
-		KeyType: updated.KeyType,
-		KeyData: updated.KeyData,
-	}, nil
+	return models.RepoCredentialToCredential(updated), nil
 }
 
 func (c *Core) DeleteCredential(ctx context.Context, id string, namespaceID string) error {

@@ -86,7 +86,7 @@
                           throw new Error(data.error || "An error occurred.");
                         }
                     }
-                    window.location.href = `/view/results/{{ .Page.Namespace }}/{{ .Flow.Meta.ID }}/${data.exec_id}`;
+                    window.location.href = `/view/{{ .Page.Namespace }}/results/{{ .Flow.Meta.ID }}/${data.exec_id}`;
                 } catch (error) {
                     window.dispatchEvent(
                         new CustomEvent("notify", {
