@@ -108,8 +108,12 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 
 	data := struct {
 		Page
-		Flow  models.Flow
-		LogID string
+		Flow    models.Flow
+		LogID   string
+		Actions []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"actions"`
 	}{
 		Page: Page{
 			Title:     "Flow Execution Results",
@@ -146,6 +150,22 @@ func (h *Handler) HandleFlowExecutionResults(c echo.Context) error {
 		return c.Render(http.StatusBadRequest, "flow_status", data)
 	}
 	data.Flow = f
+
+	// Extract action IDs and names from the flow
+	actions := make([]struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}, len(f.Actions))
+	for i, action := range f.Actions {
+		actions[i] = struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}{
+			ID:   action.ID,
+			Name: action.Name,
+		}
+	}
+	data.Actions = actions
 
 	exec, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID, namespaceID)
 	if err != nil {

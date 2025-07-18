@@ -2,7 +2,7 @@
 {{ template "partials/header" . }}
 
 <div class="flex h-screen bg-gray-50"
-     x-data="flowStatusComponent('{{ .LogID }}', {{ toJson .Flow.Actions }})">
+     x-data="flowStatusComponent('{{ .LogID }}', {{ toJson .Actions }})">
     <!-- Sidebar -->
     {{ template "partials/sidebar" . }}
 
@@ -77,35 +77,35 @@
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Pipeline Progress</h2>
                     <div class="flex gap-4 overflow-x-auto pb-2">
-                        <template x-for="(action, index) in actions" :key="action.ID">
+                        <template x-for="(action, index) in actions" :key="action.id">
                             <div class="min-w-[200px] p-4 rounded-lg border-2 transition-all duration-300 relative"
                                  :class="{
-                                     'bg-green-50 border-green-500': index < currentStep && index !== failedActionIndex,
-                                     'bg-blue-50 border-blue-500': index === currentStep && status === 'running',
                                      'bg-red-50 border-red-500': index === failedActionIndex,
-                                     'bg-gray-50 border-gray-300': index > currentStep
+                                     'bg-green-50 border-green-500': completedActions.includes(index) && index !== failedActionIndex,
+                                     'bg-blue-50 border-blue-500': index === currentActionIndex && status === 'running' && index !== failedActionIndex,
+                                     'bg-gray-50 border-gray-300': index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex
                                  }">
                                 <div class="flex justify-between items-center mb-2">
-                                    <span class="font-semibold text-gray-900" x-text="action.Name || `Step ${index + 1}`"></span>
+                                    <span class="font-semibold text-gray-900" x-text="action.name || `Step ${index + 1}`"></span>
                                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
                                          :class="{
-                                             'bg-green-500': index < currentStep && index !== failedActionIndex,
-                                             'bg-blue-500 animate-pulse': index === currentStep && status === 'running',
                                              'bg-red-500': index === failedActionIndex,
-                                             'bg-gray-400': index > currentStep
+                                             'bg-green-500': completedActions.includes(index) && index !== failedActionIndex,
+                                             'bg-blue-500 animate-pulse': index === currentActionIndex && status === 'running' && index !== failedActionIndex,
+                                             'bg-gray-400': index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex
                                          }">
-                                        <span x-show="index < currentStep && index !== failedActionIndex">✓</span>
-                                        <span x-show="index === currentStep && status === 'running'">●</span>
                                         <span x-show="index === failedActionIndex">✗</span>
-                                        <span x-show="index > currentStep">-</span>
+                                        <span x-show="completedActions.includes(index) && index !== failedActionIndex">✓</span>
+                                        <span x-show="index === currentActionIndex && status === 'running' && index !== failedActionIndex">●</span>
+                                        <span x-show="index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex">-</span>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-600" x-text="index === failedActionIndex ? 'Failed' : (index < currentStep ? 'Completed' : (index === currentStep && status === 'running' ? 'Processing...' : (action.Description || 'Pending')))"></p>
-                                
+                                <p class="text-sm text-gray-600" x-text="index === failedActionIndex ? 'Failed' : (completedActions.includes(index) ? 'Completed' : (index === currentActionIndex && status === 'running' ? 'Processing...' : 'Pending'))"></p>
+
                                 <!-- Progress connector -->
-                                <div x-show="index < actions.length - 1" 
+                                <div x-show="index < actions.length - 1"
                                      class="absolute right-0 top-1/2 transform translate-x-4 -translate-y-1/2 w-4 h-0.5"
-                                     :class="index < currentStep ? 'bg-green-500' : 'bg-gray-300'"></div>
+                                     :class="completedActions.includes(index) ? 'bg-green-500' : 'bg-gray-300'"></div>
                             </div>
                         </template>
                     </div>
@@ -115,16 +115,16 @@
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div class="border-b border-gray-200">
                         <nav class="-mb-px flex">
-                            <button @click="activeTab = 'logs'" 
+                            <button @click="activeTab = 'logs'"
                                     class="py-3 px-6 text-sm font-medium border-b-2 transition-colors"
                                     :class="activeTab === 'logs' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'">
                                 Real-time Logs
                             </button>
-                            <button @click="activeTab = 'output'" 
+                            <button @click="activeTab = 'output'"
                                     class="py-3 px-6 text-sm font-medium border-b-2 transition-colors"
                                     :class="activeTab === 'output' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'">
                                 Execution Output
-                                <span x-show="Object.keys(results).length > 0" 
+                                <span x-show="Object.keys(results).length > 0"
                                       class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                                       x-text="Object.keys(results).length"></span>
                             </button>
@@ -192,7 +192,7 @@
                                 <p class="mt-1 text-sm text-yellow-700">This flow requires manual approval to continue execution.</p>
                             </div>
                         </div>
-                        <a :href="`/view/approvals/${approvalID}`" 
+                        <a :href="`/view/approvals/${approvalID}`"
                            class="ml-4 inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 transition-colors">
                             Review Request
                             <svg class="ml-2 -mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,7 +230,7 @@
 function flowStatusComponent(logID, actions) {
     return {
         actions: actions || [],
-        currentStep: -1,
+        currentActionIndex: -1,
         logOutput: '',
         results: {},
         ws: null,
@@ -242,11 +242,12 @@ function flowStatusComponent(logID, actions) {
         activeTab: 'logs',
         errorMessage: null,
         failedActionIndex: -1,
-        
+        completedActions: [],
+
         init() {
             this.connectWebSocket();
             this.fetchExecutionSummary();
-            
+
             // Auto-scroll logs
             this.$watch('logOutput', () => {
                 this.$nextTick(() => {
@@ -260,19 +261,24 @@ function flowStatusComponent(logID, actions) {
 
         connectWebSocket() {
             this.ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/v1/{{ .Page.Namespace }}/logs/${logID}`);
-            
+
             this.ws.onmessage = (event) => {
                 let msg = {};
                 try { msg = JSON.parse(event.data); } catch {}
                 this.processMessage(msg);
             };
-            
+
             this.ws.onclose = (event) => {
                 console.log(event);
                 if (event.code === 1000) {
                     // Normal closure - execution completed successfully
                     this.status = 'completed';
-                    this.currentStep = this.actions.length; // All actions completed
+                    // Mark all actions as completed
+                    for (let i = 0; i < this.actions.length; i++) {
+                        if (!this.completedActions.includes(i)) {
+                            this.completedActions.push(i);
+                        }
+                    }
                 } else if (event.reason) {
                     this.errorMessage = event.reason;
                     this.status = 'failed';
@@ -300,51 +306,46 @@ function flowStatusComponent(logID, actions) {
         },
 
         processMessage(msg) {
+            // Handle action changes
+            if (msg.action_id) {
+                const actionIndex = this.actions.findIndex(a => a.id === msg.action_id);
+                if (actionIndex !== -1) {
+                    // If we're switching to a different action, mark the previous one as completed
+                    if (this.currentActionIndex !== -1 && this.currentActionIndex !== actionIndex) {
+                        if (!this.completedActions.includes(this.currentActionIndex)) {
+                            this.completedActions.push(this.currentActionIndex);
+                        }
+                    }
+                    // Set current action
+                    this.currentActionIndex = actionIndex;
+                }
+            }
+
+            // Handle message types
             switch (msg.message_type) {
                 case 'log':
                     this.logOutput += (msg.value || '') + '\n';
                     break;
                 case 'result':
                     this.results = { ...this.results, ...(msg.results || {}) };
-                    // When results are received, mark that action as completed
-                    if (msg.action_id) {
-                        const idx = this.actions.findIndex(a => a.Name === msg.action_id);
-                        if (idx !== -1) {
-                            this.currentStep = idx + 1; // Move to next step
-                        }
+                    // Don't mark as completed here - wait for action_id to change
+                    break;
+                case 'error':
+                    this.errorMessage = msg.value || "An error occurred.";
+                    this.status = 'failed';
+                    // Mark current action as failed
+                    if (this.currentActionIndex !== -1) {
+                        this.failedActionIndex = this.currentActionIndex;
                     }
+                    // Don't dispatch notification here - let onclose handle it to avoid duplicates
                     break;
                 case 'approval':
                     this.approvalID = msg.value;
                     this.showApproval = true;
                     this.status = 'awaiting_approval';
                     break;
-                case 'error':
-                    this.errorMessage = msg.value || "An error occurred.";
-                    this.status = 'failed';
-                    // Mark current action as failed
-                    if (this.currentStep >= 0) {
-                        this.failedActionIndex = this.currentStep;
-                    }
-                    window.dispatchEvent(
-                        new CustomEvent("notify", {
-                            detail: { message: msg.value || "An error occurred.", type: "error" },
-                        }),
-                    );
-                    break;
                 default:
                     this.logOutput += (msg.value || '') + '\n';
-            }
-            
-            // Progress: update currentStep based on action_id
-            if (msg.action_id) {
-                const idx = this.actions.findIndex(a => a.Name === msg.action_id);
-                if (idx !== -1) {
-                    this.currentStep = idx; // Set current step to the action being processed
-                }
-            } else if (msg.message_type === 'log' && this.currentStep === -1) {
-                // If no action_id and we haven't started, assume first action
-                this.currentStep = 0;
             }
         }
     }

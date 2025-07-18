@@ -14,6 +14,7 @@ import (
 	"github.com/cvhariharan/autopilot/internal/streamlogger"
 	"github.com/expr-lang/expr"
 	"github.com/hibiken/asynq"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
@@ -48,15 +49,15 @@ func NewFlowExecution(f Flow, input map[string]interface{}, startingActionIdx in
 }
 
 type FlowRunner struct {
-	logger           *streamlogger.StreamLogger
 	artifactManager  runner.ArtifactManager
 	onBeforeActionFn HookFn
 	onAfterActionFn  HookFn
 	debugLogger *slog.Logger
+	redisClient redis.UniversalClient
 }
 
-func NewFlowRunner(logger *streamlogger.StreamLogger, artifactManager runner.ArtifactManager, onBeforeActionFn, onAfterActionFn HookFn, debugLogger *slog.Logger) *FlowRunner {
-	return &FlowRunner{logger: logger, artifactManager: artifactManager, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, debugLogger: debugLogger.With("component", "flow_runner")}
+func NewFlowRunner(redisClient redis.UniversalClient, artifactManager runner.ArtifactManager, onBeforeActionFn, onAfterActionFn HookFn, debugLogger *slog.Logger) *FlowRunner {
+	return &FlowRunner{redisClient: redisClient, artifactManager: artifactManager, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, debugLogger: debugLogger.With("component", "flow_runner")}
 }
 
 func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) error {
@@ -77,7 +78,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		streamID = payload.ParentExecID
 	}
 
-	streamLogger := r.logger.WithID(streamID)
+	streamLogger := streamlogger.NewStreamLogger(r.redisClient).WithID(streamID)
 	defer streamLogger.Close(payload.ExecID)
 
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
@@ -115,6 +116,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 }
 
 func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamlogger *streamlogger.StreamLogger) (map[string]string, error) {
+	streamlogger = streamlogger.WithActionID(action.ID)
 	var exec executor.Executor
 	switch action.Executor {
 	case "docker":

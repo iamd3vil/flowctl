@@ -21,7 +21,6 @@ import (
 	"github.com/cvhariharan/autopilot/internal/handlers"
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/cvhariharan/autopilot/internal/runner"
-	"github.com/cvhariharan/autopilot/internal/streamlogger"
 	"github.com/cvhariharan/autopilot/internal/tasks"
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
@@ -375,8 +374,7 @@ func startWorker(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	core := core.NewCore(flows, s, asynqClient, redisClient, keeper, enforcer)
 
-	flowLogger := streamlogger.NewStreamLogger(redisClient)
-	flowRunner := tasks.NewFlowRunner(flowLogger, runner.NewDockerArtifactsManager("./artifacts"), core.BeforeActionHook, nil, logger)
+	flowRunner := tasks.NewFlowRunner(redisClient, runner.NewDockerArtifactsManager("./artifacts"), core.BeforeActionHook, nil, logger)
 
 	st := tasks.NewStatusTracker(s)
 

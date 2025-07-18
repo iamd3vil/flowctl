@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/redis/go-redis/v9"
 )
 
 const CheckpointPrefix = "checkpoint:%s"
 
 // StreamLogger logs messages to a Redis stream and provides utility functions for tracking execution status
+// This should only be used when actions are executed sequentially, this is NOT thread-safe
 type StreamLogger struct {
 	ID string
 	r  redis.UniversalClient
+	actionID string
 }
 
 // NewStreamLogger creates a new StreamLogger instance with the given Redis client
@@ -27,8 +30,17 @@ func (s *StreamLogger) WithID(id string) *StreamLogger {
 	return s
 }
 
+// WithActionID sets the current action ID.
+// This is used to tag messages. This is NOT thread-safe
+func (s *StreamLogger) WithActionID(id string) *StreamLogger {
+	s.actionID = id
+	return s
+}
+
+// Write to a redis stream, this implementation is NOT thread-safe.
+// Write uses the current actionID to mark the messages
 func (s *StreamLogger) Write(p []byte) (int, error) {
-	if err := s.Checkpoint("", p, LogMessageType); err != nil {
+	if err := s.Checkpoint(s.actionID, p, LogMessageType); err != nil {
 		return 0, err
 	}
 	return len(p), nil
