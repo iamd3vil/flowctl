@@ -220,6 +220,7 @@ func (h *Handler) HandleNodesView(c echo.Context) error {
 	return c.Render(http.StatusOK, "nodes_test", data)
 }
 
+
 func (h *Handler) HandleCredentialsView(c echo.Context) error {
 	namespace := c.Param("namespace")
 	data := struct {
@@ -232,6 +233,18 @@ func (h *Handler) HandleCredentialsView(c echo.Context) error {
 	}
 
 	return c.Render(http.StatusOK, "credentials", data)
+}
+func (h *Handler) HandleApprovalsListView(c echo.Context) error {
+	namespace := c.Param("namespace")
+	data := struct {
+		Page
+	}{
+		Page: Page{
+			Title: "Credentials",
+			Namespace: namespace,
+		},
+	}
+	return c.Render(http.StatusOK, "approvals_list", data)
 }
 
 func (h *Handler) HandleApprovalView(c echo.Context) error {
