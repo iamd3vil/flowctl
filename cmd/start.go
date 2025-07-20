@@ -219,10 +219,11 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionUpdate))
 
 	admin := e.Group("/admin")
-	admin.Use(h.AuthorizeForRole("admin"))
+	admin.Use(h.AuthorizeForRole("superuser"))
 
 	admin.GET("/users", h.HandleUserManagementView)
 	admin.GET("/groups", h.HandleGroupManagementView)
+	admin.GET("/settings", h.HandleSettingsView)
 
 	rootURL := viper.GetString("app.root_url")
 	if !strings.Contains(rootURL, "://") {
