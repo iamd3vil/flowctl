@@ -321,7 +321,7 @@ func coreUserInfoToUserProfile(u models.UserInfo) UserProfileResponse {
 type NamespaceMemberReq struct {
 	SubjectID   string `json:"subject_id" validate:"required,uuid"`
 	SubjectType string `json:"subject_type" validate:"required,oneof=user group"`
-	Role        string `json:"role" validate:"required,oneof=user operator admin"`
+	Role        string `json:"role" validate:"required,oneof=user reviewer admin"`
 }
 
 type NamespaceMemberResp struct {

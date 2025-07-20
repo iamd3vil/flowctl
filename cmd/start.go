@@ -153,7 +153,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	// views.POST("/trigger/:flow", h.HandleFlowTrigger)
 	views.GET("/:namespace/flows/:flow", h.HandleFlowFormView)
-	views.GET("/:namespace", h.HandleFlowsListView)
+	views.GET("/:namespace/flows", h.HandleFlowsListView)
 	views.GET("/:namespace/results/:flowID/:logID", h.HandleFlowExecutionResults)
 	views.GET("/:namespace/nodes", h.HandleNodesView)
 	views.GET("/:namespace/credentials", h.HandleCredentialsView)
