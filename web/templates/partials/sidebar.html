@@ -66,6 +66,12 @@
             </svg>
             Credentials
         </a>
+        <a :href="`/view/${selectedNamespace}/members`" :class="isActiveLink('members') ? 'flex items-center px-4 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg transition-colors' : 'flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors'">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Members
+        </a>
         <a :href="`/view/${selectedNamespace}/approvals`" :class="isActiveLink('approvals') ? 'flex items-center px-4 py-3 text-sm font-medium bg-blue-600 text-white rounded-lg transition-colors' : 'flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors'">
             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -112,6 +118,8 @@ function sidebarManager() {
                 return currentPath.includes('/nodes');
             } else if (section === 'credentials') {
                 return currentPath.includes('/credentials');
+            } else if (section === 'members') {
+                return currentPath.includes('/members');
             } else if (section === 'approvals') {
                 return currentPath.includes('/approvals');
             } else if (section === 'history') {

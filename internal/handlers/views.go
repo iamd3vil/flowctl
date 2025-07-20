@@ -327,6 +327,21 @@ func (h *Handler) HandleNodeView(c echo.Context) error {
 	return c.Render(http.StatusOK, "node_management", data)
 }
 
+func (h *Handler) HandleMembersView(c echo.Context) error {
+	namespace := c.Param("namespace")
+	data := struct {
+		Page
+		Node models.Node
+	}{
+		Page: Page{
+			Title:     "Members",
+			Namespace: namespace,
+		},
+	}
+
+	return c.Render(http.StatusOK, "members", data)
+}
+
 // func (h *Handler) HandleExecutionSummary(c echo.Context) error {
 // 	user, ok := c.Get("user").(models.UserInfo)
 // 	if !ok {

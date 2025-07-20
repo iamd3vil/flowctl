@@ -162,6 +162,20 @@ func (c *Core) CreateUser(ctx context.Context, name, username string, loginType 
 		return models.User{}, fmt.Errorf("could not create user %s: %w", username, err)
 	}
 
+	// Automatically assign new user to default namespace with user role
+	// Skip for superusers as they have access to all namespaces by default
+	if userRole != models.SuperuserUserRole {
+		defaultNamespace, err := c.GetNamespaceByName(ctx, "default")
+		if err != nil {
+			return models.User{}, fmt.Errorf("could not get default namespace when creating user %s: %w", username, err)
+		}
+
+		err = c.AssignNamespaceRole(ctx, u.Uuid.String(), "user", defaultNamespace.ID, models.NamespaceRoleUser)
+		if err != nil {
+			return models.User{}, fmt.Errorf("could not assign user %s to default namespace: %w", username, err)
+		}
+	}
+
 	return c.repoUserToUser(u), nil
 }
 

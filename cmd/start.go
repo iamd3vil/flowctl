@@ -158,7 +158,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	views.GET("/:namespace/nodes", h.HandleNodesView)
 	views.GET("/:namespace/credentials", h.HandleCredentialsView)
 	views.GET("/:namespace/approvals", h.HandleApprovalsListView)
-	// views.GET("/logs/:logID", h.HandleLogStreaming)
+	views.GET("/:namespace/members", h.HandleMembersView)
 	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
 	views.GET("/:namespace/approvals/:approvalID", h.HandleApprovalView)
