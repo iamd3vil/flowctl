@@ -150,12 +150,18 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to fetch groups");
+                            this.state.groups = [];
+                            this.state.pageCount = 1;
+                            return;
+                        }
                         this.state.groups = data.groups || [];
                         this.state.pageCount = data.page_count || 1;
                         this.state.totalCount = data.total_count || 0;
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to fetch groups");
+                        this.notifyError("Failed to fetch groups");
                         this.state.groups = [];
                         this.state.pageCount = 1;
                     })
@@ -176,11 +182,17 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to fetch users");
+                            this.state.users = [];
+                            this.state.usersPageCount = 1;
+                            return;
+                        }
                         this.state.users = data.users || [];
                         this.state.usersPageCount = data.page_count || 1;
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to fetch users");
+                        this.notifyError("Failed to fetch users");
                         this.state.users = [];
                         this.state.usersPageCount = 1;
                     })
@@ -191,9 +203,12 @@
 
             getGroup(id) {
                 return fetch(`/api/v1/groups/${id}`)
-                    .then(res => {
-                        if (!res.ok) throw new Error("Failed to fetch group");
-                        return res.json();
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!res.ok) {
+                            throw new Error(data.error || "Failed to fetch group");
+                        }
+                        return data;
                     });
             },
 
@@ -210,7 +225,7 @@
                         };
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to load group details");
+                        this.notifyError("Failed to load group details");
                         this.closeGroupModal();
                     });
             },
@@ -246,17 +261,18 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Failed to ${this.modals.mode} group`);
-                    return res.json();
-                })
-                .then(() => {
+                .then(res => res.json())
+                .then(data => {
+                    if (!res.ok) {
+                        this.notifyError(data.error || `Failed to ${this.modals.mode} group`);
+                        return;
+                    }
                     this.closeGroupModal();
                     this.fetchGroups();
                     this.notifySuccess(`Group ${this.modals.mode === 'add' ? 'added' : 'updated'} successfully`);
                 })
                 .catch(err => {
-                    this.notifyError(err.message || `Failed to ${this.modals.mode} group`);
+                    this.notifyError(`Failed to ${this.modals.mode} group`);
                 });
             },
 
@@ -271,15 +287,17 @@
                     fetch(`/api/v1/groups/${id}`, {
                         method: 'DELETE'
                     })
-                    .then(res => {
-                        if (!res.ok) throw new Error("Failed to delete group");
-                    })
-                    .then(() => {
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to delete group");
+                            return;
+                        }
                         this.fetchGroups();
                         this.notifySuccess("Group deleted successfully");
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to delete group");
+                        this.notifyError("Failed to delete group");
                     });
                 }
             },

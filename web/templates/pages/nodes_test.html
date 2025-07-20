@@ -353,6 +353,12 @@ function nodesManager() {
 
                 const response = await fetch(url);
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch nodes');
+                    this.nodes = [];
+                    return;
+                }
 
                 this.nodes = data.nodes || [];
                 this.pageCount = data.page_count || 1;
@@ -370,6 +376,13 @@ function nodesManager() {
             try {
                 const response = await fetch(`/api/v1/{{ .Page.Namespace }}/credentials`);
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch credentials');
+                    this.credentials = [];
+                    return;
+                }
+                
                 this.credentials = data.credentials || [];
             } catch (error) {
                 console.error('Failed to fetch credentials:', error);
@@ -404,6 +417,11 @@ function nodesManager() {
             try {
                 const response = await fetch(`/api/v1/{{ .Page.Namespace }}/nodes/${nodeId}`);
                 const node = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(node.error || 'Failed to load node details');
+                    return;
+                }
 
                 this.nodeForm = {
                     name: node.name || '',
@@ -463,13 +481,15 @@ function nodesManager() {
                     body: JSON.stringify(payload)
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.closeNodeModal();
                     this.fetchNodes();
                     this.notifySuccess(`Node ${this.isEditMode ? 'updated' : 'created'} successfully`);
                 } else {
                     console.error('Failed to save node');
-                    this.notifyError('Failed to save node');
+                    this.notifyError(data.error || 'Failed to save node');
                 }
             } catch (error) {
                 console.error('Error saving node:', error);
@@ -484,12 +504,14 @@ function nodesManager() {
                         method: 'DELETE'
                     });
 
+                    const data = await response.json();
+                    
                     if (response.ok) {
                         this.fetchNodes();
                         this.notifySuccess('Node deleted successfully');
                     } else {
                         console.error('Failed to delete node');
-                        this.notifyError('Failed to delete node');
+                        this.notifyError(data.error || 'Failed to delete node');
                     }
                 } catch (error) {
                     console.error('Error deleting node:', error);

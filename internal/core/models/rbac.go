@@ -14,6 +14,7 @@ const (
 	ResourceFlow       Resource = "flow"
 	ResourceNode       Resource = "node"
 	ResourceCredential Resource = "credential"
+	ResourceMembers    Resource = "members"
 	ResourceExecution  Resource = "execution"
 	ResourceApproval   Resource = "approval"
 	ResourceNamespace  Resource = "namespace"

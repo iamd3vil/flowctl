@@ -175,17 +175,19 @@
                         }
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch flows: ${response.status} ${response.statusText}`);
-                    }
-
                     const data = await response.json();
+                    
+                    if (!response.ok) {
+                        this.notifyError(data.error || 'Failed to fetch flows');
+                        this.flows = [];
+                        return;
+                    }
                     this.flows = data.flows || [];
                     this.totalCount = data.total_count || 0;
                     this.pageCount = Math.ceil(this.totalCount / this.itemsPerPage);
                 } catch (error) {
                     console.error('Error loading flows:', error);
-                    this.errorMessage = 'Failed to load flows. Please try again.';
+                    this.notifyError('Failed to load flows');
                     this.flows = [];
                 } finally {
                     this.loading = false;
@@ -199,25 +201,30 @@
             },
 
 
-            runFlow(flowId) {
-                console.log('Running flow:', flowId);
-                fetch(`/api/v1/${this.selectedNamespace}/trigger/${flowId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({})
-                })
-                .then(response => response.json())
-                .then(data => {
+            async runFlow(flowId) {
+                try {
+                    const response = await fetch(`/api/v1/${this.selectedNamespace}/trigger/${flowId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        this.notifyError(data.error || `Failed to start flow ${flowId}`);
+                        return;
+                    }
+                    
                     console.log('Flow execution started:', data);
                     this.notifySuccess(`Flow ${flowId} started successfully`);
                     // TODO: Redirect to execution view
-                })
-                .catch(error => {
+                } catch (error) {
                     console.error('Error running flow:', error);
                     this.notifyError(`Failed to start flow ${flowId}`);
-                });
+                }
             },
 
             starFlow(flowId) {

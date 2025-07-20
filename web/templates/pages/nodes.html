@@ -188,6 +188,12 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to fetch nodes");
+                            this.state.nodes = [];
+                            this.state.pageCount = 1;
+                            return;
+                        }
                         // Ensure data.nodes is an array before calling map
                         const nodes = Array.isArray(data.nodes) ? data.nodes : [];
                         this.state.nodes = nodes.map(node => ({
@@ -199,7 +205,7 @@
                         this.state.totalCount = data.total_count || 0;
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to fetch nodes");
+                        this.notifyError("Failed to fetch nodes");
                         this.state.nodes = [];
                         this.state.pageCount = 1;
                     })
@@ -212,6 +218,11 @@
                 fetch('/api/v1/{{ .Page.Namespace }}/credentials')
                     .then(res => res.json())
                     .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to fetch credentials");
+                            this.state.credentials = [];
+                            return;
+                        }
                         // Handle both possible response structures
                         const credentials = Array.isArray(data.credentials) ? data.credentials : 
                                           Array.isArray(data) ? data : [];
@@ -221,7 +232,7 @@
                         }));
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to fetch credentials");
+                        this.notifyError("Failed to fetch credentials");
                         this.state.credentials = [];
                     });
             },
@@ -244,9 +255,12 @@
 
             getNode(id) {
                 return fetch(`/api/v1/{{ .Page.Namespace }}/nodes/${id}`)
-                    .then(res => {
-                        if (!res.ok) throw new Error("Failed to fetch node");
-                        return res.json();
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!res.ok) {
+                            throw new Error(data.error || "Failed to fetch node");
+                        }
+                        return data;
                     });
             },
 
@@ -269,7 +283,7 @@
                         this.fetchCredentials();
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to load node details");
+                        this.notifyError("Failed to load node details");
                         this.closeNodeModal();
                     });
             },
@@ -306,17 +320,18 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Failed to ${this.modals.mode} node`);
-                    return res.json();
-                })
-                .then(() => {
+                .then(res => res.json())
+                .then(data => {
+                    if (!res.ok) {
+                        this.notifyError(data.error || `Failed to ${this.modals.mode} node`);
+                        return;
+                    }
                     this.closeNodeModal();
                     this.fetchNodes();
                     this.notifySuccess(`Node ${this.modals.mode === 'add' ? 'added' : 'updated'} successfully`);
                 })
                 .catch(err => {
-                    this.notifyError(err.message || `Failed to ${this.modals.mode} node`);
+                    this.notifyError(`Failed to ${this.modals.mode} node`);
                 });
             },
 
@@ -324,15 +339,16 @@
                 fetch(`/api/v1/{{ .Page.Namespace }}/nodes/${id}/test`, {
                     method: 'POST'
                 })
-                .then(res => {
-                    if (!res.ok) throw new Error("Connection test failed");
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(data => {
+                    if (!res.ok) {
+                        this.notifyError(data.error || "Connection test failed");
+                        return;
+                    }
                     this.notifySuccess(data.message || "Connection test successful");
                 })
                 .catch(err => {
-                    this.notifyError(err.message || "Connection test failed");
+                    this.notifyError("Connection test failed");
                 });
             },
 
@@ -341,15 +357,17 @@
                     fetch(`/api/v1/{{ .Page.Namespace }}/nodes/${id}`, {
                         method: 'DELETE'
                     })
-                    .then(res => {
-                        if (!res.ok) throw new Error("Failed to delete node");
-                    })
-                    .then(() => {
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!res.ok) {
+                            this.notifyError(data.error || "Failed to delete node");
+                            return;
+                        }
                         this.fetchNodes();
                         this.notifySuccess("Node deleted successfully");
                     })
                     .catch(err => {
-                        this.notifyError(err.message || "Failed to delete node");
+                        this.notifyError("Failed to delete node");
                     });
                 }
             },

@@ -424,6 +424,12 @@ function settingsManager() {
 
                 const response = await fetch(url);
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch users');
+                    this.users = [];
+                    return;
+                }
 
                 this.users = data.users || [];
                 this.userPageCount = data.page_count || 1;
@@ -463,6 +469,11 @@ function settingsManager() {
             try {
                 const response = await fetch(`/api/v1/users/${userId}`);
                 const user = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(user.error || 'Failed to load user details');
+                    return;
+                }
 
                 this.userForm = {
                     name: user.name,
@@ -499,13 +510,15 @@ function settingsManager() {
                     body: JSON.stringify(payload)
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.closeUserModal();
                     this.fetchUsers();
                     this.notifySuccess(`User ${this.isUserEditMode ? 'updated' : 'created'} successfully`);
                 } else {
                     console.error('Failed to save user');
-                    this.notifyError('Failed to save user');
+                    this.notifyError(data.error || 'Failed to save user');
                 }
             } catch (error) {
                 console.error('Error saving user:', error);
@@ -556,6 +569,12 @@ function settingsManager() {
 
                 const response = await fetch(url);
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch groups');
+                    this.groups = [];
+                    return;
+                }
 
                 this.groups = data.groups || [];
                 this.groupPageCount = data.page_count || 1;
@@ -573,6 +592,13 @@ function settingsManager() {
             try {
                 const response = await fetch('/api/v1/groups?page=1&count_per_page=100');
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch available groups');
+                    this.availableGroups = [];
+                    return;
+                }
+                
                 this.availableGroups = data.groups || [];
             } catch (error) {
                 console.error('Failed to fetch available groups:', error);
@@ -606,6 +632,11 @@ function settingsManager() {
             try {
                 const response = await fetch(`/api/v1/groups/${groupId}`);
                 const group = await response.json();
+                
+                if (!response.ok) {
+                    this.notifyError(group.error || 'Failed to load group details');
+                    return;
+                }
 
                 this.groupForm = {
                     name: group.name,
@@ -640,6 +671,8 @@ function settingsManager() {
                     body: JSON.stringify(payload)
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.closeGroupModal();
                     this.fetchGroups();
@@ -647,7 +680,7 @@ function settingsManager() {
                     this.notifySuccess(`Group ${this.isGroupEditMode ? 'updated' : 'created'} successfully`);
                 } else {
                     console.error('Failed to save group');
-                    this.notifyError('Failed to save group');
+                    this.notifyError(data.error || 'Failed to save group');
                 }
             } catch (error) {
                 console.error('Error saving group:', error);
@@ -692,13 +725,15 @@ function settingsManager() {
                     method: 'DELETE'
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.closeDeleteModal();
                     this.fetchUsers();
                     this.notifySuccess('User deleted successfully');
                 } else {
                     console.error('Failed to delete user');
-                    this.notifyError('Failed to delete user');
+                    this.notifyError(data.error || 'Failed to delete user');
                 }
             } catch (error) {
                 console.error('Error deleting user:', error);
@@ -712,6 +747,8 @@ function settingsManager() {
                     method: 'DELETE'
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.closeDeleteModal();
                     this.fetchGroups();
@@ -719,7 +756,7 @@ function settingsManager() {
                     this.notifySuccess('Group deleted successfully');
                 } else {
                     console.error('Failed to delete group');
-                    this.notifyError('Failed to delete group');
+                    this.notifyError(data.error || 'Failed to delete group');
                 }
             } catch (error) {
                 console.error('Error deleting group:', error);

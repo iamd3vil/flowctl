@@ -197,7 +197,11 @@
                         if (data.field) {
                             this.errors[data.field] = data.error
                         } else {
-                          throw new Error(data.error || "An error occurred.");
+                            window.dispatchEvent(
+                                new CustomEvent("notify", {
+                                    detail: { message: data.error || "Failed to trigger flow", type: "error" },
+                                }),
+                            );
                         }
                     } else {
                         window.location.href = `/view/{{ .Page.Namespace }}/results/{{ .Flow.Meta.ID }}/${data.exec_id}`;
@@ -205,7 +209,7 @@
                 } catch (error) {
                     window.dispatchEvent(
                         new CustomEvent("notify", {
-                            detail: { message: error.message, type: "error" },
+                            detail: { message: "Failed to trigger flow", type: "error" },
                         }),
                     );
                 } finally {

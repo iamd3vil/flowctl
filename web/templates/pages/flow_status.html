@@ -294,14 +294,19 @@ function flowStatusComponent(logID, actions) {
         async fetchExecutionSummary() {
             try {
                 const response = await fetch(`/api/v1/{{ .Page.Namespace }}/flows/summary/${logID}`);
+                const data = await response.json();
+                
                 if (response.ok) {
-                    const summary = await response.json();
-                    this.status = summary.status === 'pending' ? 'running' : summary.status;
-                    this.startTime = new Date(summary.started_at).toLocaleString();
-                    this.flowName = summary.flow_name || '';
+                    this.status = data.status === 'pending' ? 'running' : data.status;
+                    this.startTime = new Date(data.started_at).toLocaleString();
+                    this.flowName = data.flow_name || '';
+                } else {
+                    console.error('Failed to fetch execution summary:', data.error || 'Unknown error');
+                    this.notifyError(data.error || 'Failed to fetch execution summary');
                 }
             } catch (error) {
                 console.error('Failed to fetch execution summary:', error);
+                this.notifyError('Failed to fetch execution summary');
             }
         },
 
@@ -347,6 +352,14 @@ function flowStatusComponent(logID, actions) {
                 default:
                     this.logOutput += (msg.value || '') + '\n';
             }
+        },
+
+        notifyError(message) {
+            window.dispatchEvent(
+                new CustomEvent("notify", {
+                    detail: { message, type: "error" },
+                })
+            );
         }
     }
 }

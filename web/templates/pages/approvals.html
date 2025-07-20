@@ -335,12 +335,14 @@ function approvalsManager() {
                     body: JSON.stringify({ action: action })
                 });
 
+                const data = await response.json();
+                
                 if (response.ok) {
                     this.fetchApprovals();
                     this.notifySuccess(`Approval ${action}d successfully`);
                 } else {
                     console.error(`Failed to ${action} approval`);
-                    this.notifyError(`Failed to ${action} approval`);
+                    this.notifyError(data.error || `Failed to ${action} approval`);
                 }
             } catch (error) {
                 console.error(`Error ${action}ing approval:`, error);

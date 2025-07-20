@@ -310,6 +310,11 @@ function membersManager() {
             try {
                 const response = await fetch(`/api/v1/{{ .Page.Namespace }}/members`);
                 const data = await response.json();
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to fetch members');
+                    this.members = [];
+                    return;
+                }
                 this.members = data.members || [];
             } catch (error) {
                 console.error('Failed to fetch members:', error);
@@ -331,6 +336,12 @@ function membersManager() {
                 const response = await fetch(`/api/v1/${endpoint}?filter=${encodeURIComponent(this.searchQuery)}&count_per_page=10`);
                 const data = await response.json();
                 
+                if (!response.ok) {
+                    this.notifyError(data.error || 'Failed to search subjects');
+                    this.searchResults = [];
+                    return;
+                }
+                
                 if (this.memberForm.subject_type === 'user') {
                     this.searchResults = data.users || [];
                 } else {
@@ -340,6 +351,7 @@ function membersManager() {
                 this.showDropdown = this.searchResults.length > 0;
             } catch (error) {
                 console.error('Failed to search subjects:', error);
+                this.notifyError('Failed to search subjects');
                 this.searchResults = [];
             }
         },
@@ -384,14 +396,15 @@ function membersManager() {
                     body: JSON.stringify(payload)
                 });
 
+                const data = await response.json();
+
                 if (response.ok) {
                     this.closeMemberModal();
                     this.fetchMembers();
                     this.notifySuccess('Member added successfully');
                 } else {
-                    const error = await response.text();
-                    console.error('Failed to add member:', error);
-                    this.notifyError('Failed to add member');
+                    console.error('Failed to add member:', data);
+                    this.notifyError(data.error || 'Failed to add member');
                 }
             } catch (error) {
                 console.error('Error adding member:', error);
@@ -417,8 +430,9 @@ function membersManager() {
                         this.fetchMembers();
                         this.notifySuccess('Member removed successfully');
                     } else {
-                        console.error('Failed to remove member');
-                        this.notifyError('Failed to remove member');
+                        const data = await response.json();
+                        console.error('Failed to remove member:', data);
+                        this.notifyError(data.error || 'Failed to remove member');
                     }
                 } catch (error) {
                     console.error('Error removing member:', error);
