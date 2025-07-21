@@ -293,9 +293,9 @@ function flowStatusComponent(logID, actions) {
 
         async fetchExecutionSummary() {
             try {
-                const response = await fetch(`/api/v1/{{ .Page.Namespace }}/flows/summary/${logID}`);
+                const response = await fetch(`/api/v1/{{ .Page.Namespace }}/flows/executions/${logID}`);
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     this.status = data.status === 'pending' ? 'running' : data.status;
                     this.startTime = new Date(data.started_at).toLocaleString();

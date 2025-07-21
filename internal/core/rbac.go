@@ -13,10 +13,12 @@ import (
 func (c *Core) InitializeRBACPolicies() error {
 	// User role policies - for all namespaces
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionView))
+	// c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionExecute))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceNode), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceCredential), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionExecute))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceMembers), string(models.RBACActionView))
+	// c.enforcer.AddPolicy("role:user", "*", string(models.ResourceExecution), string(models.RBACActionView))
 
 	// Reviewer role policies (inherits from user) - for all namespaces
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceApproval), "*")
