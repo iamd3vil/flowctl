@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS execution_log (
     id SERIAL PRIMARY KEY,
     exec_id VARCHAR(36) NOT NULL,
     flow_id INTEGER NOT NULL,
-    parent_exec_id VARCHAR(36),
+    version INTEGER NOT NULL DEFAULT 0,
     input JSONB DEFAULT '{}'::jsonb NOT NULL,
     error TEXT,
     status execution_status NOT NULL DEFAULT 'pending',
@@ -135,7 +135,8 @@ CREATE TABLE IF NOT EXISTS execution_log (
     FOREIGN KEY (triggered_by) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
-CREATE UNIQUE INDEX idx_execution_log_exec_id ON execution_log(exec_id);
+CREATE INDEX idx_execution_log_exec_id ON execution_log(exec_id);
+CREATE UNIQUE INDEX idx_execution_log_exec_id_version ON execution_log(exec_id, version);
 CREATE INDEX idx_execution_log_triggered_by ON execution_log(triggered_by);
 
 CREATE TYPE approval_status AS ENUM (
