@@ -27,11 +27,10 @@ func TestDockerExecutor_Execute(t *testing.T) {
 			Inputs:     make(map[string]interface{}),
 			Stdout:     new(bytes.Buffer),
 			Stderr:     new(bytes.Buffer),
-			Node:       Node{}, // Empty node for local execution
 		}
 
-		// Create a new DockerExecutor
-		executor, err := NewDockerExecutor("test-local", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
+		// Create a new DockerExecutor with empty node for local execution
+		executor, err := NewDockerExecutor("test-local", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true}, Node{})
 		assert.NoError(t, err)
 
 		// Execute the executor
@@ -78,19 +77,21 @@ func TestDockerExecutor_Execute(t *testing.T) {
 			Inputs:     make(map[string]interface{}),
 			Stdout:     stdoutBuf,
 			Stderr:     stderrBuf,
-			Node: Node{
-				Hostname: remoteHost,
-				Port:     remotePort,
-				Username: remoteUser,
-				Auth: NodeAuth{
-					Method: "private_key",
-					Key:    remoteKey,
-				},
+		}
+
+		// Create remote node
+		remoteNode := Node{
+			Hostname: remoteHost,
+			Port:     remotePort,
+			Username: remoteUser,
+			Auth: NodeAuth{
+				Method: "private_key",
+				Key:    remoteKey,
 			},
 		}
 
 		// Create a new DockerExecutor
-		executor, err := NewDockerExecutor("test-remote", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
+		executor, err := NewDockerExecutor("test-remote", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true}, remoteNode)
 		assert.NoError(t, err)
 
 		// Execute the executor
@@ -123,10 +124,9 @@ func TestDockerExecutor_ArtifactFile(t *testing.T) {
 		Inputs:     make(map[string]interface{}),
 		Stdout:     new(bytes.Buffer),
 		Stderr:     new(bytes.Buffer),
-		Node:       Node{},
 	}
 
-	executor, err := NewDockerExecutor("test-artifact", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
+	executor, err := NewDockerExecutor("test-artifact", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true}, Node{})
 	assert.NoError(t, err)
 
 	_, err = executor.Execute(context.Background(), execCtx)
@@ -173,18 +173,20 @@ func TestDockerExecutor_Remote_ArtifactFile(t *testing.T) {
 		Inputs:     make(map[string]interface{}),
 		Stdout:     new(bytes.Buffer),
 		Stderr:     new(bytes.Buffer),
-		Node: Node{
-			Hostname: remoteHost,
-			Port:     remotePort,
-			Username: remoteUser,
-			Auth: NodeAuth{
-				Method: "ssh_key",
-				Key:    remoteKey,
-			},
+	}
+
+	// Create remote node
+	remoteNode := Node{
+		Hostname: remoteHost,
+		Port:     remotePort,
+		Username: remoteUser,
+		Auth: NodeAuth{
+			Method: "ssh_key",
+			Key:    remoteKey,
 		},
 	}
 
-	executor, err := NewDockerExecutor("test-artifact", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true})
+	executor, err := NewDockerExecutor("test-artifact", DockerRunnerOptions{ShowImagePull: false, KeepContainer: true}, remoteNode)
 	assert.NoError(t, err)
 
 	_, err = executor.Execute(context.Background(), execCtx)

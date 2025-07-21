@@ -24,7 +24,6 @@ type ExecutionContext struct {
 	Inputs     map[string]interface{}
 	Stdout     io.Writer
 	Stderr     io.Writer
-	Node       Node
 }
 
 type Executor interface {

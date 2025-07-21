@@ -139,8 +139,6 @@ func (r *FlowRunner) pushArtifacts(ctx context.Context, exec executor.Executor, 
 			if err != nil {
 				return err
 			}
-			log.Println("local path: ", path, " remote file: ", rPath)
-			// Push file to executor using the relative path as remote path
 			if err := exec.PushFile(ctx, path, rPath); err != nil {
 				return fmt.Errorf("failed to push artifact %s: %w", path, err)
 			}
@@ -155,18 +153,15 @@ func (r *FlowRunner) pullArtifacts(ctx context.Context, exec executor.Executor, 
 	for _, artifact := range artifacts {
 		var localPath string
 		if nodeName != "" {
-			// Create subdirectory for the node
 			localPath = filepath.Join(artifactDir, nodeName, artifact)
 		} else {
 			localPath = filepath.Join(artifactDir, artifact)
 		}
 
-		// Create directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(localPath), 0755); err != nil {
 			return fmt.Errorf("failed to create directory for artifact %s: %w", artifact, err)
 		}
 
-		// Pull file from executor using artifact path as remote path
 		if err := exec.PullFile(ctx, artifact, localPath); err != nil {
 			return fmt.Errorf("failed to pull artifact %s from node %s: %w", artifact, nodeName, err)
 		}
@@ -239,7 +234,19 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 				if node.Name == "" {
 					nodeExecutorID = action.ID
 				}
-				exec, err = executor.NewDockerExecutor(nodeExecutorID, executor.DockerRunnerOptions{})
+				
+				// Convert task node to executor node
+				execNode := executor.Node{
+					Hostname: node.Hostname,
+					Port:     node.Port,
+					Username: node.Username,
+					Auth: executor.NodeAuth{
+						Method: string(node.Auth.Method),
+						Key:    node.Auth.Key,
+					},
+				}
+				
+				exec, err = executor.NewDockerExecutor(nodeExecutorID, executor.DockerRunnerOptions{}, execNode)
 				if err != nil {
 					resChan <- ExecResults{
 						result: nil,
@@ -265,15 +272,6 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 				Artifacts:  action.Artifacts,
 				Stdout:     streamlogger,
 				Stderr:     streamlogger,
-				Node: executor.Node{
-					Hostname: node.Hostname,
-					Port:     node.Port,
-					Username: node.Username,
-					Auth: executor.NodeAuth{
-						Method: string(node.Auth.Method),
-						Key:    node.Auth.Key,
-					},
-				},
 			})
 
 			// Pull artifacts from this node after successful execution
