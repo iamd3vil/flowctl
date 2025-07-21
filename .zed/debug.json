@@ -1,0 +1,26 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "adapter": "Delve",
+    "label": "worker",
+    "request": "launch",
+    "mode": "debug",
+    "program": ".",
+    "args": ["start", "--worker"],
+    "buildFlags": [],
+    "env": {}
+  },
+  {
+    "adapter": "Delve",
+    "label": "server",
+    "request": "launch",
+    "mode": "debug",
+    "program": ".",
+    "args": ["start"],
+    "buildFlags": [],
+    "env": {}
+  }
+]

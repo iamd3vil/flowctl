@@ -31,17 +31,13 @@
                     <button @click="switchTab('users')"
                             :class="activeTab === 'users' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                        </svg>
+                        <i class="ti ti-users text-base mr-2"></i>
                         Users
                     </button>
                     <button @click="switchTab('groups')"
                             :class="activeTab === 'groups' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors">
-                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
+                        <i class="ti ti-users-group text-base mr-2"></i>
                         Groups
                     </button>
                 </nav>
@@ -53,9 +49,7 @@
                 <div class="flex items-center justify-between mb-6">
                     <!-- Search -->
                     <div class="relative">
-                        <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
+                        <i class="ti ti-search text-xl absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input type="text"
                                placeholder="Search users..."
                                x-model="userSearchQuery"
@@ -66,9 +60,7 @@
                     <!-- Add User Button -->
                     <button @click="openAddUserModal()"
                             class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
-                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
+                        <i class="ti ti-plus text-base mr-2"></i>
                         Add User
                     </button>
                 </div>
@@ -121,9 +113,7 @@
 
                 <!-- Users Empty State -->
                 <div x-show="!userLoading && users.length === 0" class="flex flex-col items-center justify-center h-64 text-center">
-                    <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                    </svg>
+                    <i class="ti ti-users text-6xl text-gray-400 mb-4"></i>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No users found</h3>
                     <p class="text-gray-500 mb-4">Get started by adding your first user.</p>
                     <button @click="openAddUserModal()"
@@ -166,9 +156,7 @@
                 <div class="flex items-center justify-between mb-6">
                     <!-- Search -->
                     <div class="relative">
-                        <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
+                        <i class="ti ti-search text-xl absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input type="text"
                                placeholder="Search groups..."
                                x-model="groupSearchQuery"
@@ -179,9 +167,7 @@
                     <!-- Add Group Button -->
                     <button @click="openAddGroupModal()"
                             class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
-                        <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
+                        <i class="ti ti-plus text-base mr-2"></i>
                         Add Group
                     </button>
                 </div>
@@ -224,9 +210,7 @@
 
                 <!-- Groups Empty State -->
                 <div x-show="!groupLoading && groups.length === 0" class="flex flex-col items-center justify-center h-64 text-center">
-                    <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
+                    <i class="ti ti-users-group text-6xl text-gray-400 mb-4"></i>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No groups found</h3>
                     <p class="text-gray-500 mb-4">Get started by adding your first group.</p>
                     <button @click="openAddGroupModal()"
@@ -282,9 +266,7 @@
                         <div class="relative" x-data="{ open: false }">
                             <button type="button" @click="open = !open" class="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <span x-text="userForm.selectedGroups.length ? userForm.selectedGroups.map(g => g.name).join(', ') : 'Select groups'"></span>
-                                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
+                                <i class="ti ti-chevron-down text-xl text-gray-400"></i>
                             </button>
                             <div x-show="open" @click.away="open = false" class="absolute mt-2 w-full p-2 shadow-lg bg-white rounded-lg border border-gray-200 z-20 max-h-48 overflow-y-auto">
                                 <template x-for="group in availableGroups" :key="group.id">
@@ -335,9 +317,7 @@
             <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
                 <div class="flex items-center mb-4">
                     <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                        </svg>
+                        <i class="ti ti-alert-triangle text-2xl text-red-600"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900" x-text="deleteType === 'user' ? 'Delete User' : 'Delete Group'"></h3>
