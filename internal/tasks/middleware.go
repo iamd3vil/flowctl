@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/cvhariharan/autopilot/internal/repo"
 	"github.com/google/uuid"
@@ -26,17 +25,14 @@ func (s *StatusTrackerDB) SetStatus(ctx context.Context, execID string, status r
 	if err != nil {
 		errMsg = sql.NullString{String: err.Error(), Valid: true}
 	}
-	
 	namespaceUUID, parseErr := uuid.Parse(namespaceID)
 	if parseErr != nil {
 		return fmt.Errorf("invalid namespace ID: %w", parseErr)
 	}
-	
 	_, err = s.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
 		Status:    status,
 		Error:     errMsg,
 		ExecID:    execID,
-		UpdatedAt: time.Now(),
 		Uuid:      namespaceUUID,
 	})
 	if err != nil {

@@ -21,14 +21,28 @@ INSERT INTO execution_log (
 
 -- name: UpdateExecutionStatus :one
 WITH namespace_lookup AS (
-    SELECT id FROM namespaces WHERE namespaces.uuid = $5
+    SELECT id FROM namespaces WHERE namespaces.uuid = $4
 ), latest_version AS (
     SELECT MAX(version) as version
     FROM execution_log
-    WHERE exec_id = $4 AND namespace_id = (SELECT id FROM namespace_lookup)
+    WHERE execution_log.exec_id = $3 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
-UPDATE execution_log SET status=$1, error=$2, updated_at=$3
-WHERE execution_log.exec_id = $4
+UPDATE execution_log SET status=$1, error=$2, updated_at=NOW()
+WHERE execution_log.exec_id = $3
+  AND version = (SELECT version FROM latest_version)
+  AND namespace_id = (SELECT id FROM namespace_lookup)
+RETURNING *;
+
+-- name: UpdateExecutionActionID :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log
+    WHERE execution_log.exec_id = $2 AND namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log SET current_action_id=$1, updated_at=NOW()
+WHERE execution_log.exec_id = $2
   AND version = (SELECT version FROM latest_version)
   AND namespace_id = (SELECT id FROM namespace_lookup)
 RETURNING *;
@@ -106,10 +120,10 @@ WHERE
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ), latest_exec_log AS (
-    SELECT flow_id 
-    FROM execution_log 
-    WHERE exec_id = $1 
-    ORDER BY version DESC 
+    SELECT flow_id
+    FROM execution_log
+    WHERE exec_id = $1
+    ORDER BY version DESC
     LIMIT 1
 )
 SELECT f.* FROM flows f
@@ -120,12 +134,12 @@ WHERE f.namespace_id = (SELECT id FROM namespace_lookup);
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ), latest_exec_log AS (
-    SELECT flow_id 
+    SELECT flow_id
     FROM execution_log el
     INNER JOIN flows f ON el.flow_id = f.id
-    WHERE el.exec_id = $1 
+    WHERE el.exec_id = $1
       AND f.namespace_id = (SELECT id FROM namespace_lookup)
-    ORDER BY el.version DESC 
+    ORDER BY el.version DESC
     LIMIT 1
 )
 SELECT f.* FROM flows f
@@ -153,7 +167,7 @@ WITH namespace_lookup AS (
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
 SELECT input FROM execution_log
-WHERE execution_log.exec_id = $1 
+WHERE execution_log.exec_id = $1
   AND execution_log.namespace_id = (SELECT id FROM namespace_lookup)
   AND execution_log.version = (SELECT max_version FROM latest_execution);
 

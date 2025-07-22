@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS execution_log (
     version INTEGER NOT NULL DEFAULT 0,
     input JSONB DEFAULT '{}'::jsonb NOT NULL,
     error TEXT,
+    current_action_id TEXT,
     status execution_status NOT NULL DEFAULT 'pending',
     triggered_by INTEGER NOT NULL,
     namespace_id INTEGER NOT NULL,

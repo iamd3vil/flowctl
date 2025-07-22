@@ -386,6 +386,7 @@ type ExecutionSummary struct {
 	FlowName		string			`json:"flow_name"`
 	Status 		ExecutionStatus `json:"status"`
 	TriggeredBy string     		`json:"triggered_by"`
+	CurrentActionID string 		`json:"current_action_id"`
 	CreatedAt   string 	   		`json:"started_at"`
 	CompletedAt string 	   		`json:"completed_at"`
 	Duration    string 			`json:"duration"`
@@ -393,12 +394,13 @@ type ExecutionSummary struct {
 
 func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) ExecutionSummary {
 	return ExecutionSummary{
-		ID:          e.ExecID,
-		FlowName:    e.FlowName,
-		Status:      ExecutionStatus(e.Status),
-		TriggeredBy: e.TriggeredByName,
-		CreatedAt:   e.CreatedAt.Format(TimeFormat),
-		CompletedAt: e.CompletedAt.Format(TimeFormat),
-		Duration:    e.Duration(),
+		ID:              e.ExecID,
+		FlowName:        e.FlowName,
+		Status:          ExecutionStatus(e.Status),
+		TriggeredBy:     e.TriggeredByName,
+		CurrentActionID: e.CurrentActionID,
+		CreatedAt:       e.CreatedAt.Format(TimeFormat),
+		CompletedAt:     e.CompletedAt.Format(TimeFormat),
+		Duration:        e.Duration(),
 	}
 }

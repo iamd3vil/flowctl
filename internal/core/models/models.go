@@ -132,6 +132,7 @@ type ExecutionSummary struct {
 	Status          ExecutionStatus
 	TriggeredByName string
 	TriggeredByID   string
+	CurrentActionID string
 	CreatedAt       time.Time
 	CompletedAt     time.Time
 }

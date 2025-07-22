@@ -295,6 +295,7 @@ func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, trigge
 			Status:          models.ExecutionStatus(v.Status),
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
+			CurrentActionID: v.CurrentActionID.String,
 		})
 	}
 
@@ -329,6 +330,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 			Status:          models.ExecutionStatus(v.Status),
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
+			CurrentActionID: v.CurrentActionID.String,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -364,6 +366,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 			Status:          models.ExecutionStatus(v.Status),
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
+			CurrentActionID: v.CurrentActionID.String,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -393,6 +396,7 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 		CompletedAt:     e.UpdatedAt,
 		TriggeredByName: e.TriggeredByName,
 		TriggeredByID:   e.TriggeredByUuid.String(),
+		CurrentActionID: e.CurrentActionID.String,
 	}, nil
 }
 

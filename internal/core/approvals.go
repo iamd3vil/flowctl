@@ -246,16 +246,26 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string, na
 }
 
 func (c *Core) BeforeActionHook(ctx context.Context, execID string, action tasks.Action, namespaceID string) error {
-	if !action.Approval {
-		return nil
-	}
-
 	// use parent exec ID if available for approval requests
 	eID := execID
 
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	// Set the current action ID
+	log.Println("current action ID: ", action.ID)
+	if _, err := c.store.UpdateExecutionActionID(ctx, repo.UpdateExecutionActionIDParams{
+		CurrentActionID: sql.NullString{String: action.ID, Valid: action.ID != ""},
+		ExecID: execID,
+		Uuid: namespaceUUID,
+	}); err != nil {
+		return fmt.Errorf("could not update current action ID in exec %s: %w", execID, err)
+	}
+
+	if !action.Approval {
+		return nil
 	}
 
 	// check if pending approval, exit if not approved

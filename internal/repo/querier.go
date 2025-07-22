@@ -86,6 +86,7 @@ type Querier interface {
 	SearchUsersWithGroups(ctx context.Context, arg SearchUsersWithGroupsParams) ([]SearchUsersWithGroupsRow, error)
 	UpdateApprovalStatusByUUID(ctx context.Context, arg UpdateApprovalStatusByUUIDParams) (UpdateApprovalStatusByUUIDRow, error)
 	UpdateCredential(ctx context.Context, arg UpdateCredentialParams) (Credential, error)
+	UpdateExecutionActionID(ctx context.Context, arg UpdateExecutionActionIDParams) (ExecutionLog, error)
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
 	UpdateGroupByUUID(ctx context.Context, arg UpdateGroupByUUIDParams) (Group, error)

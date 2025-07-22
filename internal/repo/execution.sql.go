@@ -33,7 +33,7 @@ INSERT INTO execution_log (
     namespace_id
 ) VALUES (
     $1, $2, (SELECT version FROM next_version), $3, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup)
-) RETURNING id, exec_id, flow_id, version, input, error, status, triggered_by, namespace_id, created_at, updated_at
+) RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, triggered_by, namespace_id, created_at, updated_at
 `
 
 type AddExecutionLogParams struct {
@@ -60,6 +60,7 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 		&i.Version,
 		&i.Input,
 		&i.Error,
+		&i.CurrentActionID,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.NamespaceID,
@@ -81,7 +82,7 @@ latest_versions AS (
     GROUP BY exec_id
 ),
 filtered AS (
-    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
            CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
            f.name as flow_name
     FROM execution_log el
@@ -94,7 +95,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, exec_id, flow_id, version, input, error, status, triggered_by, namespace_id, created_at, updated_at, name, username, triggered_by_uuid, triggered_by_name, flow_name FROM filtered
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, triggered_by, namespace_id, created_at, updated_at, name, username, triggered_by_uuid, triggered_by_name, flow_name FROM filtered
     ORDER BY created_at DESC
     LIMIT $2 OFFSET $3
 ),
@@ -102,7 +103,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.status, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name,
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -121,6 +122,7 @@ type GetAllExecutionsPaginatedRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -151,6 +153,7 @@ func (q *Queries) GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecu
 			&i.Version,
 			&i.Input,
 			&i.Error,
+			&i.CurrentActionID,
 			&i.Status,
 			&i.TriggeredBy,
 			&i.NamespaceID,
@@ -186,7 +189,7 @@ WITH namespace_lookup AS (
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
 SELECT
-    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at,
+    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at,
     u.name,
     u.username,
     u.uuid AS triggered_by_uuid,
@@ -216,6 +219,7 @@ type GetExecutionByExecIDRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -238,6 +242,7 @@ func (q *Queries) GetExecutionByExecID(ctx context.Context, arg GetExecutionByEx
 		&i.Version,
 		&i.Input,
 		&i.Error,
+		&i.CurrentActionID,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.NamespaceID,
@@ -262,7 +267,7 @@ WITH namespace_lookup AS (
     WHERE el2.exec_id = $1 AND f2.namespace_id = (SELECT id FROM namespace_lookup)
 )
 SELECT
-    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at,
+    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at,
     u.name,
     u.username,
     u.uuid AS triggered_by_uuid,
@@ -292,6 +297,7 @@ type GetExecutionByExecIDWithNamespaceRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -314,6 +320,7 @@ func (q *Queries) GetExecutionByExecIDWithNamespace(ctx context.Context, arg Get
 		&i.Version,
 		&i.Input,
 		&i.Error,
+		&i.CurrentActionID,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.NamespaceID,
@@ -332,7 +339,7 @@ const getExecutionByID = `-- name: GetExecutionByID :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 )
-SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
+SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
        CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
        f.name as flow_name
 FROM execution_log el
@@ -353,6 +360,7 @@ type GetExecutionByIDRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -375,6 +383,7 @@ func (q *Queries) GetExecutionByID(ctx context.Context, arg GetExecutionByIDPara
 		&i.Version,
 		&i.Input,
 		&i.Error,
+		&i.CurrentActionID,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.NamespaceID,
@@ -395,7 +404,7 @@ WITH user_lookup AS (
 ), namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $3
 )
-SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
+SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
        CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
        f.name as flow_name
 FROM execution_log el
@@ -419,6 +428,7 @@ type GetExecutionsByFlowRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -447,6 +457,7 @@ func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFl
 			&i.Version,
 			&i.Input,
 			&i.Error,
+			&i.CurrentActionID,
 			&i.Status,
 			&i.TriggeredBy,
 			&i.NamespaceID,
@@ -484,7 +495,7 @@ latest_versions AS (
     GROUP BY exec_id
 ),
 filtered AS (
-    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
            CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
            f.name as flow_name
     FROM execution_log el
@@ -498,7 +509,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, exec_id, flow_id, version, input, error, status, triggered_by, namespace_id, created_at, updated_at, name, username, triggered_by_uuid, triggered_by_name, flow_name FROM filtered
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, triggered_by, namespace_id, created_at, updated_at, name, username, triggered_by_uuid, triggered_by_name, flow_name FROM filtered
     ORDER BY created_at DESC
     LIMIT $3 OFFSET $4
 ),
@@ -506,7 +517,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.status, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name,
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -526,6 +537,7 @@ type GetExecutionsByFlowPaginatedRow struct {
 	Version         int32           `db:"version" json:"version"`
 	Input           json.RawMessage `db:"input" json:"input"`
 	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
@@ -561,6 +573,7 @@ func (q *Queries) GetExecutionsByFlowPaginated(ctx context.Context, arg GetExecu
 			&i.Version,
 			&i.Input,
 			&i.Error,
+			&i.CurrentActionID,
 			&i.Status,
 			&i.TriggeredBy,
 			&i.NamespaceID,
@@ -591,10 +604,10 @@ const getFlowFromExecID = `-- name: GetFlowFromExecID :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ), latest_exec_log AS (
-    SELECT flow_id 
-    FROM execution_log 
-    WHERE exec_id = $1 
-    ORDER BY version DESC 
+    SELECT flow_id
+    FROM execution_log
+    WHERE exec_id = $1
+    ORDER BY version DESC
     LIMIT 1
 )
 SELECT f.id, f.slug, f.name, f.checksum, f.description, f.namespace_id, f.created_at, f.updated_at FROM flows f
@@ -627,12 +640,12 @@ const getFlowFromExecIDWithNamespace = `-- name: GetFlowFromExecIDWithNamespace 
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ), latest_exec_log AS (
-    SELECT flow_id 
+    SELECT flow_id
     FROM execution_log el
     INNER JOIN flows f ON el.flow_id = f.id
-    WHERE el.exec_id = $1 
+    WHERE el.exec_id = $1
       AND f.namespace_id = (SELECT id FROM namespace_lookup)
-    ORDER BY el.version DESC 
+    ORDER BY el.version DESC
     LIMIT 1
 )
 SELECT f.id, f.slug, f.name, f.checksum, f.description, f.namespace_id, f.created_at, f.updated_at FROM flows f
@@ -670,7 +683,7 @@ WITH namespace_lookup AS (
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
 SELECT input FROM execution_log
-WHERE execution_log.exec_id = $1 
+WHERE execution_log.exec_id = $1
   AND execution_log.namespace_id = (SELECT id FROM namespace_lookup)
   AND execution_log.version = (SELECT max_version FROM latest_execution)
 `
@@ -687,34 +700,73 @@ func (q *Queries) GetInputForExecByUUID(ctx context.Context, arg GetInputForExec
 	return input, err
 }
 
-const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
+const updateExecutionActionID = `-- name: UpdateExecutionActionID :one
 WITH namespace_lookup AS (
-    SELECT id FROM namespaces WHERE namespaces.uuid = $5
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
 ), latest_version AS (
     SELECT MAX(version) as version
     FROM execution_log
-    WHERE exec_id = $4 AND namespace_id = (SELECT id FROM namespace_lookup)
+    WHERE execution_log.exec_id = $2 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
-UPDATE execution_log SET status=$1, error=$2, updated_at=$3
-WHERE execution_log.exec_id = $4
+UPDATE execution_log SET current_action_id=$1, updated_at=NOW()
+WHERE execution_log.exec_id = $2
   AND version = (SELECT version FROM latest_version)
   AND namespace_id = (SELECT id FROM namespace_lookup)
-RETURNING id, exec_id, flow_id, version, input, error, status, triggered_by, namespace_id, created_at, updated_at
+RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, triggered_by, namespace_id, created_at, updated_at
+`
+
+type UpdateExecutionActionIDParams struct {
+	CurrentActionID sql.NullString `db:"current_action_id" json:"current_action_id"`
+	ExecID          string         `db:"exec_id" json:"exec_id"`
+	Uuid            uuid.UUID      `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) UpdateExecutionActionID(ctx context.Context, arg UpdateExecutionActionIDParams) (ExecutionLog, error) {
+	row := q.db.QueryRowContext(ctx, updateExecutionActionID, arg.CurrentActionID, arg.ExecID, arg.Uuid)
+	var i ExecutionLog
+	err := row.Scan(
+		&i.ID,
+		&i.ExecID,
+		&i.FlowID,
+		&i.Version,
+		&i.Input,
+		&i.Error,
+		&i.CurrentActionID,
+		&i.Status,
+		&i.TriggeredBy,
+		&i.NamespaceID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $4
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log
+    WHERE execution_log.exec_id = $3 AND namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log SET status=$1, error=$2, updated_at=NOW()
+WHERE execution_log.exec_id = $3
+  AND version = (SELECT version FROM latest_version)
+  AND namespace_id = (SELECT id FROM namespace_lookup)
+RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, triggered_by, namespace_id, created_at, updated_at
 `
 
 type UpdateExecutionStatusParams struct {
-	Status    ExecutionStatus `db:"status" json:"status"`
-	Error     sql.NullString  `db:"error" json:"error"`
-	UpdatedAt time.Time       `db:"updated_at" json:"updated_at"`
-	ExecID    string          `db:"exec_id" json:"exec_id"`
-	Uuid      uuid.UUID       `db:"uuid" json:"uuid"`
+	Status ExecutionStatus `db:"status" json:"status"`
+	Error  sql.NullString  `db:"error" json:"error"`
+	ExecID string          `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID       `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error) {
 	row := q.db.QueryRowContext(ctx, updateExecutionStatus,
 		arg.Status,
 		arg.Error,
-		arg.UpdatedAt,
 		arg.ExecID,
 		arg.Uuid,
 	)
@@ -726,6 +778,7 @@ func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecution
 		&i.Version,
 		&i.Input,
 		&i.Error,
+		&i.CurrentActionID,
 		&i.Status,
 		&i.TriggeredBy,
 		&i.NamespaceID,

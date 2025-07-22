@@ -243,6 +243,7 @@ function flowStatusComponent(logID, actions) {
         errorMessage: null,
         failedActionIndex: -1,
         completedActions: [],
+        hasReceivedMessages: false,
 
         init() {
             this.connectWebSocket();
@@ -263,6 +264,7 @@ function flowStatusComponent(logID, actions) {
             this.ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/v1/{{ .Page.Namespace }}/logs/${logID}`);
 
             this.ws.onmessage = (event) => {
+                this.hasReceivedMessages = true;
                 let msg = {};
                 try { msg = JSON.parse(event.data); } catch {}
                 this.processMessage(msg);
@@ -300,6 +302,11 @@ function flowStatusComponent(logID, actions) {
                     this.status = data.status === 'pending' ? 'running' : data.status;
                     this.startTime = new Date(data.started_at).toLocaleString();
                     this.flowName = data.flow_name || '';
+
+                    // Reconstruct progress from current_action_id when websocket has no messages
+                    if (data.current_action_id) {
+                        this.reconstructProgress(data.current_action_id, data.status);
+                    }
                 } else {
                     console.error('Failed to fetch execution summary:', data.error || 'Unknown error');
                     this.notifyError(data.error || 'Failed to fetch execution summary');
@@ -307,6 +314,42 @@ function flowStatusComponent(logID, actions) {
             } catch (error) {
                 console.error('Failed to fetch execution summary:', error);
                 this.notifyError('Failed to fetch execution summary');
+            }
+        },
+
+        reconstructProgress(currentActionId, executionStatus) {
+            // Find the index of the current action
+            const currentActionIndex = this.actions.findIndex(action => action.id === currentActionId);
+
+            if (currentActionIndex === -1) return;
+
+            // Mark all actions before the current one as completed (green)
+            for (let i = 0; i < currentActionIndex; i++) {
+                if (!this.completedActions.includes(i)) {
+                    this.completedActions.push(i);
+                }
+            }
+
+            // Handle the current action based on execution status
+            if (executionStatus === 'completed') {
+                // If execution is completed, mark all actions including current as completed
+                for (let i = 0; i <= currentActionIndex; i++) {
+                    if (!this.completedActions.includes(i)) {
+                        this.completedActions.push(i);
+                    }
+                }
+                this.currentActionIndex = -1; // No current action when completed
+            } else if (executionStatus === 'errored') {
+                // If execution failed, mark current action as failed
+                this.failedActionIndex = currentActionIndex;
+                this.currentActionIndex = -1; // No current action when failed
+            } else if (executionStatus === 'running' || executionStatus === 'pending') {
+                // If still running, set current action index
+                this.currentActionIndex = currentActionIndex;
+            } else if (executionStatus === 'pending_approval') {
+                // If waiting for approval, set current action and show approval state
+                this.currentActionIndex = currentActionIndex;
+                this.status = 'awaiting_approval';
             }
         },
 
