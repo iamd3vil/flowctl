@@ -87,17 +87,17 @@
                                  }">
                                 <div class="flex justify-between items-center mb-2">
                                     <span class="font-semibold text-gray-900" x-text="action.name || `Step ${index + 1}`"></span>
-                                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs"
+                                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
                                          :class="{
                                              'bg-red-500': index === failedActionIndex,
                                              'bg-green-500': completedActions.includes(index) && index !== failedActionIndex,
                                              'bg-blue-500 animate-pulse': index === currentActionIndex && status === 'running' && index !== failedActionIndex,
                                              'bg-gray-400': index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex
                                          }">
-                                        <span x-show="index === failedActionIndex">✗</span>
-                                        <span x-show="completedActions.includes(index) && index !== failedActionIndex">✓</span>
-                                        <span x-show="index === currentActionIndex && status === 'running' && index !== failedActionIndex">●</span>
-                                        <span x-show="index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex">-</span>
+                                        <span x-show="index === failedActionIndex" class="leading-none flex items-center justify-center">✗</span>
+                                        <span x-show="completedActions.includes(index) && index !== failedActionIndex && index !== currentActionIndex" class="leading-none flex items-center justify-center">✓</span>
+                                        <span x-show="index === currentActionIndex && status === 'running' && index !== failedActionIndex && !completedActions.includes(index)" class="leading-none">●</span>
+                                        <span x-show="index !== failedActionIndex && !completedActions.includes(index) && index !== currentActionIndex" class="leading-none">-</span>
                                     </div>
                                 </div>
                                 <p class="text-sm text-gray-600" x-text="index === failedActionIndex ? 'Failed' : (completedActions.includes(index) ? 'Completed' : (index === currentActionIndex && status === 'running' ? 'Processing...' : 'Pending'))"></p>
@@ -332,8 +332,8 @@ function flowStatusComponent(logID, actions) {
 
             // Handle the current action based on execution status
             if (executionStatus === 'completed') {
-                // If execution is completed, mark all actions including current as completed
-                for (let i = 0; i <= currentActionIndex; i++) {
+                // If execution is completed, mark ALL actions as completed
+                for (let i = 0; i < this.actions.length; i++) {
                     if (!this.completedActions.includes(i)) {
                         this.completedActions.push(i);
                     }
@@ -376,7 +376,10 @@ function flowStatusComponent(logID, actions) {
                     break;
                 case 'result':
                     this.results = { ...this.results, ...(msg.results || {}) };
-                    // Don't mark as completed here - wait for action_id to change
+                    // Mark current action as completed when results are received
+                    if (this.currentActionIndex !== -1 && !this.completedActions.includes(this.currentActionIndex)) {
+                        this.completedActions.push(this.currentActionIndex);
+                    }
                     break;
                 case 'error':
                     this.errorMessage = msg.value || "An error occurred.";
