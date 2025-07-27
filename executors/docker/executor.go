@@ -1,4 +1,4 @@
-package executor
+package docker
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 
 	"os"
 
+	"github.com/cvhariharan/autopilot/sdk/executor"
+	"github.com/cvhariharan/autopilot/sdk/remoteclient"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
@@ -51,7 +53,7 @@ type DockerExecutor struct {
 	stdout             io.Writer
 	stderr             io.Writer
 	client             *client.Client
-	remoteClient       RemoteClient
+	remoteClient       remoteclient.RemoteClient
 	artifactsDirectory string
 }
 
@@ -61,18 +63,25 @@ type DockerRunnerOptions struct {
 	KeepContainer     bool
 }
 
-func NewDockerExecutor(name string, dockerOptions DockerRunnerOptions, node Node) (Executor, error) {
+func init() {
+	executor.RegisterExecutor("docker", NewDockerExecutor)
+}
+
+func NewDockerExecutor(name string, node executor.Node) (executor.Executor, error) {
 	jobName := slug.Make(fmt.Sprintf("%s-%s", name, xid.New().String()))
 
 	executor := &DockerExecutor{
 		name:               jobName,
-		dockerOptions:      dockerOptions,
 		artifactsDirectory: fmt.Sprintf("/tmp/docker-artifacts-%s", xid.New().String()),
 	}
 
 	// Initialize remote client if this is for remote execution
 	if node.Hostname != "" {
-		remoteClient, err := NewRemoteClient(node)
+		clientType := "ssh"
+		if node.ConnectionType != "" {
+			clientType = node.ConnectionType
+		}
+		remoteClient, err := remoteclient.GetClient(clientType, node)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create remote client for node %s: %w", node.Hostname, err)
 		}
@@ -125,7 +134,7 @@ func (d *DockerExecutor) withCredentials(username, password string) *DockerExecu
 	return d
 }
 
-func (d *DockerExecutor) Execute(ctx context.Context, execCtx ExecutionContext) (map[string]string, error) {
+func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.ExecutionContext) (map[string]string, error) {
 	var config DockerWithConfig
 	if err := yaml.Unmarshal(execCtx.WithConfig, &config); err != nil {
 		return nil, fmt.Errorf("could not read config for docker executor %s: %w", d.name, err)
@@ -223,7 +232,7 @@ func (d *DockerExecutor) readTempFileContents(tempFile string) (io.Reader, error
 }
 
 // The run, createSrcDirectories, pullImage, and createContainer
-func (d *DockerExecutor) run(ctx context.Context, execCtx ExecutionContext) error {
+func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionContext) error {
 	if err := d.pullImage(ctx, d.client); err != nil {
 		return fmt.Errorf("could not pull image: %v", err)
 	}
@@ -307,7 +316,7 @@ func (d *DockerExecutor) copyArtifactsToContainer(ctx context.Context, container
 func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containerID string, artifacts []string) error {
 	for _, artifact := range artifacts {
 		containerPath := filepath.Join(WORKING_DIR, filepath.Clean(artifact))
-		
+
 		if d.remoteClient == nil {
 			// Local execution: use Docker API
 			tar, _, err := d.client.CopyFromContainer(ctx, containerID, containerPath)
@@ -438,7 +447,7 @@ func (d *DockerExecutor) getDockerClient(ctx context.Context) (*client.Client, e
 	)
 }
 
-func createSSHTunnel(ctx context.Context, client RemoteClient) (net.Listener, error) {
+func createSSHTunnel(ctx context.Context, client remoteclient.RemoteClient) (net.Listener, error) {
 	localListener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on a local port: %w", err)

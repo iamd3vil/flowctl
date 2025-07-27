@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cvhariharan/autopilot/internal/executor"
 	"github.com/cvhariharan/autopilot/internal/runner"
 	"github.com/cvhariharan/autopilot/internal/streamlogger"
+	"github.com/cvhariharan/autopilot/sdk/executor"
 	"github.com/expr-lang/expr"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
@@ -237,28 +237,15 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 					Key:    node.Auth.Key,
 				},
 			}
-			switch action.Executor {
-			case "docker":
-				var err error
-				exec, err = executor.NewDockerExecutor(nodeExecutorID, executor.DockerRunnerOptions{}, execNode)
-				if err != nil {
-					resChan <- ExecResults{
-						result: nil,
-						err:    fmt.Errorf("failed to create docker executor for action %s node %s: %w", action.ID, node.Name, err),
-					}
-					return
+			ef, err := executor.GetNewExecutorFunc(action.Executor)
+			if err != nil {
+				resChan <- ExecResults{
+					result: nil,
+					err:    fmt.Errorf("failed to get executor for %s: %w", action.ID, err),
 				}
-			case "script":
-				var err error
-				exec, err = executor.NewScriptExecutor(nodeExecutorID, execNode)
-				if err != nil {
-					resChan <- ExecResults{
-						result: nil,
-						err:    fmt.Errorf("failed to create docker executor for action %s node %s: %w", action.ID, node.Name, err),
-					}
-					return
-				}
+				return
 			}
+			exec, err = ef(nodeExecutorID, execNode)
 			defer exec.Close()
 
 			// Push existing artifacts to this node's executor before execution

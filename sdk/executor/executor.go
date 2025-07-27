@@ -6,10 +6,11 @@ import (
 )
 
 type Node struct {
-	Hostname string
-	Port     int
-	Username string
-	Auth     NodeAuth
+	Hostname       string
+	Port           int
+	Username       string
+	Auth           NodeAuth
+	ConnectionType string
 }
 
 type NodeAuth struct {

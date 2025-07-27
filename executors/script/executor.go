@@ -1,4 +1,4 @@
-package executor
+package script
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cvhariharan/autopilot/sdk/executor"
+	"github.com/cvhariharan/autopilot/sdk/remoteclient"
 	"github.com/hashicorp/go-envparse"
 	"github.com/rs/xid"
 	"gopkg.in/yaml.v3"
@@ -21,13 +23,13 @@ type ScriptWithConfig struct {
 
 type ScriptExecutor struct {
 	name               string
-	remoteClient       RemoteClient
+	remoteClient       remoteclient.RemoteClient
 	artifactsDirectory string
 	stdout             io.Writer
 	stderr             io.Writer
 }
 
-func NewScriptExecutor(name string, node Node) (Executor, error) {
+func NewScriptExecutor(name string, node executor.Node) (executor.Executor, error) {
 	jobName := fmt.Sprintf("script-%s-%s", name, xid.New().String())
 
 	executor := &ScriptExecutor{
@@ -37,7 +39,11 @@ func NewScriptExecutor(name string, node Node) (Executor, error) {
 
 	// Initialize remote client if this is for remote execution
 	if node.Hostname != "" {
-		remoteClient, err := NewRemoteClient(node)
+		clientType := "ssh"
+		if node.ConnectionType != "" {
+			clientType = node.ConnectionType
+		}
+		remoteClient, err := remoteclient.GetClient(clientType, node)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create remote client for node %s: %w", node.Hostname, err)
 		}
@@ -47,7 +53,7 @@ func NewScriptExecutor(name string, node Node) (Executor, error) {
 	return executor, nil
 }
 
-func (s *ScriptExecutor) Execute(ctx context.Context, execCtx ExecutionContext) (map[string]string, error) {
+func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.ExecutionContext) (map[string]string, error) {
 	var config ScriptWithConfig
 	if err := yaml.Unmarshal(execCtx.WithConfig, &config); err != nil {
 		return nil, fmt.Errorf("could not read config for script executor %s: %w", s.name, err)

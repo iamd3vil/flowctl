@@ -15,7 +15,6 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
-	sqlxadapter "github.com/memwey/casbin-sqlx-adapter"
 	"github.com/cvhariharan/autopilot/internal/core"
 	"github.com/cvhariharan/autopilot/internal/core/models"
 	"github.com/cvhariharan/autopilot/internal/handlers"
@@ -25,6 +24,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	sqlxadapter "github.com/memwey/casbin-sqlx-adapter"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -213,7 +213,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	namespaceGroup.DELETE("/credentials/:credID", h.HandleDeleteCredential, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionDelete))
 
 	// Approval routes - operators and admins
-	namespaceGroup.GET("/approvals", h.HandleListApprovals,  h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionApprove))
+	namespaceGroup.GET("/approvals", h.HandleListApprovals, h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionApprove))
 	namespaceGroup.POST("/approvals/:approvalID", h.HandleApprovalAction, h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionApprove))
 
 	// Namespace management - admins only

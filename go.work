@@ -1,0 +1,10 @@
+go 1.24.5
+
+use (
+	.
+	./executors/docker
+	./executors/script
+	./remote/ssh
+	./sdk/executor
+	./sdk/remoteclient
+)
