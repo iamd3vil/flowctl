@@ -99,6 +99,48 @@ func (ns NullAuthenticationMethod) Value() (driver.Value, error) {
 	return string(ns.AuthenticationMethod), nil
 }
 
+type ConnectionType string
+
+const (
+	ConnectionTypeSsh  ConnectionType = "ssh"
+	ConnectionTypeQssh ConnectionType = "qssh"
+)
+
+func (e *ConnectionType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ConnectionType(s)
+	case string:
+		*e = ConnectionType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ConnectionType: %T", src)
+	}
+	return nil
+}
+
+type NullConnectionType struct {
+	ConnectionType ConnectionType `json:"connection_type"`
+	Valid          bool           `json:"valid"` // Valid is true if ConnectionType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullConnectionType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ConnectionType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ConnectionType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullConnectionType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ConnectionType), nil
+}
+
 type ExecutionStatus string
 
 const (
@@ -343,19 +385,20 @@ type NamespaceMember struct {
 }
 
 type Node struct {
-	ID           int32                `db:"id" json:"id"`
-	Uuid         uuid.UUID            `db:"uuid" json:"uuid"`
-	Name         string               `db:"name" json:"name"`
-	Hostname     string               `db:"hostname" json:"hostname"`
-	Port         int32                `db:"port" json:"port"`
-	Username     string               `db:"username" json:"username"`
-	OsFamily     string               `db:"os_family" json:"os_family"`
-	Tags         []string             `db:"tags" json:"tags"`
-	AuthMethod   AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	NamespaceID  int32                `db:"namespace_id" json:"namespace_id"`
-	CreatedAt    time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time            `db:"updated_at" json:"updated_at"`
+	ID             int32                `db:"id" json:"id"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	NamespaceID    int32                `db:"namespace_id" json:"namespace_id"`
+	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
 }
 
 type Session struct {

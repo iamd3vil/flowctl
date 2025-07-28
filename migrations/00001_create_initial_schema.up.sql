@@ -175,6 +175,11 @@ CREATE TYPE authentication_method AS ENUM (
     'password'
 );
 
+CREATE TYPE connection_type AS ENUM (
+    'ssh',
+    'qssh'
+);
+
 CREATE TABLE IF NOT EXISTS credentials (
     id SERIAL PRIMARY KEY,
     uuid UUID NOT NULL DEFAULT uuid_generate_v4(),
@@ -202,6 +207,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     os_family VARCHAR(50) NOT NULL,
     tags TEXT[],
     auth_method authentication_method NOT NULL DEFAULT 'private_key',
+    connection_type connection_type NOT NULL DEFAULT 'ssh',
     credential_id INTEGER,
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),

@@ -8,15 +8,16 @@ const (
 )
 
 type Node struct {
-	ID            string
-	Name          string
-	Hostname      string
-	Port          int
-	Username      string
-	OSFamily      string
-	Tags          []string
-	Auth          NodeAuth
-	NamespaceUUID string
+	ID             string
+	Name           string
+	Hostname       string
+	Port           int
+	Username       string
+	OSFamily       string
+	ConnectionType string
+	Tags           []string
+	Auth           NodeAuth
+	NamespaceUUID  string
 }
 
 type NodeAuth struct {

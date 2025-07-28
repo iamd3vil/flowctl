@@ -146,24 +146,26 @@ type NodeAuth struct {
 }
 
 type NodeReq struct {
-	Name     string   `json:"name" validate:"required,min=3,max=255"`
-	Hostname string   `json:"hostname" validate:"required"`
-	Port     int      `json:"port" validate:"required,min=1,max=65535"`
-	Username string   `json:"username" validate:"required,min=1,max=255"`
-	OSFamily string   `json:"os_family" validate:"required,oneof=linux windows"`
-	Tags     []string `json:"tags"`
-	Auth     NodeAuth `json:"auth" validate:"required"`
+	Name           string   `json:"name" validate:"required,min=3,max=255"`
+	Hostname       string   `json:"hostname" validate:"required"`
+	Port           int      `json:"port" validate:"required,min=1,max=65535"`
+	Username       string   `json:"username" validate:"required,min=1,max=255"`
+	OSFamily       string   `json:"os_family" validate:"required,oneof=linux windows"`
+	ConnectionType string   `json:"connection_type" validate:"required,oneof=ssh qssh"`
+	Tags           []string `json:"tags"`
+	Auth           NodeAuth `json:"auth" validate:"required"`
 }
 
 type NodeResp struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Hostname string   `json:"hostname"`
-	Port     int      `json:"port"`
-	Username string   `json:"username"`
-	OSFamily string   `json:"os_family"`
-	Tags     []string `json:"tags"`
-	Auth     NodeAuth `json:"auth"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Hostname       string   `json:"hostname"`
+	Port           int      `json:"port"`
+	Username       string   `json:"username"`
+	OSFamily       string   `json:"os_family"`
+	ConnectionType string   `json:"connection_type"`
+	Tags           []string `json:"tags"`
+	Auth           NodeAuth `json:"auth"`
 }
 
 type NodesPaginateResponse struct {
@@ -174,13 +176,14 @@ type NodesPaginateResponse struct {
 
 func coreNodeToNodeResp(n *models.Node) NodeResp {
 	return NodeResp{
-		ID:       n.ID,
-		Name:     n.Name,
-		Hostname: n.Hostname,
-		Port:     n.Port,
-		Username: n.Username,
-		OSFamily: n.OSFamily,
-		Tags:     n.Tags,
+		ID:             n.ID,
+		Name:           n.Name,
+		Hostname:       n.Hostname,
+		Port:           n.Port,
+		Username:       n.Username,
+		OSFamily:       n.OSFamily,
+		ConnectionType: n.ConnectionType,
+		Tags:           n.Tags,
 		Auth: NodeAuth{
 			Method:       string(n.Auth.Method),
 			CredentialID: n.Auth.CredentialID,

@@ -15,21 +15,22 @@ import (
 )
 
 const createNode = `-- name: CreateNode :one
-INSERT INTO nodes (name, hostname, port, username, os_family, tags, auth_method, credential_id, namespace_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT id FROM namespaces WHERE namespaces.uuid = $9))
-RETURNING id, uuid, name, hostname, port, username, os_family, tags, auth_method, credential_id, namespace_id, created_at, updated_at
+INSERT INTO nodes (name, hostname, port, username, os_family, tags, auth_method, connection_type, credential_id, namespace_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT id FROM namespaces WHERE namespaces.uuid = $10))
+RETURNING id, uuid, name, hostname, port, username, os_family, tags, auth_method, connection_type, credential_id, namespace_id, created_at, updated_at
 `
 
 type CreateNodeParams struct {
-	Name         string               `db:"name" json:"name"`
-	Hostname     string               `db:"hostname" json:"hostname"`
-	Port         int32                `db:"port" json:"port"`
-	Username     string               `db:"username" json:"username"`
-	OsFamily     string               `db:"os_family" json:"os_family"`
-	Tags         []string             `db:"tags" json:"tags"`
-	AuthMethod   AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	Uuid         uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
 }
 
 func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, error) {
@@ -41,6 +42,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 		arg.OsFamily,
 		pq.Array(arg.Tags),
 		arg.AuthMethod,
+		arg.ConnectionType,
 		arg.CredentialID,
 		arg.Uuid,
 	)
@@ -55,6 +57,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 		&i.OsFamily,
 		pq.Array(&i.Tags),
 		&i.AuthMethod,
+		&i.ConnectionType,
 		&i.CredentialID,
 		&i.NamespaceID,
 		&i.CreatedAt,
@@ -78,7 +81,7 @@ func (q *Queries) DeleteNode(ctx context.Context, arg DeleteNodeParams) error {
 }
 
 const getNodeByName = `-- name: GetNodeByName :one
-SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
+SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
 WHERE n.name = $1 AND ns.uuid = $2
 `
@@ -89,20 +92,21 @@ type GetNodeByNameParams struct {
 }
 
 type GetNodeByNameRow struct {
-	ID            int32                `db:"id" json:"id"`
-	Uuid          uuid.UUID            `db:"uuid" json:"uuid"`
-	Name          string               `db:"name" json:"name"`
-	Hostname      string               `db:"hostname" json:"hostname"`
-	Port          int32                `db:"port" json:"port"`
-	Username      string               `db:"username" json:"username"`
-	OsFamily      string               `db:"os_family" json:"os_family"`
-	Tags          []string             `db:"tags" json:"tags"`
-	AuthMethod    AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID  sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	NamespaceID   int32                `db:"namespace_id" json:"namespace_id"`
-	CreatedAt     time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time            `db:"updated_at" json:"updated_at"`
-	NamespaceUuid uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
+	ID             int32                `db:"id" json:"id"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	NamespaceID    int32                `db:"namespace_id" json:"namespace_id"`
+	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
+	NamespaceUuid  uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
 }
 
 func (q *Queries) GetNodeByName(ctx context.Context, arg GetNodeByNameParams) (GetNodeByNameRow, error) {
@@ -118,6 +122,7 @@ func (q *Queries) GetNodeByName(ctx context.Context, arg GetNodeByNameParams) (G
 		&i.OsFamily,
 		pq.Array(&i.Tags),
 		&i.AuthMethod,
+		&i.ConnectionType,
 		&i.CredentialID,
 		&i.NamespaceID,
 		&i.CreatedAt,
@@ -128,7 +133,7 @@ func (q *Queries) GetNodeByName(ctx context.Context, arg GetNodeByNameParams) (G
 }
 
 const getNodeByUUID = `-- name: GetNodeByUUID :one
-SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
+SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
 WHERE n.uuid = $1 AND ns.uuid = $2
 `
@@ -139,20 +144,21 @@ type GetNodeByUUIDParams struct {
 }
 
 type GetNodeByUUIDRow struct {
-	ID            int32                `db:"id" json:"id"`
-	Uuid          uuid.UUID            `db:"uuid" json:"uuid"`
-	Name          string               `db:"name" json:"name"`
-	Hostname      string               `db:"hostname" json:"hostname"`
-	Port          int32                `db:"port" json:"port"`
-	Username      string               `db:"username" json:"username"`
-	OsFamily      string               `db:"os_family" json:"os_family"`
-	Tags          []string             `db:"tags" json:"tags"`
-	AuthMethod    AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID  sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	NamespaceID   int32                `db:"namespace_id" json:"namespace_id"`
-	CreatedAt     time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time            `db:"updated_at" json:"updated_at"`
-	NamespaceUuid uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
+	ID             int32                `db:"id" json:"id"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	NamespaceID    int32                `db:"namespace_id" json:"namespace_id"`
+	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
+	NamespaceUuid  uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
 }
 
 func (q *Queries) GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (GetNodeByUUIDRow, error) {
@@ -168,6 +174,7 @@ func (q *Queries) GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (G
 		&i.OsFamily,
 		pq.Array(&i.Tags),
 		&i.AuthMethod,
+		&i.ConnectionType,
 		&i.CredentialID,
 		&i.NamespaceID,
 		&i.CreatedAt,
@@ -190,7 +197,7 @@ WITH updated_credentials AS (
     RETURNING id, uuid, name, key_type, key_data, namespace_id, last_accessed, created_at, updated_at
 )
 SELECT 
-    n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.credential_id, n.namespace_id, n.created_at, n.updated_at,
+    n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at,
     ns.uuid AS namespace_uuid,
     c.uuid AS credential_uuid, 
     c.name AS credential_name, 
@@ -218,6 +225,7 @@ type GetNodesByNamesRow struct {
 	OsFamily          string               `db:"os_family" json:"os_family"`
 	Tags              []string             `db:"tags" json:"tags"`
 	AuthMethod        AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType    ConnectionType       `db:"connection_type" json:"connection_type"`
 	CredentialID      sql.NullInt32        `db:"credential_id" json:"credential_id"`
 	NamespaceID       int32                `db:"namespace_id" json:"namespace_id"`
 	CreatedAt         time.Time            `db:"created_at" json:"created_at"`
@@ -248,6 +256,7 @@ func (q *Queries) GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams
 			&i.OsFamily,
 			pq.Array(&i.Tags),
 			&i.AuthMethod,
+			&i.ConnectionType,
 			&i.CredentialID,
 			&i.NamespaceID,
 			&i.CreatedAt,
@@ -273,7 +282,7 @@ func (q *Queries) GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams
 
 const listNodes = `-- name: ListNodes :many
 WITH filtered AS (
-    SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
+    SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
     JOIN namespaces ns ON n.namespace_id = ns.id
     WHERE ns.uuid = $1
 ),
@@ -281,14 +290,14 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, uuid, name, hostname, port, username, os_family, tags, auth_method, credential_id, namespace_id, created_at, updated_at, namespace_uuid FROM filtered
+    SELECT id, uuid, name, hostname, port, username, os_family, tags, auth_method, connection_type, credential_id, namespace_id, created_at, updated_at, namespace_uuid FROM filtered
     LIMIT $2 OFFSET $3
 ),
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
 SELECT 
-    p.id, p.uuid, p.name, p.hostname, p.port, p.username, p.os_family, p.tags, p.auth_method, p.credential_id, p.namespace_id, p.created_at, p.updated_at, p.namespace_uuid,
+    p.id, p.uuid, p.name, p.hostname, p.port, p.username, p.os_family, p.tags, p.auth_method, p.connection_type, p.credential_id, p.namespace_id, p.created_at, p.updated_at, p.namespace_uuid,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -301,22 +310,23 @@ type ListNodesParams struct {
 }
 
 type ListNodesRow struct {
-	ID            int32                `db:"id" json:"id"`
-	Uuid          uuid.UUID            `db:"uuid" json:"uuid"`
-	Name          string               `db:"name" json:"name"`
-	Hostname      string               `db:"hostname" json:"hostname"`
-	Port          int32                `db:"port" json:"port"`
-	Username      string               `db:"username" json:"username"`
-	OsFamily      string               `db:"os_family" json:"os_family"`
-	Tags          []string             `db:"tags" json:"tags"`
-	AuthMethod    AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID  sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	NamespaceID   int32                `db:"namespace_id" json:"namespace_id"`
-	CreatedAt     time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time            `db:"updated_at" json:"updated_at"`
-	NamespaceUuid uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
-	PageCount     int64                `db:"page_count" json:"page_count"`
-	TotalCount    int64                `db:"total_count" json:"total_count"`
+	ID             int32                `db:"id" json:"id"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	NamespaceID    int32                `db:"namespace_id" json:"namespace_id"`
+	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
+	NamespaceUuid  uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
+	PageCount      int64                `db:"page_count" json:"page_count"`
+	TotalCount     int64                `db:"total_count" json:"total_count"`
 }
 
 func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]ListNodesRow, error) {
@@ -338,6 +348,7 @@ func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]ListNod
 			&i.OsFamily,
 			pq.Array(&i.Tags),
 			&i.AuthMethod,
+			&i.ConnectionType,
 			&i.CredentialID,
 			&i.NamespaceID,
 			&i.CreatedAt,
@@ -361,22 +372,23 @@ func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]ListNod
 
 const updateNode = `-- name: UpdateNode :one
 UPDATE nodes
-SET name = $2, hostname = $3, port = $4, username = $5, os_family = $6, tags = $7, auth_method = $8, credential_id = $9, updated_at = NOW()
-WHERE nodes.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $10)
-RETURNING id, uuid, name, hostname, port, username, os_family, tags, auth_method, credential_id, namespace_id, created_at, updated_at
+SET name = $2, hostname = $3, port = $4, username = $5, os_family = $6, tags = $7, auth_method = $8, connection_type = $9, credential_id = $10, updated_at = NOW()
+WHERE nodes.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $11)
+RETURNING id, uuid, name, hostname, port, username, os_family, tags, auth_method, connection_type, credential_id, namespace_id, created_at, updated_at
 `
 
 type UpdateNodeParams struct {
-	Uuid         uuid.UUID            `db:"uuid" json:"uuid"`
-	Name         string               `db:"name" json:"name"`
-	Hostname     string               `db:"hostname" json:"hostname"`
-	Port         int32                `db:"port" json:"port"`
-	Username     string               `db:"username" json:"username"`
-	OsFamily     string               `db:"os_family" json:"os_family"`
-	Tags         []string             `db:"tags" json:"tags"`
-	AuthMethod   AuthenticationMethod `db:"auth_method" json:"auth_method"`
-	CredentialID sql.NullInt32        `db:"credential_id" json:"credential_id"`
-	Uuid_2       uuid.UUID            `db:"uuid_2" json:"uuid_2"`
+	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
+	Name           string               `db:"name" json:"name"`
+	Hostname       string               `db:"hostname" json:"hostname"`
+	Port           int32                `db:"port" json:"port"`
+	Username       string               `db:"username" json:"username"`
+	OsFamily       string               `db:"os_family" json:"os_family"`
+	Tags           []string             `db:"tags" json:"tags"`
+	AuthMethod     AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID   sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	Uuid_2         uuid.UUID            `db:"uuid_2" json:"uuid_2"`
 }
 
 func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, error) {
@@ -389,6 +401,7 @@ func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, e
 		arg.OsFamily,
 		pq.Array(arg.Tags),
 		arg.AuthMethod,
+		arg.ConnectionType,
 		arg.CredentialID,
 		arg.Uuid_2,
 	)
@@ -403,6 +416,7 @@ func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, e
 		&i.OsFamily,
 		pq.Array(&i.Tags),
 		&i.AuthMethod,
+		&i.ConnectionType,
 		&i.CredentialID,
 		&i.NamespaceID,
 		&i.CreatedAt,

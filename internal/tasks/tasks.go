@@ -230,6 +230,7 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 				Hostname: node.Hostname,
 				Port:     node.Port,
 				Username: node.Username,
+				ConnectionType: node.ConnectionType,
 				Auth: executor.NodeAuth{
 					Method: string(node.Auth.Method),
 					Key:    node.Auth.Key,

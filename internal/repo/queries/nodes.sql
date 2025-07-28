@@ -1,6 +1,6 @@
 -- name: CreateNode :one
-INSERT INTO nodes (name, hostname, port, username, os_family, tags, auth_method, credential_id, namespace_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT id FROM namespaces WHERE namespaces.uuid = $9))
+INSERT INTO nodes (name, hostname, port, username, os_family, tags, auth_method, connection_type, credential_id, namespace_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT id FROM namespaces WHERE namespaces.uuid = $10))
 RETURNING *;
 
 -- name: GetNodeByUUID :one
@@ -32,8 +32,8 @@ FROM paged p, page_count pc, total t;
 
 -- name: UpdateNode :one
 UPDATE nodes
-SET name = $2, hostname = $3, port = $4, username = $5, os_family = $6, tags = $7, auth_method = $8, credential_id = $9, updated_at = NOW()
-WHERE nodes.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $10)
+SET name = $2, hostname = $3, port = $4, username = $5, os_family = $6, tags = $7, auth_method = $8, connection_type = $9, credential_id = $10, updated_at = NOW()
+WHERE nodes.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $11)
 RETURNING *;
 
 -- name: DeleteNode :exec

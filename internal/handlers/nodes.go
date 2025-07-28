@@ -24,12 +24,13 @@ func (h *Handler) HandleCreateNode(c echo.Context) error {
 	}
 
 	node := &models.Node{
-		Name:     req.Name,
-		Hostname: req.Hostname,
-		Port:     req.Port,
-		Username: req.Username,
-		OSFamily: req.OSFamily,
-		Tags:     req.Tags,
+		Name:           req.Name,
+		Hostname:       req.Hostname,
+		Port:           req.Port,
+		Username:       req.Username,
+		OSFamily:       req.OSFamily,
+		ConnectionType: req.ConnectionType,
+		Tags:           req.Tags,
 		Auth: models.NodeAuth{
 			Method:       models.AuthMethod(req.Auth.Method),
 			CredentialID: req.Auth.CredentialID,
@@ -119,12 +120,13 @@ func (h *Handler) HandleUpdateNode(c echo.Context) error {
 	}
 
 	node := &models.Node{
-		Name:     req.Name,
-		Hostname: req.Hostname,
-		Port:     req.Port,
-		Username: req.Username,
-		OSFamily: req.OSFamily,
-		Tags:     req.Tags,
+		Name:           req.Name,
+		Hostname:       req.Hostname,
+		Port:           req.Port,
+		Username:       req.Username,
+		OSFamily:       req.OSFamily,
+		ConnectionType: req.ConnectionType,
+		Tags:           req.Tags,
 		Auth: models.NodeAuth{
 			Method:       models.AuthMethod(req.Auth.Method),
 			CredentialID: req.Auth.CredentialID,

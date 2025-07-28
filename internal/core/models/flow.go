@@ -193,6 +193,7 @@ func NodesToTaskNodesModel(nodes []Node) []tasks.Node {
 			Username: n.Username,
 			OSFamily: n.OSFamily,
 			Tags:     n.Tags,
+			ConnectionType: n.ConnectionType,
 			Auth: tasks.NodeAuth{
 				CredentialID: n.Auth.CredentialID,
 				Method:       tasks.AuthMethod(n.Auth.Method),

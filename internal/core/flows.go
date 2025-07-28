@@ -195,6 +195,7 @@ func (c *Core) getNodesByNames(ctx context.Context, nodeNames []string, namespac
 			Username: v.Username,
 			OSFamily: v.OsFamily,
 			Tags:     v.Tags,
+			ConnectionType: string(v.ConnectionType),
 			Auth: models.NodeAuth{
 				CredentialID: v.CredentialUuid.UUID.String(),
 				Method:       models.AuthMethod(v.AuthMethod),

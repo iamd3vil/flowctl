@@ -38,15 +38,16 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID st
 	}
 
 	created, err := c.store.CreateNode(ctx, repo.CreateNodeParams{
-		Name:         node.Name,
-		Hostname:     node.Hostname,
-		Port:         int32(node.Port),
-		Username:     node.Username,
-		OsFamily:     node.OSFamily,
-		Tags:         node.Tags,
-		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
-		CredentialID: sql.NullInt32{Int32: credential.ID, Valid: true},
-		Uuid:         namespaceUUID,
+		Name:           node.Name,
+		Hostname:       node.Hostname,
+		Port:           int32(node.Port),
+		Username:       node.Username,
+		OsFamily:       node.OSFamily,
+		Tags:           node.Tags,
+		AuthMethod:     repo.AuthenticationMethod(node.Auth.Method),
+		ConnectionType: repo.ConnectionType(node.ConnectionType),
+		CredentialID:   sql.NullInt32{Int32: credential.ID, Valid: true},
+		Uuid:           namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
@@ -55,13 +56,14 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID st
 	key := credential.KeyData
 
 	return &models.Node{
-		ID:       created.Uuid.String(),
-		Name:     created.Name,
-		Hostname: created.Hostname,
-		Port:     int(created.Port),
-		Username: created.Username,
-		OSFamily: created.OsFamily,
-		Tags:     created.Tags,
+		ID:             created.Uuid.String(),
+		Name:           created.Name,
+		Hostname:       created.Hostname,
+		Port:           int(created.Port),
+		Username:       created.Username,
+		OSFamily:       created.OsFamily,
+		ConnectionType: string(created.ConnectionType),
+		Tags:           created.Tags,
 		Auth: models.NodeAuth{
 			Method:       node.Auth.Method,
 			CredentialID: credential.Uuid.String(),
@@ -100,13 +102,14 @@ func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (
 	key := credential.KeyData
 
 	return &models.Node{
-		ID:       node.Uuid.String(),
-		Name:     node.Name,
-		Hostname: node.Hostname,
-		Port:     int(node.Port),
-		Username: node.Username,
-		OSFamily: node.OsFamily,
-		Tags:     node.Tags,
+		ID:             node.Uuid.String(),
+		Name:           node.Name,
+		Hostname:       node.Hostname,
+		Port:           int(node.Port),
+		Username:       node.Username,
+		OSFamily:       node.OsFamily,
+		ConnectionType: string(node.ConnectionType),
+		Tags:           node.Tags,
 		Auth: models.NodeAuth{
 			Method:       models.AuthMethod(node.AuthMethod),
 			CredentialID: credential.Uuid.String(),
@@ -174,16 +177,17 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, nam
 	}
 
 	updated, err := c.store.UpdateNode(ctx, repo.UpdateNodeParams{
-		Uuid:         uuidID,
-		Name:         node.Name,
-		Hostname:     node.Hostname,
-		Port:         int32(node.Port),
-		Username:     node.Username,
-		OsFamily:     node.OSFamily,
-		Tags:         node.Tags,
-		AuthMethod:   repo.AuthenticationMethod(node.Auth.Method),
-		CredentialID: sql.NullInt32{Int32: credential.ID, Valid: true},
-		Uuid_2:       namespaceUUID,
+		Uuid:           uuidID,
+		Name:           node.Name,
+		Hostname:       node.Hostname,
+		Port:           int32(node.Port),
+		Username:       node.Username,
+		OsFamily:       node.OSFamily,
+		Tags:           node.Tags,
+		AuthMethod:     repo.AuthenticationMethod(node.Auth.Method),
+		ConnectionType: repo.ConnectionType(node.ConnectionType),
+		CredentialID:   sql.NullInt32{Int32: credential.ID, Valid: true},
+		Uuid_2:         namespaceUUID,
 	})
 	if err != nil {
 		return nil, err
@@ -192,13 +196,14 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, nam
 	key := credential.KeyData
 
 	return &models.Node{
-		ID:       updated.Uuid.String(),
-		Name:     updated.Name,
-		Hostname: updated.Hostname,
-		Port:     int(updated.Port),
-		Username: updated.Username,
-		OSFamily: updated.OsFamily,
-		Tags:     updated.Tags,
+		ID:             updated.Uuid.String(),
+		Name:           updated.Name,
+		Hostname:       updated.Hostname,
+		Port:           int(updated.Port),
+		Username:       updated.Username,
+		OSFamily:       updated.OsFamily,
+		ConnectionType: string(updated.ConnectionType),
+		Tags:           updated.Tags,
 		Auth: models.NodeAuth{
 			Method:       models.AuthMethod(updated.AuthMethod),
 			CredentialID: credential.Uuid.String(),

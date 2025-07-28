@@ -27,6 +27,7 @@ type Node struct {
 	Port     int
 	Username string
 	OSFamily string
+	ConnectionType string
 	Tags     []string
 	Auth     NodeAuth
 }
