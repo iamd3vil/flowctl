@@ -10,27 +10,13 @@
         <!-- Header -->
         <header class="bg-white border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">
-                <!-- Breadcrumb -->
-                <nav class="flex items-center space-x-2 text-sm">
-                    <span class="text-gray-500">Namespaces</span>
-                    <span class="text-gray-400">/</span>
-                    <span class="text-gray-500">{{ .Page.Namespace }}</span>
-                    <span class="text-gray-400">/</span>
-                    <span class="text-gray-900 font-medium">History</span>
-                </nav>
+                {{ template "partials/breadcrumb" . }}
 
                 <!-- Right side -->
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-4" @search-input="handleSearchInput($event.detail)">
                     <!-- Search -->
-                    <div class="relative">
-                        <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        <input type="text"
-                               placeholder="Search executions..."
-                               x-model="searchQuery"
-                               @input.debounce.300ms="searchExecutions()"
-                               class="pl-10 pr-4 py-2 w-80 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div data-placeholder="Search executions...">
+                        {{ template "partials/search_input" . }}
                     </div>
 
                     {{ template "partials/user_dropdown" . }}
@@ -39,7 +25,7 @@
         </header>
 
         <!-- Main Content Area -->
-        <main class="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <main class="flex-1 overflow-y-auto bg-gray-50 p-6" @pagination-change="goToPageFromEvent($event.detail)">
             <!-- Page Header -->
             <div class="mb-6">
                 <h2 class="text-2xl font-semibold text-gray-900">Execution History</h2>
@@ -169,43 +155,8 @@
                 </a>
             </div>
 
-            <!-- Pagination Controls -->
-            <div class="flex items-center justify-between mt-6" x-show="!loading && pageCount > 1">
-                <!-- Results Info -->
-                <div class="flex items-center text-sm text-gray-700">
-                    <span>Showing </span>
-                    <span class="font-medium" x-text="((currentPage - 1) * itemsPerPage) + 1"></span>
-                    <span> to </span>
-                    <span class="font-medium" x-text="Math.min(currentPage * itemsPerPage, totalCount)"></span>
-                    <span> of </span>
-                    <span class="font-medium" x-text="totalCount"></span>
-                    <span> results</span>
-                </div>
-
-                <!-- Pagination Buttons -->
-                <div class="flex space-x-1">
-                    <button @click="goToPage(currentPage - 1)"
-                            :disabled="currentPage === 1"
-                            :class="currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
-                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg">
-                        Previous
-                    </button>
-
-                    <template x-for="page in paginationPages" :key="page">
-                        <button @click="goToPage(page)"
-                                :class="page === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'"
-                                class="px-3 py-2 text-sm font-medium border rounded-lg"
-                                x-text="page"></button>
-                    </template>
-
-                    <button @click="goToPage(currentPage + 1)"
-                            :disabled="currentPage === pageCount"
-                            :class="currentPage === pageCount ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
-                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg">
-                        Next
-                    </button>
-                </div>
-            </div>
+            <!-- Pagination -->
+            {{ template "partials/pagination" . }}
         </main>
     </div>
 </div>
@@ -218,7 +169,7 @@ function historyManager() {
         selectedNamespace: '{{ .Page.Namespace }}',
         loading: false,
         errorMessage: '',
-        currentPage: 1,
+        page: 1,
         itemsPerPage: 20,
         totalCount: 0,
         pageCount: 0,
@@ -228,17 +179,6 @@ function historyManager() {
             this.loadExecutions();
         },
 
-        get paginationPages() {
-            const pages = [];
-            const start = Math.max(1, this.currentPage - 2);
-            const end = Math.min(this.pageCount, this.currentPage + 2);
-
-            for (let i = start; i <= end; i++) {
-                pages.push(i);
-            }
-
-            return pages;
-        },
 
         async loadExecutions() {
             this.loading = true;
@@ -246,7 +186,7 @@ function historyManager() {
 
             try {
                 const url = new URL(`/api/v1/${this.selectedNamespace}/flows/executions`, window.location.origin);
-                url.searchParams.append('page', this.currentPage);
+                url.searchParams.append('page', this.page);
                 url.searchParams.append('count', this.itemsPerPage);
                 if (this.searchQuery) {
                     url.searchParams.append('filter', this.searchQuery);
@@ -279,15 +219,24 @@ function historyManager() {
             }
         },
 
-        goToPage(page) {
-            if (page < 1 || page > this.pageCount) return;
-            this.currentPage = page;
+        goToPage(p) {
+            if (p < 1 || p > this.pageCount) return;
+            this.page = p;
             this.loadExecutions();
         },
 
+        goToPageFromEvent(eventDetail) {
+            this.goToPage(eventDetail.page);
+        },
+
         searchExecutions() {
-            this.currentPage = 1;
+            this.page = 1;
             this.loadExecutions();
+        },
+
+        handleSearchInput(eventDetail) {
+            this.searchQuery = eventDetail.query;
+            this.searchExecutions();
         },
 
         viewExecution(executionId) {

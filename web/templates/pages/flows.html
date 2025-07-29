@@ -10,27 +10,13 @@
         <!-- Header -->
         <header class="bg-white border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">
-                <!-- Breadcrumb -->
-                <nav class="flex items-center space-x-2 text-sm">
-                    <span class="text-gray-500">Namespaces</span>
-                    <span class="text-gray-400">/</span>
-                    <span class="text-gray-500">{{ .Page.Namespace }}</span>
-                    <span class="text-gray-400">/</span>
-                    <span class="text-gray-900 font-medium">Flows</span>
-                </nav>
+                {{ template "partials/breadcrumb" . }}
 
                 <!-- Right side -->
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-4" @search-input="handleSearchInput($event.detail)">
                     <!-- Search -->
-                    <div class="relative">
-                        <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        <input type="text"
-                               placeholder="Search flows..."
-                               x-model="searchQuery"
-                               @input.debounce.300ms="searchFlows()"
-                               class="pl-10 pr-4 py-2 w-80 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div data-placeholder="Search flows...">
+                        {{ template "partials/search_input" . }}
                     </div>
 
                     {{ template "partials/user_dropdown" . }}
@@ -39,7 +25,7 @@
         </header>
 
         <!-- Main Content Area -->
-        <main class="flex-1 overflow-auto bg-gray-50 p-6">
+        <main class="flex-1 overflow-auto bg-gray-50 p-6" @pagination-change="goToPageFromEvent($event.detail)">
             <div class="max-w-7xl mx-auto">
                 <!-- Error Message -->
                 <div x-show="errorMessage" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -129,39 +115,8 @@
                     </div>
                 </div>
 
-                <!-- Pagination Controls -->
-                <div class="flex justify-center mt-8 h-10 items-center" x-show="!loading">
-                    <div class="flex items-center space-x-1" x-show="flows.length > 0">
-                        <!-- Previous page -->
-                        <button class="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            @click="goToPage(currentPage - 1)"
-                            :disabled="currentPage === 1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                            </svg>
-                        </button>
-
-                        <!-- Page numbers -->
-                        <template x-for="page in visiblePages" :key="page">
-                            <button class="px-3 py-1 text-sm border rounded-md transition-colors"
-                                :class="page === currentPage ? 
-                                    'bg-blue-600 border-blue-600 text-white' : 
-                                    'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'"
-                                @click="goToPage(page)"
-                                x-text="page">
-                            </button>
-                        </template>
-
-                        <!-- Next page -->
-                        <button class="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            @click="goToPage(currentPage + 1)"
-                            :disabled="currentPage === pageCount">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+                <!-- Pagination -->
+                {{ template "partials/pagination" . }}
             </div>
         </main>
     </div>
@@ -176,7 +131,7 @@
             flows: [],
             loading: false,
             errorMessage: '',
-            currentPage: 1,
+            page: 1,
             itemsPerPage: 10,
             totalCount: 0,
             pageCount: 0,
@@ -189,10 +144,10 @@
             async loadFlows() {
                 this.loading = true;
                 this.errorMessage = '';
-                
+
                 try {
                     const url = new URL(`/api/v1/${this.selectedNamespace}/flows`, window.location.origin);
-                    url.searchParams.append('page', this.currentPage);
+                    url.searchParams.append('page', this.page);
                     url.searchParams.append('count_per_page', this.itemsPerPage);
                     if (this.searchQuery) {
                         url.searchParams.append('filter', this.searchQuery);
@@ -206,7 +161,7 @@
                     });
 
                     const data = await response.json();
-                    
+
                     if (!response.ok) {
                         this.notifyError(data.error || 'Failed to fetch flows');
                         this.flows = [];
@@ -224,34 +179,16 @@
                 }
             },
 
-            goToPage(page) {
-                if (page < 1 || page > this.pageCount) return;
-                this.currentPage = page;
+            goToPage(p) {
+                if (p < 1 || p > this.pageCount) return;
+                this.page = p;
                 this.loadFlows();
             },
 
-            get visiblePages() {
-                const current = this.currentPage;
-                const total = this.pageCount;
-                const delta = 2;
-                
-                if (total <= 3) {
-                    return Array.from({ length: total }, (_, i) => i + 1);
-                }
-                
-                let start = Math.max(1, current - delta);
-                let end = Math.min(total, current + delta);
-                
-                if (current <= delta + 1) {
-                    end = Math.min(total, 2 * delta + 1);
-                }
-                
-                if (current >= total - delta) {
-                    start = Math.max(1, total - 2 * delta);
-                }
-                
-                return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+            goToPageFromEvent(eventDetail) {
+                this.goToPage(eventDetail.page);
             },
+
 
 
             async runFlow(flowId) {
@@ -263,14 +200,14 @@
                         },
                         body: JSON.stringify({})
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (!response.ok) {
                         this.notifyError(data.error || `Failed to start flow ${flowId}`);
                         return;
                     }
-                    
+
                     console.log('Flow execution started:', data);
                     this.notifySuccess(`Flow ${flowId} started successfully`);
                     // TODO: Redirect to execution view
@@ -286,8 +223,13 @@
             },
 
             searchFlows() {
-                this.currentPage = 1;
+                this.page = 1;
                 this.loadFlows();
+            },
+
+            handleSearchInput(eventDetail) {
+                this.searchQuery = eventDetail.query;
+                this.searchFlows();
             },
 
             showFlowMenu(flowId) {

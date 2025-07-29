@@ -10,10 +10,7 @@
         <!-- Header -->
         <header class="bg-white border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">
-                <!-- Breadcrumb -->
-                <nav class="flex items-center space-x-2 text-sm">
-                    <span class="text-gray-900 font-medium">Settings</span>
-                </nav>
+                {{ template "partials/breadcrumb" . }}
             </div>
         </header>
 
@@ -44,17 +41,12 @@
             </div>
 
             <!-- Users Tab Content -->
-            <div x-show="activeTab === 'users'" x-init="fetchUsers(); fetchAvailableGroups();" x-transition>
+            <div x-show="activeTab === 'users'" x-init="fetchUsers(); fetchAvailableGroups();" x-transition @pagination-change="goToUserPageFromEvent($event.detail)" @search-input="handleUserSearchInput($event.detail)">
                 <!-- Users Header Actions -->
                 <div class="flex items-center justify-between mb-6">
                     <!-- Search -->
-                    <div class="relative">
-                        <i class="ti ti-search text-xl absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <input type="text"
-                               placeholder="Search users..."
-                               x-model="userSearchQuery"
-                               @input.debounce.300ms="searchUsers()"
-                               class="pl-10 pr-4 py-2 w-80 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div data-placeholder="Search users...">
+                        {{ template "partials/search_input" . }}
                     </div>
 
                     <!-- Add User Button -->
@@ -123,45 +115,18 @@
                 </div>
 
                 <!-- Users Pagination -->
-                <div x-show="!userLoading && userPageCount > 1" class="flex justify-center mt-8">
-                    <nav class="flex items-center space-x-2">
-                        <button @click="goToUserPage(userPage - 1)"
-                                :disabled="userPage === 1"
-                                :class="{ 'opacity-50 cursor-not-allowed': userPage === 1 }"
-                                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Previous
-                        </button>
-
-                        <template x-for="p in Array.from({length: userPageCount}, (_, i) => i + 1)" :key="p">
-                            <button @click="goToUserPage(p)"
-                                    :class="{ 'bg-blue-600 text-white': p === userPage, 'bg-white text-gray-700': p !== userPage }"
-                                    class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50"
-                                    x-text="p">
-                            </button>
-                        </template>
-
-                        <button @click="goToUserPage(userPage + 1)"
-                                :disabled="userPage === userPageCount"
-                                :class="{ 'opacity-50 cursor-not-allowed': userPage === userPageCount }"
-                                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Next
-                        </button>
-                    </nav>
+                <div x-data="{ loading: userLoading, page: userPage, pageCount: userPageCount }">
+                    {{ template "partials/pagination" . }}
                 </div>
             </div>
 
             <!-- Groups Tab Content -->
-            <div x-show="activeTab === 'groups'" x-init="fetchGroups(); fetchAvailableGroups();" x-transition>
+            <div x-show="activeTab === 'groups'" x-init="fetchGroups(); fetchAvailableGroups();" x-transition @pagination-change="goToGroupPageFromEvent($event.detail)" @search-input="handleGroupSearchInput($event.detail)">
                 <!-- Groups Header Actions -->
                 <div class="flex items-center justify-between mb-6">
                     <!-- Search -->
-                    <div class="relative">
-                        <i class="ti ti-search text-xl absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <input type="text"
-                               placeholder="Search groups..."
-                               x-model="groupSearchQuery"
-                               @input.debounce.300ms="searchGroups()"
-                               class="pl-10 pr-4 py-2 w-80 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div data-placeholder="Search groups...">
+                        {{ template "partials/search_input" . }}
                     </div>
 
                     <!-- Add Group Button -->
@@ -220,30 +185,8 @@
                 </div>
 
                 <!-- Groups Pagination -->
-                <div x-show="!groupLoading && groupPageCount > 1" class="flex justify-center mt-8">
-                    <nav class="flex items-center space-x-2">
-                        <button @click="goToGroupPage(groupPage - 1)"
-                                :disabled="groupPage === 1"
-                                :class="{ 'opacity-50 cursor-not-allowed': groupPage === 1 }"
-                                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Previous
-                        </button>
-
-                        <template x-for="p in Array.from({length: groupPageCount}, (_, i) => i + 1)" :key="p">
-                            <button @click="goToGroupPage(p)"
-                                    :class="{ 'bg-blue-600 text-white': p === groupPage, 'bg-white text-gray-700': p !== groupPage }"
-                                    class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50"
-                                    x-text="p">
-                            </button>
-                        </template>
-
-                        <button @click="goToGroupPage(groupPage + 1)"
-                                :disabled="groupPage === groupPageCount"
-                                :class="{ 'opacity-50 cursor-not-allowed': groupPage === groupPageCount }"
-                                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Next
-                        </button>
-                    </nav>
+                <div x-data="{ loading: groupLoading, page: groupPage, pageCount: groupPageCount }">
+                    {{ template "partials/pagination" . }}
                 </div>
             </div>
         </main>
@@ -428,11 +371,20 @@ function settingsManager() {
             this.fetchUsers();
         },
 
+        handleUserSearchInput(eventDetail) {
+            this.userSearchQuery = eventDetail.query;
+            this.searchUsers();
+        },
+
         goToUserPage(p) {
             if (p >= 1 && p <= this.userPageCount) {
                 this.userPage = p;
                 this.fetchUsers();
             }
+        },
+
+        goToUserPageFromEvent(eventDetail) {
+            this.goToUserPage(eventDetail.page);
         },
 
         openAddUserModal() {
@@ -591,11 +543,20 @@ function settingsManager() {
             this.fetchGroups();
         },
 
+        handleGroupSearchInput(eventDetail) {
+            this.groupSearchQuery = eventDetail.query;
+            this.searchGroups();
+        },
+
         goToGroupPage(p) {
             if (p >= 1 && p <= this.groupPageCount) {
                 this.groupPage = p;
                 this.fetchGroups();
             }
+        },
+
+        goToGroupPageFromEvent(eventDetail) {
+            this.goToGroupPage(eventDetail.page);
         },
 
         openAddGroupModal() {
