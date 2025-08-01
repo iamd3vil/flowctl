@@ -1,8 +1,8 @@
 type: http_request
 model: http_request
-id: rq_PJQwrATDy5
-createdAt: 2025-08-01T13:40:28.679208826
-updatedAt: 2025-08-01T15:20:06.224476759
+id: rq_VyPK7udZ4S
+createdAt: 2025-08-01T15:17:45.573682073
+updatedAt: 2025-08-01T15:18:17.552239409
 workspaceId: wk_f7os23Vq2X
 folderId: fl_bE3oUjahNK
 authentication: {}
@@ -12,7 +12,7 @@ bodyType: null
 description: ''
 headers: []
 method: GET
-name: Executor Config
-sortPriority: 0.0
-url: http://localhost:7000/api/v1/executors/docker/config
+name: List Executors
+sortPriority: -0.0001
+url: http://localhost:7000/api/v1/executors
 urlParameters: []

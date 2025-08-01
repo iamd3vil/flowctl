@@ -20,3 +20,12 @@ func (h *Handler) HandleGetExecutorConfig(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, schema)
 }
+
+func (h *Handler) HandleListExecutors(c echo.Context) error {
+	executors := executor.GetAllExecutors()
+	return c.JSON(http.StatusOK, struct {
+		Executors []string `json:"executors"`
+	}{
+		Executors: executors,
+	})
+}

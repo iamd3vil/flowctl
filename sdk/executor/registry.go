@@ -81,3 +81,15 @@ func GetNewExecutorFunc(name string) (NewExecutorFunc, error) {
 	}
 	return f, nil
 }
+
+func GetAllExecutors() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	execs := make([]string, 0)
+	for k, _ := range registry {
+		execs = append(execs, k)
+	}
+
+	return execs
+}

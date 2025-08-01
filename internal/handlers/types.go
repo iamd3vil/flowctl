@@ -82,7 +82,7 @@ type FlowInputValidationError struct {
 }
 
 type FlowLogResp struct {
-	ActionID string			   `json:"action_id"`
+	ActionID string            `json:"action_id"`
 	MType    string            `json:"message_type"`
 	Value    string            `json:"value"`
 	Results  map[string]string `json:"results,omitempty"`
@@ -207,9 +207,9 @@ type CredentialReq struct {
 }
 
 type CredentialResp struct {
-	ID      	 string `json:"id"`
-	Name    	 string `json:"name"`
-	KeyType 	 string `json:"key_type"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	KeyType      string `json:"key_type"`
 	LastAccessed string `json:"last_accessed"`
 }
 
@@ -221,9 +221,9 @@ type CredentialsPaginateResponse struct {
 
 func coreCredentialToCredentialResp(c *models.Credential) CredentialResp {
 	return CredentialResp{
-		ID:      	  c.ID,
-		Name:    	  c.Name,
-		KeyType:  	  c.KeyType,
+		ID:           c.ID,
+		Name:         c.Name,
+		KeyType:      c.KeyType,
 		LastAccessed: c.LastAccessed,
 	}
 }
@@ -334,7 +334,7 @@ type NamespaceMemberReq struct {
 }
 
 type NamespaceMemberResp struct {
-	ID 			string `json:"id"`
+	ID          string `json:"id"`
 	SubjectID   string `json:"subject_id"`
 	SubjectName string `json:"subject_name"`
 	SubjectType string `json:"subject_type"`
@@ -349,7 +349,7 @@ type NamespaceMembersResponse struct {
 
 func coreNamespaceMemberToResp(m models.NamespaceMember) NamespaceMemberResp {
 	return NamespaceMemberResp{
-		ID: 		 m.ID,
+		ID:          m.ID,
 		SubjectID:   m.SubjectID,
 		SubjectName: getSubjectName(m),
 		SubjectType: m.SubjectType,
@@ -378,6 +378,7 @@ func coreNamespaceMembersToResp(members []models.NamespaceMember) NamespaceMembe
 }
 
 type ExecutionStatus string
+
 const (
 	ExecutionStatusPending   ExecutionStatus = "pending"
 	ExecutionStatusCompleted ExecutionStatus = "completed"
@@ -385,14 +386,14 @@ const (
 )
 
 type ExecutionSummary struct {
-	ID 	   		string 		    `json:"id"`
-	FlowName		string			`json:"flow_name"`
-	Status 		ExecutionStatus `json:"status"`
-	TriggeredBy string     		`json:"triggered_by"`
-	CurrentActionID string 		`json:"current_action_id"`
-	CreatedAt   string 	   		`json:"started_at"`
-	CompletedAt string 	   		`json:"completed_at"`
-	Duration    string 			`json:"duration"`
+	ID              string          `json:"id"`
+	FlowName        string          `json:"flow_name"`
+	Status          ExecutionStatus `json:"status"`
+	TriggeredBy     string          `json:"triggered_by"`
+	CurrentActionID string          `json:"current_action_id"`
+	CreatedAt       string          `json:"started_at"`
+	CompletedAt     string          `json:"completed_at"`
+	Duration        string          `json:"duration"`
 }
 
 func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) ExecutionSummary {

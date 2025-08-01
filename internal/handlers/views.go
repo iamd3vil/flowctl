@@ -202,13 +202,25 @@ func (h *Handler) HandleSettingsView(c echo.Context) error {
 	return c.Render(http.StatusOK, "settings", data)
 }
 
+func (h *Handler) HandleFlowCreateView(c echo.Context) error {
+	data := struct {
+		Page
+	}{
+		Page: Page{
+			Title: "Create Flow",
+		},
+	}
+
+	return c.Render(http.StatusOK, "flow_create", data)
+}
+
 func (h *Handler) HandleNodesView(c echo.Context) error {
 	namespace := c.Param("namespace")
 	data := struct {
 		Page
 	}{
 		Page: Page{
-			Title: "Nodes",
+			Title:     "Nodes",
 			Namespace: namespace,
 		},
 	}
@@ -216,14 +228,13 @@ func (h *Handler) HandleNodesView(c echo.Context) error {
 	return c.Render(http.StatusOK, "nodes_test", data)
 }
 
-
 func (h *Handler) HandleCredentialsView(c echo.Context) error {
 	namespace := c.Param("namespace")
 	data := struct {
 		Page
 	}{
 		Page: Page{
-			Title: "Credentials",
+			Title:     "Credentials",
 			Namespace: namespace,
 		},
 	}
@@ -236,7 +247,7 @@ func (h *Handler) HandleApprovalsListView(c echo.Context) error {
 		Page
 	}{
 		Page: Page{
-			Title: "Credentials",
+			Title:     "Credentials",
 			Namespace: namespace,
 		},
 	}

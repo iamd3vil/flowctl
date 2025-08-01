@@ -159,6 +159,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	views.GET("/:namespace/approvals", h.HandleApprovalsListView)
 	views.GET("/:namespace/members", h.HandleMembersView)
 	views.GET("/:namespace/history", h.HandleHistoryView)
+	views.GET("/:namespace/editor/flow", h.HandleFlowCreateView)
 	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
 
 	views.GET("/:namespace/approvals/:approvalID", h.HandleApprovalView)
@@ -181,6 +182,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 
 	// No authorization required
 	api.GET("/executors/:executor/config", h.HandleGetExecutorConfig)
+	api.GET("/executors", h.HandleListExecutors)
 
 	// Namespace management
 	api.GET("/namespaces", h.HandleListNamespaces)
