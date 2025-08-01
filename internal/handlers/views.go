@@ -58,19 +58,6 @@ func (h *Handler) HandleFlowsListView(c echo.Context) error {
 			Namespace: namespace,
 		},
 	}
-
-	namespaceID, ok := c.Get("namespace").(string)
-	if !ok {
-		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
-	}
-
-	flows, err := h.co.GetAllFlows(c.Request().Context(), namespaceID)
-	if err != nil {
-		data.ErrMessage = err.Error()
-		return c.Render(http.StatusBadRequest, "flows", data)
-	}
-
-	data.Flows = flows
 	return c.Render(http.StatusOK, "flows", data)
 }
 
@@ -79,8 +66,7 @@ func (h *Handler) HandleFlowFormView(c echo.Context) error {
 
 	data := struct {
 		Page
-		Flow        models.Flow
-		InputErrors map[string]string
+		Flow models.Flow
 	}{
 		Page: Page{
 			Title:     "Flow Input",

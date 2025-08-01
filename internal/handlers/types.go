@@ -276,6 +276,38 @@ type FlowListItem struct {
 	StepCount   int    `json:"step_count"`
 }
 
+type FlowInput struct {
+	Name        string   `json:"name"`
+	Label       string   `json:"label"`
+	Description string   `json:"description"`
+	Required    bool     `json:"required"`
+	Type        string   `json:"type"`
+	Options     []string `json:"options"`
+}
+
+type FlowInputsResp struct {
+	Inputs []FlowInput `json:"inputs"`
+}
+
+func coreFlowInputToInput(input models.Input) FlowInput {
+	return FlowInput{
+		Name:        input.Name,
+		Description: input.Description,
+		Label:       input.Label,
+		Required:    input.Required,
+		Type:        string(input.Type),
+		Options:     input.Options,
+	}
+}
+
+func coreFlowInputsToInputs(inputs []models.Input) []FlowInput {
+	flowInputs := make([]FlowInput, 0)
+	for _, i := range inputs {
+		flowInputs = append(flowInputs, coreFlowInputToInput(i))
+	}
+	return flowInputs
+}
+
 type FlowListResponse struct {
 	Flows []FlowListItem `json:"flows"`
 }

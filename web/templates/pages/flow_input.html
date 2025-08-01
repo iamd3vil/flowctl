@@ -70,108 +70,123 @@
             <div class="px-6 py-8 bg-gray-50">
                 <div class="max-w-2xl mx-auto">
                     <!-- Form Card -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div x-show="activeTab === 'run'" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                             <h2 class="text-lg font-semibold text-gray-900">Configuration Parameters</h2>
                             <p class="text-sm text-gray-600 mt-1">Configure the inputs for this flow execution</p>
                         </div>
 
-                        <form @submit.prevent="submit" id="flow-form" class="p-6 space-y-6">
-                            {{ range .Flow.Inputs }}
-                            <div>
-                                <label for="{{ .Name }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                    {{ .Label }}
-                                    {{ if eq .Required true }}<span class="text-red-500">*</span>{{ end }}
-                                </label>
+                        <!-- Loading State for Form -->
+                        <div x-show="formLoading" class="p-6 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <span class="ml-3 text-gray-600">Loading form inputs...</span>
+                        </div>
 
-                                {{ if eq .Type "string" }}
-                                <input
-                                    type="text"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    value="{{ .Default }}"
-                                    placeholder="{{ .Description }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ else if eq .Type "number" }}
-                                <input
-                                    type="number"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    value="{{ .Default }}"
-                                    placeholder="{{ .Description }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ else if eq .Type "password" }}
-                                <input
-                                    type="password"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    placeholder="{{ .Description }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ else if eq .Type "file" }}
-                                <input
-                                    type="file"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ else if eq .Type "datetime" }}
-                                <input
-                                    type="datetime-local"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    value="{{ .Default }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ else if eq .Type "checkbox" }}
-                                <div class="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="{{ .Name }}"
-                                        name="{{ .Name }}"
-                                        value="true"
-                                        {{ if eq .Default "true" }}checked{{ end }}
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                    />
+                        <form @submit.prevent="submit" id="flow-form" class="p-6 space-y-6" x-show="!formLoading">
+                            <template x-for="input in flowInputs" :key="input.name">
+                                <div>
+                                    <label :for="input.name" class="block text-sm font-medium text-gray-700 mb-2">
+                                        <span x-text="input.label || input.name"></span>
+                                        <span x-show="input.required" class="text-red-500">*</span>
+                                    </label>
+
+                                    <!-- String input -->
+                                    <template x-if="input.type === 'string'">
+                                        <input
+                                            type="text"
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :value="input.default || ''"
+                                            :placeholder="input.description || ''"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </template>
+
+                                    <!-- Number input -->
+                                    <template x-if="input.type === 'number'">
+                                        <input
+                                            type="number"
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :value="input.default || ''"
+                                            :placeholder="input.description || ''"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </template>
+
+                                    <!-- Password input -->
+                                    <template x-if="input.type === 'password'">
+                                        <input
+                                            type="password"
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :placeholder="input.description || ''"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </template>
+
+                                    <!-- File input -->
+                                    <template x-if="input.type === 'file'">
+                                        <input
+                                            type="file"
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                        />
+                                    </template>
+
+                                    <!-- Datetime input -->
+                                    <template x-if="input.type === 'datetime'">
+                                        <input
+                                            type="datetime-local"
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :value="input.default || ''"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </template>
+
+                                    <!-- Checkbox input -->
+                                    <template x-if="input.type === 'checkbox'">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                :id="input.name"
+                                                :name="input.name"
+                                                value="true"
+                                                :checked="input.default === 'true'"
+                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            />
+                                        </div>
+                                    </template>
+
+                                    <!-- Select input -->
+                                    <template x-if="input.type === 'select'">
+                                        <select
+                                            :id="input.name"
+                                            :name="input.name"
+                                            :required="input.required"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        >
+                                            <option value="">Select an option</option>
+                                            <template x-for="option in input.options" :key="option">
+                                                <option :value="option" x-text="option" :selected="option === input.default"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+
+                                    <p class="text-sm text-red-600 mt-1" x-text="errors[input.name]"></p>
+                                    <p x-show="input.description" class="text-sm text-gray-500 mt-1" x-text="input.description"></p>
                                 </div>
-                                {{ else if eq .Type "select" }}
-                                <select
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                >
-                                    <option value="">Select an option</option>
-                                    {{ range .Options }}
-                                    <option value="{{ . }}">{{ . }}</option>
-                                    {{ end }}
-                                </select>
-                                {{ else }}
-                                <input
-                                    type="text"
-                                    id="{{ .Name }}"
-                                    name="{{ .Name }}"
-                                    value="{{ .Default }}"
-                                    placeholder="{{ .Description }}"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    {{ if eq .Required true }}required{{ end }}
-                                />
-                                {{ end }}
-
-                                <p class="text-sm text-red-600 mt-1" x-text="errors['{{ .Name }}']"></p>
-                                {{ if .Description }}<p class="text-sm text-gray-500 mt-1">{{ .Description }}</p>{{ end }}
-                            </div>
-                            {{ end }}
+                            </template>
 
                             <!-- Actions -->
-                            <div class="flex gap-3 pt-6 border-t border-gray-200">
+                            <div x-show="activeTab === 'run'" class="flex gap-3 pt-6 border-t border-gray-200">
                                 <button
                                     type="button"
                                     onclick="window.history.back()"
@@ -205,7 +220,7 @@
 
                     <!-- Flow Actions Summary -->
                     {{ if .Flow.Actions }}
-                    <div class="bg-gray-50 rounded-lg p-4 mt-6" x-data="{
+                    <div x-show="activeTab === 'run'" class="bg-gray-50 rounded-lg p-4 mt-6" x-data="{
                         actions: [
                             {{ range $index, $action := .Flow.Actions }}
                             {{ if $index }},{{ end }}
@@ -408,6 +423,8 @@
 
             // Form state
             loading: false,
+            formLoading: false,
+            flowInputs: [],
             errors: {},
 
             // History state
@@ -432,9 +449,38 @@
             },
 
             async submit(event) {
+                console.log('Submit function called', event);
                 this.loading = true;
                 this.errors = {};
-                const formData = new FormData(event.target);
+                
+                // Manually collect form data from dynamic inputs
+                const formData = new FormData();
+                
+                // Collect all form inputs including dynamically generated ones  
+                const form = event.target;
+                const inputs = form.querySelectorAll('input, select, textarea');
+                
+                console.log('Found inputs:', inputs.length);
+                
+                inputs.forEach(input => {
+                    console.log('Processing input:', input.name, input.type, input.value);
+                    if (input.type === 'checkbox') {
+                        if (input.checked) {
+                            formData.append(input.name, input.value);
+                        }
+                    } else if (input.type === 'file') {
+                        if (input.files.length > 0) {
+                            formData.append(input.name, input.files[0]);
+                        }
+                    } else if (input.value !== '') {
+                        formData.append(input.name, input.value);
+                    }
+                });
+
+                // Log form data contents
+                for (let [key, value] of formData.entries()) {
+                    console.log('FormData:', key, value);
+                }
 
                 try {
                     const response = await fetch(`/api/v1/${namespace}/trigger/${flowId}`, {
@@ -558,8 +604,52 @@
                 }
             },
 
-            // Initialize - load history when switching to history tab
+            async loadFlowInputs() {
+                console.log('Loading flow inputs...');
+                this.formLoading = true;
+
+                try {
+                    const url = `/api/v1/${namespace}/flows/${flowId}/inputs`;
+                    console.log('Fetching from:', url);
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+                    console.log('Response data:', data);
+
+                    if (!response.ok) {
+                        console.error('API Error:', data);
+                        this.notifyError(data.error || 'Failed to load flow inputs');
+                        return;
+                    }
+
+                    this.flowInputs = data.inputs || [];
+                    console.log('Flow inputs loaded:', this.flowInputs);
+                } catch (error) {
+                    console.error('Error loading flow inputs:', error);
+                    this.notifyError('Failed to load flow inputs');
+                } finally {
+                    this.formLoading = false;
+                }
+            },
+
+            notifyError(message) {
+                window.dispatchEvent(
+                    new CustomEvent("notify", {
+                        detail: { message, type: "error" },
+                    })
+                );
+            },
+
+            // Initialize - load inputs and history when switching tabs
             init() {
+                this.loadFlowInputs();
+                
                 this.$watch('activeTab', (newTab) => {
                     if (newTab === 'history' && this.flowExecutions.length === 0 && !this.historyLoading) {
                         this.loadFlowHistory();

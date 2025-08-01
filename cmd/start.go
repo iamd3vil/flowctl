@@ -200,8 +200,10 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	namespaceGroup.GET("/flows/executions/:execID", h.HandleGetExecutionSummary, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/executions", h.HandleExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
 	namespaceGroup.GET("/flows/executions", h.HandleAllExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
+	namespaceGroup.GET("/flows/:flowID/inputs", h.HandleGetFlowInputs, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.POST("/trigger/:flow", h.HandleFlowTrigger, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.GET("/logs/:logID", h.HandleLogStreaming, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
+
 	// Node routes - only admins can create/update/delete
 	namespaceGroup.GET("/nodes", h.HandleListNodes, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
 	namespaceGroup.GET("/nodes/:nodeID", h.HandleGetNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
