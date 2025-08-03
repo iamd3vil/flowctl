@@ -2,6 +2,11 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { apiClient } from '$lib/apiClient';
+  import Header from '$lib/components/Header.svelte';
+  import Table from '$lib/components/Table.svelte';
+  import Pagination from '$lib/components/Pagination.svelte';
+  import type { TableColumn, TableAction, FlowListItem } from '$lib/types';
+  import { FLOWS_PER_PAGE } from '$lib/constants';
 
   let { data } = $props();
   let searchValue = $state('');
@@ -25,7 +30,7 @@
       const result = await apiClient.flows.list(page.params.namespace!, {
         filter,
         page: pageNumber,
-        count_per_page: 10
+        count_per_page: FLOWS_PER_PAGE
       });
       
       flows = result.flows;
@@ -53,8 +58,54 @@
   };
 
   const goToPage = (pageNum: number) => {
-    loadFlows('', pageNum);
+    loadFlows(searchValue.trim(), pageNum);
   };
+
+  const handlePageChange = (event: CustomEvent<{ page: number }>) => {
+    goToPage(event.detail.page);
+  };
+
+  const columns: TableColumn<FlowListItem>[] = [
+    {
+      key: 'name',
+      header: 'Flow Name',
+      render: (value: string, row: FlowListItem) => `
+        <div class="flex items-center">
+          <div class="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <div class="text-sm font-medium text-gray-900">${value}</div>
+          </div>
+        </div>
+      `
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      render: (value: string) => `<div class="text-sm text-gray-600 max-w-xs truncate">${value}</div>`
+    },
+    {
+      key: 'step_count',
+      header: 'Steps',
+      render: (value: number) => `
+        <div class="flex items-center text-sm text-gray-500">
+          <span>${value || 0}</span>
+          <span class="ml-1">steps</span>
+        </div>
+      `
+    }
+  ];
+
+  const actions: TableAction<FlowListItem>[] = [
+    {
+      label: 'Run Flow',
+      onClick: (row: FlowListItem) => goToFlow(row.slug),
+      className: 'text-blue-600 hover:text-blue-700 transition-colors'
+    }
+  ];
 </script>
 
 <svelte:head>
@@ -62,7 +113,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 </svelte:head>
 
-<div class="max-w-7xl mx-auto">
+<Header title="Flows"></Header>
+<div class="max-w-7xl mx-auto p-6">
   <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <div>
@@ -108,123 +160,32 @@
   {/if}
 
   <!-- Flows Table -->
-  {#if flows.length > 0}
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Flow Name
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Description
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Steps
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          {#each flows as flow (flow.id)}
-            <tr 
-              class="hover:bg-gray-50 cursor-pointer transition-colors"
-              onclick={() => goToFlow(flow.slug)}
-            >
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                  </div>
-                  <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-900">{flow.name}</div>
-                  </div>
-                </div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="text-sm text-gray-600 max-w-xs truncate">{flow.description}</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center text-sm text-gray-500">
-                  <span>{flow.step_count || 0}</span>
-                  <span class="ml-1">steps</span>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button 
-                  class="text-blue-600 hover:text-blue-700 transition-colors"
-                  onclick={(e) => { e.stopPropagation(); goToFlow(flow.slug); }}
-                >
-                  Run Flow
-                </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+  <Table 
+    {columns}
+    data={flows}
+    {actions}
+    {loading}
+    onRowClick={(row) => goToFlow(row.slug)}
+    emptyMessage={searchValue ? 'Try adjusting your search' : 'No flows are available in this namespace'}
+    emptyIcon={`
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+      </svg>
+    `}
+  />
 
-    <!-- Pagination -->
-    {#if pageCount > 1}
-      <div class="mt-6 flex items-center justify-between">
-        <div class="text-sm text-gray-700">
-          Showing {flows.length} of {totalCount} flows
-        </div>
-        <div class="flex space-x-2">
-          {#if currentPage > 1}
-            <button 
-              onclick={() => goToPage(currentPage - 1)}
-              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Previous
-            </button>
-          {/if}
-          
-          {#each Array.from({length: Math.min(5, pageCount)}, (_, i) => i + Math.max(1, currentPage - 2)) as pageNum}
-            {#if pageNum <= pageCount}
-              <button 
-                onclick={() => goToPage(pageNum)}
-                class="px-3 py-2 text-sm font-medium rounded-md"
-                class:bg-blue-600={pageNum === currentPage}
-                class:text-white={pageNum === currentPage}
-                class:text-gray-500={pageNum !== currentPage}
-                class:bg-white={pageNum !== currentPage}
-                class:border={pageNum !== currentPage}
-                class:border-gray-300={pageNum !== currentPage}
-                class:hover:bg-gray-50={pageNum !== currentPage}
-              >
-                {pageNum}
-              </button>
-            {/if}
-          {/each}
-          
-          {#if currentPage < pageCount}
-            <button 
-              onclick={() => goToPage(currentPage + 1)}
-              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Next
-            </button>
-          {/if}
-        </div>
+  <!-- Pagination and Count -->
+  {#if flows.length > 0}
+    <div class="mt-6 flex items-center justify-between">
+      <div class="text-sm text-gray-700">
+        Showing {flows.length} of {totalCount} flows
       </div>
-    {/if}
-  {:else}
-    <!-- Empty State -->
-    <div class="flex items-center justify-center h-96 bg-white rounded-lg border border-gray-200">
-      <div class="text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No flows found</h3>
-        <p class="mt-1 text-sm text-gray-500">
-          {searchValue ? 'Try adjusting your search' : 'No flows are available in this namespace'}
-        </p>
-      </div>
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={pageCount}
+        {loading}
+        on:page-change={handlePageChange}
+      />
     </div>
   {/if}
 </div>

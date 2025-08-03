@@ -10,14 +10,20 @@ export const load = async ({ params }: { params: any }) => {
     return {
       flowInputs: flowInputs.inputs,
       flowMeta,
-      flowId: params.flowId
     };
   } catch (error) {
     console.error('Failed to load flow data:', error);
     return {
       flowInputs: [],
-      flowMeta: { meta: { name: '', description: '' }, actions: [] },
-      flowId: params.flowId,
+      flowMeta: { 
+        meta: { 
+          id: '', 
+          name: '', 
+          description: '', 
+          namespace: params.namespace 
+        }, 
+        actions: [] 
+      },
       error: 'Failed to load flow data'
     };
   }

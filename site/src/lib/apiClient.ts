@@ -31,7 +31,8 @@ import type {
   ApprovalPaginateRequest,
   GroupAccessReq,
   ExecutorConfigResponse,
-  ApiErrorResponse
+  ApiErrorResponse,
+  NamespacesPaginateResponse
 } from './types.js';
 
 export class ApiError extends Error {
@@ -151,7 +152,7 @@ export const apiClient = {
   // Namespaces
   namespaces: {
     list: (params: PaginateRequest = {}) =>
-      baseFetch<NamespaceResp>('/api/v1/namespaces'),
+      baseFetch<NamespacesPaginateResponse>(`/api/v1/namespaces${buildQueryString(params)}`),
     getById: (id: string) => baseFetch<NamespaceResp>(`/api/v1/namespaces/${id}`),
     create: (namespace: NamespaceReq) =>
       baseFetch<NamespaceResp>('/api/v1/namespaces', {
@@ -170,20 +171,20 @@ export const apiClient = {
 
     // Namespace members
     members: {
-      list: (namespaceId: string) =>
-        baseFetch<NamespaceMembersResponse>(`/api/v1/${namespaceId}/members`),
-      add: (namespaceId: string, member: NamespaceMemberReq) =>
-        baseFetch<void>(`/api/v1/${namespaceId}/members`, {
+      list: (namespace: string) =>
+        baseFetch<NamespaceMembersResponse>(`/api/v1/${namespace}/members`),
+      add: (namespace: string, member: NamespaceMemberReq) =>
+        baseFetch<void>(`/api/v1/${namespace}/members`, {
           method: 'POST',
           body: JSON.stringify(member),
         }),
-      update: (namespaceId: string, memberId: string, member: Partial<NamespaceMemberReq>) =>
-        baseFetch<void>(`/api/v1/${namespaceId}/members/${memberId}`, {
+      update: (namespace: string, memberId: string, member: Partial<NamespaceMemberReq>) =>
+        baseFetch<void>(`/api/v1/${namespace}/members/${memberId}`, {
           method: 'PUT',
           body: JSON.stringify(member),
         }),
-      remove: (namespaceId: string, memberId: string) =>
-        baseFetch<void>(`/api/v1/${namespaceId}/members/${memberId}`, {
+      remove: (namespace: string, memberId: string) =>
+        baseFetch<void>(`/api/v1/${namespace}/members/${memberId}`, {
           method: 'DELETE',
         }),
     },

@@ -2,7 +2,7 @@ type: http_request
 model: http_request
 id: rq_eGiZvUgDBs
 createdAt: 2025-07-17T02:13:53.589974215
-updatedAt: 2025-08-01T16:05:57.975294731
+updatedAt: 2025-08-03T07:05:22.245402494
 workspaceId: wk_f7os23Vq2X
 folderId: fl_XaZk4pk63J
 authentication: {}
@@ -14,5 +14,5 @@ headers: []
 method: GET
 name: List Flows
 sortPriority: 999.9999
-url: http://localhost:7000/api/v1/default/flows
+url: http://localhost:7000/api/v1/default/flows?count_per_page=5&&page=2
 urlParameters: []

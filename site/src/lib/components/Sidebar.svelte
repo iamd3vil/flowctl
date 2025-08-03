@@ -6,7 +6,7 @@
   import type { NamespaceResp, Namespace } from '$lib/types';
     import { goto } from '$app/navigation';
 
-  let namespace: string = $props();
+  let { namespace }: {namespace: string} = $props();
 
   let namespaceDropdownOpen = $state(false);
   let namespaces = $state<Namespace[]>([]);

@@ -36,6 +36,12 @@ export interface GroupWithUsers extends Group {
 }
 
 // Flow types
+export interface Flow {
+  metadata: FlowMeta;
+  inputs: FlowInput[];
+  actions: FlowAction[];
+}
+
 export interface FlowListItem {
   id: string;
   slug: string;
@@ -49,7 +55,7 @@ export interface FlowInput {
   label: string;
   description: string;
   required: boolean;
-  type: string;
+  type: 'string' | 'number' | 'password' | 'file' | 'datetime' | 'checkbox' | 'select';
   options: string[];
 }
 
@@ -87,7 +93,7 @@ export interface FlowTriggerResp {
 
 export interface FlowLogResp {
   action_id: string;
-  message_type: string;
+  message_type: 'log' | 'error' | 'result' | 'approval';
   value: string;
   results?: Record<string, string>;
 }
@@ -146,9 +152,14 @@ export interface Namespace {
 }
 
 export interface NamespaceResp {
-  namespaces: Namespace[]
-  page_count: number
-  total_count: number
+  id: string;
+  name: string;
+}
+
+export interface NamespacesPaginateResponse extends PaginatedResponse<NamespaceResp> {
+  namespaces: NamespaceResp[];
+  page_count: number;
+  total_count: number;
 }
 
 export interface NamespaceMemberReq {
@@ -193,7 +204,7 @@ export interface ApprovalResp {
 }
 
 // Execution types
-export type ExecutionStatus = 'pending' | 'completed' | 'errored';
+export type ExecutionStatus = 'pending' | 'completed' | 'errored' | 'pending_approval' | 'running';
 
 export interface ExecutionSummary {
   id: string;
@@ -256,6 +267,23 @@ export interface GroupAccessReq {
   group_id: string;
 }
 
+// Additional request types from swagger
+export interface CreateUserReq {
+  name: string;
+  username: string;
+}
+
+export interface UpdateUserReq {
+  name: string;
+  username: string;
+  groups: string[];
+}
+
+export interface CreateGroupReq {
+  name: string;
+  description?: string;
+}
+
 // Executor types
 export interface ExecutorConfigResponse {
   [key: string]: any;
@@ -270,4 +298,30 @@ export interface FlowInputValidationError {
 export interface ApiErrorResponse {
   error: string;
   details?: FlowInputValidationError[];
+}
+
+// Table component types
+export interface TableColumn<T = any> {
+  key: string;
+  header: string;
+  width?: string;
+  render?: (value: any, row: T) => string;
+  component?: any;
+  sortable?: boolean;
+}
+
+export interface TableAction<T = any> {
+  label: string;
+  onClick: (row: T, event?: Event) => void;
+  className?: string;
+}
+
+export interface TableProps<T = any> {
+  columns: TableColumn<T>[];
+  data: T[];
+  onRowClick?: (row: T) => void;
+  actions?: TableAction<T>[];
+  loading?: boolean;
+  emptyMessage?: string;
+  emptyIcon?: string;
 }

@@ -10,19 +10,6 @@
   let errors = $state<Record<string, string>>({});
   let formValues = $state<Record<string, any>>({});
 
-  // Initialize form values with defaults
-  $effect(() => {
-    const values: Record<string, any> = {};
-    inputs.forEach(input => {
-      if (input.type === 'checkbox') {
-        values[input.name] = input.default === 'true';
-      } else {
-        values[input.name] = input.default || '';
-      }
-    });
-    formValues = values;
-  });
-
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     loading = true;
@@ -39,9 +26,6 @@
     }
   };
 
-  const updateValue = (name: string, value: any) => {
-    formValues = { ...formValues, [name]: value };
-  };
 </script>
 
 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -66,7 +50,7 @@
           {/if}
         </label>
 
-        {#if input.type === 'string' || input.type === 'int' || input.type === 'float'}
+        {#if input.type === 'string' || input.type === 'number'}
           <input
             type={input.type === 'string' ? 'text' : 'number'}
             id={input.name}
@@ -75,7 +59,7 @@
             required={input.required}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-        {:else if input.type === 'bool'}
+        {:else if input.type === 'checkbox'}
           <div class="flex items-center">
             <input
               type="checkbox"
@@ -96,6 +80,16 @@
               <option value={option}>{option}</option>
             {/each}
           </select>
+          {:else if input.type === 'file'}
+          <div class="flex items-center">
+            <input
+              type="file"
+              id={input.name}
+              bind:files={formValues[input.name]}
+              required={input.required}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+          </div>
         {:else}
           <!-- Fallback for other input types -->
           <input

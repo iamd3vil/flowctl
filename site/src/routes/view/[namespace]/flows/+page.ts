@@ -1,4 +1,5 @@
 import { apiClient } from '$lib/apiClient';
+import { FLOWS_PER_PAGE } from '$lib/constants';
 
 export const load = async ({ params, url }: { params: any; url: any }) => {
   const page = Number(url.searchParams.get('page')) || 1;
@@ -7,7 +8,7 @@ export const load = async ({ params, url }: { params: any; url: any }) => {
   try {
     const data = await apiClient.flows.list(params.namespace, {
       page,
-      count_per_page: 10,
+      count_per_page: FLOWS_PER_PAGE,
       filter
     });
     
