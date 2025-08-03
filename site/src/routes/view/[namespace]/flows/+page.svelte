@@ -2,9 +2,12 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { apiClient } from '$lib/apiClient';
-  import Header from '$lib/components/Header.svelte';
-  import Table from '$lib/components/Table.svelte';
-  import Pagination from '$lib/components/Pagination.svelte';
+  import Header from '$lib/components/shared/Header.svelte';
+  import Table from '$lib/components/shared/Table.svelte';
+  import Pagination from '$lib/components/shared/Pagination.svelte';
+  import SearchInput from '$lib/components/shared/SearchInput.svelte';
+  import ErrorMessage from '$lib/components/shared/ErrorMessage.svelte';
+  import PageHeader from '$lib/components/shared/PageHeader.svelte';
   import type { TableColumn, TableAction, FlowListItem } from '$lib/types';
   import { FLOWS_PER_PAGE } from '$lib/constants';
 
@@ -45,16 +48,9 @@
     }
   };
 
-  const handleSearch = (event: Event) => {
-    let target = event.target as HTMLInputElement;
-    searchValue = target.value;
-    // Clear existing timer
-    clearTimeout(debounceTimer);
-    
-    // Set new timer for 300ms debounce
-    debounceTimer = setTimeout(() => {
-      loadFlows(searchValue.trim(), 1);
-    }, 300);
+  const handleSearch = (query: string) => {
+    searchValue = query;
+    loadFlows(query, 1);
   };
 
   const goToPage = (pageNum: number) => {
@@ -110,53 +106,27 @@
 
 <svelte:head>
   <title>Flows - {page.params.namespace} - Flowctl</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 </svelte:head>
 
-<Header title="Flows"></Header>
+<Header breadcrumbs={['Flows']} />
 <div class="max-w-7xl mx-auto p-6">
   <!-- Header -->
   <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Flows</h1>
-      <p class="text-gray-600">Manage and run your workflows</p>
-    </div>
-    
-    <!-- Search -->
-    <div class="max-w-md">
-      <div class="relative">
-        <input
-          type="text"
-          placeholder="Search flows..."
-          value={searchValue}
-          oninput={handleSearch}
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        {#if loading}
-          <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <svg class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        {/if}
-      </div>
-    </div>
+    <PageHeader 
+      title="Flows" 
+      subtitle="Manage and run your workflows" 
+    />
+    <SearchInput 
+      bind:value={searchValue}
+      placeholder="Search flows..."
+      {loading}
+      onSearch={handleSearch}
+    />
   </div>
 
   <!-- Error Message -->
   {#if error}
-    <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-      <div class="flex">
-        <svg class="w-5 h-5 text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800">Error</h3>
-          <p class="mt-1 text-sm text-red-700">{error}</p>
-        </div>
-      </div>
-    </div>
+    <ErrorMessage message={error} />
   {/if}
 
   <!-- Flows Table -->

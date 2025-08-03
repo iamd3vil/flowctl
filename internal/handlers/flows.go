@@ -151,7 +151,7 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 
 	req, err := h.processFlowInputs(c, f, namespace)
 	if err != nil {
-		return wrapError(http.StatusBadRequest, "failed to process inputs", err, nil)
+		return wrapError(http.StatusBadRequest, err.Error(), err, nil)
 	}
 
 	if len(f.Actions) == 0 {

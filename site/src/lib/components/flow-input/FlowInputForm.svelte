@@ -1,23 +1,41 @@
 <script lang="ts">
-  import { apiClient } from '$lib/apiClient';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
   import type { FlowInput } from '$lib/types';
 
   let { inputs, namespace, flowId }: { inputs: FlowInput[], namespace: string, flowId: string } = $props();
 
   let loading = $state(false);
   let errors = $state<Record<string, string>>({});
-  let formValues = $state<Record<string, any>>({});
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     loading = true;
     errors = {};
-
+    
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
     try {
-      const response = await apiClient.flows.trigger(namespace, flowId, formValues);
-      goto(`/view/${namespace}/results/${flowId}/${response.exec_id}`);
+      const response = await fetch(`/api/v1/${namespace}/trigger/${flowId}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (data.field) {
+          // Handle field-specific validation errors
+          errors[data.field] = data.error;
+        } else if (data.error) {
+          // General error message
+          errors.general = data.error;
+        } else {
+          errors.general = 'Failed to trigger flow';
+        }
+      } else {
+        // Success - redirect to results page
+        window.location.href = `/view/${namespace}/results/${flowId}/${data.exec_id}`;
+      }
     } catch (error) {
       console.error('Failed to trigger flow:', error);
       errors.general = 'Failed to trigger flow';
@@ -50,11 +68,15 @@
           {/if}
         </label>
 
+        {#if errors[input.name]}
+          <p class="text-sm text-red-600 mb-2">{errors[input.name]}</p>
+        {/if}
+
         {#if input.type === 'string' || input.type === 'number'}
           <input
             type={input.type === 'string' ? 'text' : 'number'}
             id={input.name}
-            bind:value={formValues[input.name]}
+            name={input.name}
             placeholder={input.description || ''}
             required={input.required}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -64,14 +86,15 @@
             <input
               type="checkbox"
               id={input.name}
-              bind:checked={formValues[input.name]}
+              name={input.name}
+              value="true"
               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
           </div>
         {:else if input.type === 'select' && input.options}
           <select
             id={input.name}
-            bind:value={formValues[input.name]}
+            name={input.name}
             required={input.required}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
@@ -85,7 +108,7 @@
             <input
               type="file"
               id={input.name}
-              bind:files={formValues[input.name]}
+              name={input.name}
               required={input.required}
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
@@ -95,16 +118,13 @@
           <input
             type="text"
             id={input.name}
-            bind:value={formValues[input.name]}
+            name={input.name}
             placeholder={input.description || ''}
             required={input.required}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         {/if}
 
-        {#if errors[input.name]}
-          <p class="text-sm text-red-600 mt-1">{errors[input.name]}</p>
-        {/if}
         {#if input.description}
           <p class="text-sm text-gray-500 mt-1">{input.description}</p>
         {/if}

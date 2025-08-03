@@ -213,11 +213,18 @@ export const apiClient = {
       baseFetch<FlowInputsResp>(`/api/v1/${namespace}/flows/${flowId}/inputs`),
     getMeta: (namespace: string, flowId: string) =>
       baseFetch<FlowMetaResp>(`/api/v1/${namespace}/flows/${flowId}/meta`),
-    trigger: (namespace: string, flowId: string, inputs: Record<string, any>) =>
-      baseFetch<FlowTriggerResp>(`/api/v1/${namespace}/trigger/${flowId}`, {
+    trigger: (namespace: string, flowId: string, inputs: Record<string, any>) => {
+      const formData = new FormData();
+      Object.entries(inputs).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
+      
+      return baseFetch<FlowTriggerResp>(`/api/v1/${namespace}/trigger/${flowId}`, {
         method: 'POST',
-        body: JSON.stringify(inputs),
-      }),
+        body: formData,
+        headers: {},
+      });
+    },
   },
 
   // Nodes

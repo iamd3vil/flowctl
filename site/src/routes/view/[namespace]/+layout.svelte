@@ -1,9 +1,13 @@
 <script lang="ts">
-  import Sidebar from '$lib/components/Sidebar.svelte';
-  import Header from '$lib/components/Header.svelte';
+  import Sidebar from '$lib/components/shared/Sidebar.svelte';
+  import Header from '$lib/components/shared/Header.svelte';
   
   let { children, data } = $props();
 </script>
+
+<svelte:head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+</svelte:head>
 
 <div class="flex h-screen bg-gray-50">
   <Sidebar namespace={data.namespace} />
