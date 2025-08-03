@@ -1,0 +1,296 @@
+import type {
+  User,
+  UserWithGroups,
+  UserProfileResponse,
+  AuthReq,
+  Group,
+  GroupWithUsers,
+  FlowListResponse,
+  FlowsPaginateResponse,
+  FlowInputsResp,
+  FlowMetaResp,
+  FlowTriggerResp,
+  NodeReq,
+  NodeResp,
+  NodesPaginateResponse,
+  CredentialReq,
+  CredentialResp,
+  CredentialsPaginateResponse,
+  NamespaceReq,
+  NamespaceResp,
+  NamespaceMemberReq,
+  NamespaceMembersResponse,
+  ApprovalActionReq,
+  ApprovalActionResp,
+  ApprovalsPaginateResponse,
+  ExecutionsPaginateResponse,
+  ExecutionSummary,
+  UsersPaginateResponse,
+  GroupsPaginateResponse,
+  PaginateRequest,
+  ApprovalPaginateRequest,
+  GroupAccessReq,
+  ExecutorConfigResponse,
+  ApiErrorResponse
+} from './types.js';
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public statusText: string,
+    public data?: ApiErrorResponse
+  ) {
+    super(`API Error: ${status} ${statusText}`);
+    this.name = 'ApiError';
+  }
+}
+
+async function baseFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    let errorData: ApiErrorResponse | undefined;
+    try {
+      errorData = await response.json();
+    } catch {
+      // Ignore JSON parsing errors for error responses
+    }
+    throw new ApiError(response.status, response.statusText, errorData);
+  }
+
+  // Handle empty responses (e.g., 204 No Content)
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+
+  // Return response as text for non-JSON responses
+  return response.text() as T;
+}
+
+function buildQueryString(params: Record<string, any>): string {
+  const searchParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.append(key, String(value));
+    }
+  });
+  
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
+export const apiClient = {
+  // Authentication
+  auth: {
+    login: (credentials: AuthReq) =>
+      baseFetch<void>('/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      }),
+    logout: () =>
+      // For now, just clear client-side state by redirecting to login
+      Promise.resolve(),
+  },
+
+  // Users
+  users: {
+    getProfile: () => baseFetch<UserProfileResponse>('/api/v1/users/profile'),
+    list: (params: PaginateRequest = {}) =>
+      baseFetch<UsersPaginateResponse>(`/api/v1/users${buildQueryString(params)}`),
+    getById: (id: string) => baseFetch<UserWithGroups>(`/api/v1/users/${id}`),
+    create: (user: Partial<User>) =>
+      baseFetch<User>('/api/v1/users', {
+        method: 'POST',
+        body: JSON.stringify(user),
+      }),
+    update: (id: string, user: Partial<User>) =>
+      baseFetch<User>(`/api/v1/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(user),
+      }),
+    delete: (id: string) =>
+      baseFetch<void>(`/api/v1/users/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Groups
+  groups: {
+    list: (params: PaginateRequest = {}) =>
+      baseFetch<GroupsPaginateResponse>(`/api/v1/groups${buildQueryString(params)}`),
+    getById: (id: string) => baseFetch<GroupWithUsers>(`/api/v1/groups/${id}`),
+    create: (group: Partial<Group>) =>
+      baseFetch<Group>('/api/v1/groups', {
+        method: 'POST',
+        body: JSON.stringify(group),
+      }),
+    update: (id: string, group: Partial<Group>) =>
+      baseFetch<Group>(`/api/v1/groups/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(group),
+      }),
+    delete: (id: string) =>
+      baseFetch<void>(`/api/v1/groups/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Namespaces
+  namespaces: {
+    list: (params: PaginateRequest = {}) =>
+      baseFetch<NamespaceResp>('/api/v1/namespaces'),
+    getById: (id: string) => baseFetch<NamespaceResp>(`/api/v1/namespaces/${id}`),
+    create: (namespace: NamespaceReq) =>
+      baseFetch<NamespaceResp>('/api/v1/namespaces', {
+        method: 'POST',
+        body: JSON.stringify(namespace),
+      }),
+    update: (id: string, namespace: NamespaceReq) =>
+      baseFetch<NamespaceResp>(`/api/v1/namespaces/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(namespace),
+      }),
+    delete: (id: string) =>
+      baseFetch<void>(`/api/v1/namespaces/${id}`, {
+        method: 'DELETE',
+      }),
+
+    // Namespace members
+    members: {
+      list: (namespaceId: string) =>
+        baseFetch<NamespaceMembersResponse>(`/api/v1/${namespaceId}/members`),
+      add: (namespaceId: string, member: NamespaceMemberReq) =>
+        baseFetch<void>(`/api/v1/${namespaceId}/members`, {
+          method: 'POST',
+          body: JSON.stringify(member),
+        }),
+      update: (namespaceId: string, memberId: string, member: Partial<NamespaceMemberReq>) =>
+        baseFetch<void>(`/api/v1/${namespaceId}/members/${memberId}`, {
+          method: 'PUT',
+          body: JSON.stringify(member),
+        }),
+      remove: (namespaceId: string, memberId: string) =>
+        baseFetch<void>(`/api/v1/${namespaceId}/members/${memberId}`, {
+          method: 'DELETE',
+        }),
+    },
+
+    // Namespace group access
+    groups: {
+      list: (namespace: string) =>
+        baseFetch<Group[]>(`/api/v1/${namespace}/groups`),
+      add: (namespace: string, groupAccess: GroupAccessReq) =>
+        baseFetch<void>(`/api/v1/${namespace}/groups`, {
+          method: 'POST',
+          body: JSON.stringify(groupAccess),
+        }),
+      remove: (namespace: string, groupId: string) =>
+        baseFetch<void>(`/api/v1/${namespace}/groups/${groupId}`, {
+          method: 'DELETE',
+        }),
+    },
+  },
+
+  // Flows
+  flows: {
+    list: (namespace: string, params: PaginateRequest = {}) =>
+      baseFetch<FlowsPaginateResponse>(`/api/v1/${namespace}/flows${buildQueryString(params)}`),
+    getInputs: (namespace: string, flowId: string) =>
+      baseFetch<FlowInputsResp>(`/api/v1/${namespace}/flows/${flowId}/inputs`),
+    getMeta: (namespace: string, flowId: string) =>
+      baseFetch<FlowMetaResp>(`/api/v1/${namespace}/flows/${flowId}/meta`),
+    trigger: (namespace: string, flowId: string, inputs: Record<string, any>) =>
+      baseFetch<FlowTriggerResp>(`/api/v1/${namespace}/trigger/${flowId}`, {
+        method: 'POST',
+        body: JSON.stringify(inputs),
+      }),
+  },
+
+  // Nodes
+  nodes: {
+    list: (namespace: string, params: PaginateRequest = {}) =>
+      baseFetch<NodesPaginateResponse>(`/api/v1/${namespace}/nodes${buildQueryString(params)}`),
+    getById: (namespace: string, id: string) =>
+      baseFetch<NodeResp>(`/api/v1/${namespace}/nodes/${id}`),
+    create: (namespace: string, node: NodeReq) =>
+      baseFetch<NodeResp>(`/api/v1/${namespace}/nodes`, {
+        method: 'POST',
+        body: JSON.stringify(node),
+      }),
+    update: (namespace: string, id: string, node: Partial<NodeReq>) =>
+      baseFetch<NodeResp>(`/api/v1/${namespace}/nodes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(node),
+      }),
+    delete: (namespace: string, id: string) =>
+      baseFetch<void>(`/api/v1/${namespace}/nodes/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Credentials
+  credentials: {
+    list: (namespace: string, params: PaginateRequest = {}) =>
+      baseFetch<CredentialsPaginateResponse>(`/api/v1/${namespace}/credentials${buildQueryString(params)}`),
+    getById: (namespace: string, id: string) =>
+      baseFetch<CredentialResp>(`/api/v1/${namespace}/credentials/${id}`),
+    create: (namespace: string, credential: CredentialReq) =>
+      baseFetch<CredentialResp>(`/api/v1/${namespace}/credentials`, {
+        method: 'POST',
+        body: JSON.stringify(credential),
+      }),
+    update: (namespace: string, id: string, credential: Partial<CredentialReq>) =>
+      baseFetch<CredentialResp>(`/api/v1/${namespace}/credentials/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(credential),
+      }),
+    delete: (namespace: string, id: string) =>
+      baseFetch<void>(`/api/v1/${namespace}/credentials/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Approvals
+  approvals: {
+    list: (namespace: string, params: ApprovalPaginateRequest = {}) =>
+      baseFetch<ApprovalsPaginateResponse>(`/api/v1/${namespace}/approvals${buildQueryString(params)}`),
+    action: (namespace: string, approvalId: string, action: ApprovalActionReq) =>
+      baseFetch<ApprovalActionResp>(`/api/v1/${namespace}/approvals/${approvalId}`, {
+        method: 'POST',
+        body: JSON.stringify(action),
+      }),
+  },
+
+  // Executions/History
+  executions: {
+    list: (namespace: string, params: PaginateRequest = {}) =>
+      baseFetch<ExecutionsPaginateResponse>(`/api/v1/${namespace}/flows/executions${buildQueryString(params)}`),
+    getById: (namespace: string, execId: string) =>
+      baseFetch<ExecutionSummary>(`/api/v1/${namespace}/flows/executions/${execId}`),
+    listForFlow: (namespace: string, flowId: string, params: PaginateRequest = {}) =>
+      baseFetch<ExecutionsPaginateResponse>(`/api/v1/${namespace}/flows/${flowId}/executions${buildQueryString(params)}`),
+  },
+
+  // Executors
+  executors: {
+    list: () => baseFetch<string[]>('/api/v1/executors'),
+    getConfig: (executor: string) =>
+      baseFetch<ExecutorConfigResponse>(`/api/v1/executors/${executor}/config`),
+  },
+
+  // Utility endpoints
+  ping: () => baseFetch<string>('/ping'),
+};

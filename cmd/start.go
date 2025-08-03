@@ -131,12 +131,7 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	//   Format: "method=${method}, uri=${uri}, status=${status}\n",
 	// }))
 
-	e.Renderer = handlers.NewTemplateRenderer("web/**/**/*.html")
-
-	e.Static("/static", "web/static")
-
 	e.GET("/ping", h.HandlePing)
-	e.GET("/login", h.HandleLoginView)
 	e.POST("/login", h.HandleLoginPage)
 
 	// oidc
@@ -146,23 +141,6 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	e.Logger.SetLevel(0)
 
 	e.HTTPErrorHandler = h.ErrorHandler
-
-	views := e.Group("/view")
-	views.Use(h.Authenticate, h.NamespaceMiddleware)
-
-	// views.POST("/trigger/:flow", h.HandleFlowTrigger)
-	views.GET("/:namespace/flows/:flow", h.HandleFlowFormView)
-	views.GET("/:namespace/flows", h.HandleFlowsListView)
-	views.GET("/:namespace/results/:flowID/:logID", h.HandleFlowExecutionResults)
-	views.GET("/:namespace/nodes", h.HandleNodesView)
-	views.GET("/:namespace/credentials", h.HandleCredentialsView)
-	views.GET("/:namespace/approvals", h.HandleApprovalsListView)
-	views.GET("/:namespace/members", h.HandleMembersView)
-	views.GET("/:namespace/history", h.HandleHistoryView)
-	// views.GET("/:namespace/editor/flow", h.HandleFlowCreateView)
-	// views.GET("/summary/:flowID", h.HandleExecutionSummary)
-
-	// views.GET("/:namespace/approvals/:approvalID", h.HandleApprovalView)
 
 	api := e.Group("/api/v1", h.Authenticate)
 
@@ -231,6 +209,15 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	admin := e.Group("/admin")
 	admin.Use(h.AuthorizeForRole("superuser"))
 	admin.GET("/settings", h.HandleSettingsView)
+
+	// Serve static assets from SvelteKit build
+	e.Static("/_app", "site/build/_app")
+	e.File("/robots.txt", "site/build/robots.txt")
+	
+	// SPA fallback - serve index.html for all other routes
+	e.GET("/*", func(c echo.Context) error {
+		return c.File("site/build/index.html")
+	})
 
 	rootURL := viper.GetString("app.root_url")
 	if !strings.Contains(rootURL, "://") {
