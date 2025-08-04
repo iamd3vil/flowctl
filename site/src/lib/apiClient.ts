@@ -209,6 +209,11 @@ export const apiClient = {
   flows: {
     list: (namespace: string, params: PaginateRequest = {}) =>
       baseFetch<FlowsPaginateResponse>(`/api/v1/${namespace}/flows${buildQueryString(params)}`),
+    create: (namespace: string, flowData: any) =>
+      baseFetch<any>(`/api/v1/${namespace}/flows`, {
+        method: 'POST',
+        body: JSON.stringify(flowData),
+      }),
     getInputs: (namespace: string, flowId: string) =>
       baseFetch<FlowInputsResp>(`/api/v1/${namespace}/flows/${flowId}/inputs`),
     getMeta: (namespace: string, flowId: string) =>
@@ -294,7 +299,7 @@ export const apiClient = {
 
   // Executors
   executors: {
-    list: () => baseFetch<string[]>('/api/v1/executors'),
+    list: () => baseFetch<{executors: string[]}>('/api/v1/executors'),
     getConfig: (executor: string) =>
       baseFetch<ExecutorConfigResponse>(`/api/v1/executors/${executor}/config`),
   },
