@@ -206,14 +206,14 @@ func startServer(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMembers, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMembers, models.RBACActionUpdate))
 
-	admin := e.Group("/admin")
-	admin.Use(h.AuthorizeForRole("superuser"))
-	admin.GET("/settings", h.HandleSettingsView)
+	// admin := e.Group("/admin")
+	// admin.Use(h.AuthorizeForRole("superuser"))
+	// admin.GET("/settings", h.HandleSettingsView)
 
 	// Serve static assets from SvelteKit build
 	e.Static("/_app", "site/build/_app")
 	e.File("/robots.txt", "site/build/robots.txt")
-	
+
 	// SPA fallback - serve index.html for all other routes
 	e.GET("/*", func(c echo.Context) error {
 		return c.File("site/build/index.html")

@@ -4,15 +4,15 @@
   import { apiClient } from '$lib/apiClient';
   import { currentUser } from '$lib/stores/auth';
   import type { NamespaceResp, Namespace } from '$lib/types';
-    import { goto } from '$app/navigation';
+  import { goto } from '$app/navigation';
+  import { DEFAULT_PAGE_SIZE } from '$lib/constants';
+  import { setContext } from 'svelte';
 
   let { namespace }: {namespace: string} = $props();
 
   let namespaceDropdownOpen = $state(false);
   let namespaces = $state<Namespace[]>([]);
   let currentNamespace = page.params.namespace;
-  let pageCount = $state(1);
-  let totalCount = $state(0);
 
   const isActiveLink = (section: string): boolean => {
     const currentPath = page.url.pathname;
@@ -30,7 +30,7 @@
     } else if (section === 'history') {
       return currentPath.includes('/history');
     } else if (section === 'settings') {
-      return currentPath.includes('/admin/settings');
+      return currentPath.includes('/settings');
     }
     
     return false;
@@ -38,10 +38,8 @@
 
   const fetchNamespaces = async () => {
     try {
-      const data = await apiClient.namespaces.list({ count_per_page: 5 });
+      const data = await apiClient.namespaces.list({ count_per_page: DEFAULT_PAGE_SIZE });
       namespaces = data.namespaces || [];
-      totalCount = data.total_count || 0;
-      pageCount = data.page_count || 1;
     } catch (error) {
       console.error('Failed to fetch namespaces:', error);
       namespaces = [];
@@ -50,11 +48,13 @@
 
   const selectNamespace = (selectedNamespace: Namespace) => {
     namespaceDropdownOpen = false;
+    setContext('namespace', selectedNamespace.name);
     goto(`/view/${selectedNamespace.name}/flows`);
   };
 
   onMount(() => {
     fetchNamespaces();
+    setContext('namespace', 'default');
   });
 </script>
 
@@ -184,7 +184,7 @@
     <!-- Settings (only show for superusers) -->
     {#if $currentUser && $currentUser.role === 'superuser'}
       <a 
-        href="/admin/settings" 
+        href="/settings" 
         class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
         class:bg-blue-600={isActiveLink('settings')}
         class:text-white={isActiveLink('settings')}

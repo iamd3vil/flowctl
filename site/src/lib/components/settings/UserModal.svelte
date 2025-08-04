@@ -1,0 +1,148 @@
+<script lang="ts">
+	import GroupSelector from '$lib/components/shared/GroupSelector.svelte';
+	import ErrorMessage from '$lib/components/shared/ErrorMessage.svelte';
+	import type { User, Group, UserWithGroups } from '$lib/types';
+
+	let {
+		isEditMode = false,
+		userData = null,
+		availableGroups = [],
+		onSave,
+		onClose
+	}: {
+		isEditMode: boolean;
+		userData: UserWithGroups | null;
+		availableGroups: Group[];
+		onSave: (data: any) => Promise<void>;
+		onClose: () => void;
+	} = $props();
+
+	// Form state
+	let name = $state(userData?.name || '');
+	let username = $state(userData?.username || '');
+	let selectedGroups = $state<Group[]>(userData?.groups || []);
+	let saving = $state(false);
+	let error = $state<string | null>(null);
+
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+		
+		if (!name.trim() || !username.trim()) {
+			error = 'Name and username are required';
+			return;
+		}
+
+		saving = true;
+		error = null;
+
+		try {
+			await onSave({
+				name: name.trim(),
+				username: username.trim(),
+				groups: selectedGroups.map(g => g.id)
+			});
+		} catch (err) {
+			error = 'Failed to save user';
+			console.error('Save error:', err);
+		} finally {
+			saving = false;
+		}
+	}
+
+	function handleClose() {
+		if (!saving) {
+			onClose();
+		}
+	}
+
+	// Handle escape key
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && !saving) {
+			onClose();
+		}
+	}
+</script>
+
+<svelte:window on:keydown={handleKeydown} />
+
+<!-- Modal Background -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60" onclick={handleClose} role="dialog" aria-modal="true">
+	<!-- Modal Content -->
+	<div 
+		class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
+		onclick={(e) => e.stopPropagation()}
+		role="document"
+	>
+		<h3 class="font-bold text-lg mb-4 text-gray-900">
+			{isEditMode ? 'Edit User' : 'Add New User'}
+		</h3>
+
+		<form onsubmit={handleSubmit}>
+			<!-- Name Field -->
+			<div class="mb-4">
+				<label for="name" class="block mb-1 font-medium text-gray-900">Name</label>
+				<input
+					type="text"
+					id="name"
+					bind:value={name}
+					required
+					disabled={saving}
+					class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+				/>
+			</div>
+
+			<!-- Username Field -->
+			<div class="mb-4">
+				<label for="username" class="block mb-1 font-medium text-gray-900">Username</label>
+				<input
+					type="text"
+					id="username"
+					bind:value={username}
+					required
+					disabled={saving}
+					class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+				/>
+			</div>
+
+			<!-- Groups Field -->
+			<div class="mb-4">
+				<label class="block mb-1 font-medium text-gray-900">Groups</label>
+				<GroupSelector
+					bind:selectedGroups
+					disabled={saving}
+					placeholder="Search and select groups..."
+				/>
+			</div>
+
+			<!-- Error Message -->
+			{#if error}
+				<ErrorMessage message={error} />
+			{/if}
+
+			<!-- Action Buttons -->
+			<div class="flex justify-end gap-2 mt-6">
+				<button
+					type="button"
+					onclick={handleClose}
+					disabled={saving}
+					class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					disabled={saving}
+					class="px-5 py-2.5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+				>
+					{#if saving}
+						<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+					{/if}
+					{isEditMode ? 'Update' : 'Create'}
+				</button>
+			</div>
+		</form>
+	</div>
+</div>
