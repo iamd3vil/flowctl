@@ -4,7 +4,7 @@
 	import Table from '$lib/components/shared/Table.svelte';
 	import Pagination from '$lib/components/shared/Pagination.svelte';
 	import GroupModal from './GroupModal.svelte';
-	import DeleteModal from './DeleteModal.svelte';
+	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import type { Group } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
@@ -225,8 +225,8 @@
 <!-- Delete Modal -->
 {#if showDeleteModal && deleteData}
 	<DeleteModal
-		type="group"
-		name={deleteData.name}
+		title="Delete Group"
+		itemName={deleteData.name}
 		onConfirm={handleDeleteConfirm}
 		onClose={handleModalClose}
 	/>

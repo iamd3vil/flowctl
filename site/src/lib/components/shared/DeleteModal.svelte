@@ -2,13 +2,15 @@
 	import ErrorMessage from '$lib/components/shared/ErrorMessage.svelte';
 
 	let {
-		type,
-		name,
+		title,
+		itemName,
+		description = null,
 		onConfirm,
 		onClose
 	}: {
-		type: 'user' | 'group';
-		name: string;
+		title: string;
+		itemName: string;
+		description?: string | null;
 		onConfirm: () => Promise<void>;
 		onClose: () => void;
 	} = $props();
@@ -23,7 +25,7 @@
 		try {
 			await onConfirm();
 		} catch (err) {
-			error = `Failed to delete ${type}`;
+			error = `Failed to delete item`;
 			console.error('Delete error:', err);
 		} finally {
 			deleting = false;
@@ -60,15 +62,21 @@
 			</div>
 			<div>
 				<h3 class="text-lg font-semibold text-gray-900">
-					Delete {type === 'user' ? 'User' : 'Group'}
+					{title}
 				</h3>
 				<p class="text-sm text-gray-600">This action cannot be undone.</p>
 			</div>
 		</div>
 
 		<p class="text-gray-700 mb-6">
-			Are you sure you want to delete "<span class="font-medium">{name}</span>"?
+			Are you sure you want to delete "<span class="font-medium">{itemName}</span>"?
 		</p>
+
+		{#if description}
+			<p class="text-gray-700 mb-6 font-bold">
+				{description}
+			</p>
+		{/if}
 
 		<!-- Error Message -->
 		{#if error}
@@ -94,7 +102,7 @@
 						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 					</svg>
 				{/if}
-				Delete {type === 'user' ? 'User' : 'Group'}
+				Delete
 			</button>
 		</div>
 	</div>

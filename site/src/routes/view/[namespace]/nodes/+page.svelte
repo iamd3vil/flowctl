@@ -8,6 +8,7 @@
 	import Pagination from '$lib/components/shared/Pagination.svelte';
 	import StatCard from '$lib/components/shared/StatCard.svelte';
 	import NodeModal from '$lib/components/nodes/NodeModal.svelte';
+	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import type { NodeResp, NodeReq } from '$lib/types';
     import { DEFAULT_PAGE_SIZE } from '$lib/constants';
@@ -26,6 +27,9 @@
 	let isEditMode = $state(false);
 	let editingNodeId = $state<string | null>(null);
 	let editingNodeData = $state<NodeResp | null>(null);
+	let showDeleteModal = $state(false);
+	let deleteNodeId = $state<string | null>(null);
+	let deleteNodeName = $state('');
 
 	// Computed values
 	let linuxCount = $derived(nodes.filter(node => node.os_family === 'linux').length);
@@ -141,15 +145,32 @@
 		}
 	}
 
-	async function handleDelete(nodeId: string) {
-		if (!confirm('Are you sure you want to delete this node?')) return;
+	function handleDelete(nodeId: string) {
+		const node = nodes.find(n => n.id === nodeId);
+		if (node) {
+			deleteNodeId = nodeId;
+			deleteNodeName = node.name;
+			showDeleteModal = true;
+		}
+	}
+
+	async function confirmDelete() {
+		if (!deleteNodeId) return;
 
 		try {
-			await apiClient.nodes.delete(data.namespace, nodeId);
+			await apiClient.nodes.delete(data.namespace, deleteNodeId);
+			closeDeleteModal(); // Close modal after successful deletion
 			await fetchNodes();
 		} catch (error) {
 			console.error('Failed to delete node:', error);
+			throw error;
 		}
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		deleteNodeId = null;
+		deleteNodeName = '';
 	}
 
 	async function handleNodeSave(nodeData: NodeReq) {
@@ -256,5 +277,15 @@
 		credentials={data.credentials}
 		onSave={handleNodeSave}
 		onClose={handleModalClose}
+	/>
+{/if}
+
+<!-- Delete Modal -->
+{#if showDeleteModal}
+	<DeleteModal
+		title="Delete Node"
+		itemName={deleteNodeName}
+		onConfirm={confirmDelete}
+		onClose={closeDeleteModal}
 	/>
 {/if}

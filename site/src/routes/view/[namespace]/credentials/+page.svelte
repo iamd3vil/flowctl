@@ -8,6 +8,7 @@
 	import Table from '$lib/components/shared/Table.svelte';
 	import Pagination from '$lib/components/shared/Pagination.svelte';
 	import CredentialModal from '$lib/components/credentials/CredentialModal.svelte';
+	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import type { CredentialResp, CredentialReq } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
@@ -26,6 +27,9 @@
 	let isEditMode = $state(false);
 	let editingCredentialId = $state<string | null>(null);
 	let editingCredentialData = $state<CredentialResp | null>(null);
+	let showDeleteModal = $state(false);
+	let deleteCredentialId = $state<string | null>(null);
+	let deleteCredentialName = $state('');
 
 	// Table configuration
 	let tableColumns = [
@@ -135,15 +139,32 @@
 	}
 
 
-	async function handleDelete(credentialId: string) {
-		if (!confirm('Are you sure you want to delete this credential?')) return;
+	function handleDelete(credentialId: string) {
+		const credential = credentials.find(c => c.id === credentialId);
+		if (credential) {
+			deleteCredentialId = credentialId;
+			deleteCredentialName = credential.name;
+			showDeleteModal = true;
+		}
+	}
+
+	async function confirmDelete() {
+		if (!deleteCredentialId) return;
 
 		try {
-			await apiClient.credentials.delete(data.namespace, credentialId);
+			await apiClient.credentials.delete(data.namespace, deleteCredentialId);
+			closeDeleteModal(); // Close modal after successful deletion
 			await fetchCredentials();
 		} catch (error) {
 			console.error('Failed to delete credential:', error);
+			throw error;
 		}
+	}
+
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		deleteCredentialId = null;
+		deleteCredentialName = '';
 	}
 
 	async function handleCredentialSave(credentialData: CredentialReq) {
@@ -242,6 +263,17 @@
 		credentialData={editingCredentialData}
 		onSave={handleCredentialSave}
 		onClose={handleModalClose}
+	/>
+{/if}
+
+<!-- Delete Modal -->
+{#if showDeleteModal}
+	<DeleteModal
+		title="Delete Credential"
+		description="Deleting this credential will remove any nodes using it"
+		itemName={deleteCredentialName}
+		onConfirm={confirmDelete}
+		onClose={closeDeleteModal}
 	/>
 {/if}
 

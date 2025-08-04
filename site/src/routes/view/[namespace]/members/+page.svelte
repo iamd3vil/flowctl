@@ -8,6 +8,7 @@
 	import MemberTypeBadge from '$lib/components/members/MemberTypeBadge.svelte';
 	import MemberRoleBadge from '$lib/components/members/MemberRoleBadge.svelte';
 	import AddMemberModal from '$lib/components/members/AddMemberModal.svelte';
+	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import type { NamespaceMemberResp, NamespaceMemberReq } from '$lib/types';
 	import Header from '$lib/components/shared/Header.svelte';
@@ -18,9 +19,9 @@
 	let members = $state(data.members);
 	let loading = $state(false);
 	let showAddModal = $state(false);
-	let showRemoveModal = $state(false);
-	let removeMemberId = $state<string | null>(null);
-	let removeMemberName = $state('');
+	let showDeleteModal = $state(false);
+	let deleteMemberId = $state<string | null>(null);
+	let deleteMemberName = $state('');
 
 	// Table configuration
 	let tableColumns = [
@@ -49,7 +50,7 @@
 	let tableActions = [
 		{
 			label: 'Remove',
-			onClick: (member: NamespaceMemberResp) => handleRemove(member.id, member.subject_name),
+			onClick: (member: NamespaceMemberResp) => handleDelete(member.id, member.subject_name),
 			className: 'text-red-600 hover:text-red-800'
 		}
 	];
@@ -87,25 +88,24 @@
 		showAddModal = true;
 	}
 
-	function handleRemove(memberId: string, memberName: string) {
-		removeMemberId = memberId;
-		removeMemberName = memberName;
-		showRemoveModal = true;
+	function handleDelete(memberId: string, memberName: string) {
+		deleteMemberId = memberId;
+		deleteMemberName = memberName;
+		showDeleteModal = true;
 	}
 
-	async function confirmRemove() {
-		if (!removeMemberId) return;
+	async function confirmDelete() {
+		if (!deleteMemberId) return;
 
 		try {
-			await apiClient.namespaces.members.remove(data.namespace, removeMemberId);
-			showRemoveModal = false;
-			removeMemberId = null;
-			removeMemberName = '';
+			await apiClient.namespaces.members.remove(data.namespace, deleteMemberId);
+			closeDeleteModal(); // Close modal after successful deletion
 			await fetchMembers();
 			notifySuccess('Member removed successfully');
 		} catch (error) {
 			console.error('Failed to remove member:', error);
 			notifyError('Failed to remove member');
+			throw error;
 		}
 	}
 
@@ -113,10 +113,10 @@
 		showAddModal = false;
 	}
 
-	function closeRemoveModal() {
-		showRemoveModal = false;
-		removeMemberId = null;
-		removeMemberName = '';
+	function closeDeleteModal() {
+		showDeleteModal = false;
+		deleteMemberId = null;
+		deleteMemberName = '';
 	}
 
 	function formatDate(dateString: string): string {
@@ -187,48 +187,20 @@
 </div>
 
 <!-- Add Member Modal -->
-<AddMemberModal
-	bind:show={showAddModal}
-	onSave={handleMemberSave}
-	onClose={closeAddModal}
-/>
+{#if showAddModal}
+	<AddMemberModal
+		show={showAddModal}
+		onSave={handleMemberSave}
+		onClose={closeAddModal}
+	/>
+{/if}
 
-<!-- Remove Member Confirmation Modal -->
-{#if showRemoveModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4" on:click={closeRemoveModal}>
-		<div class="bg-white rounded-lg shadow-lg w-full max-w-md" on:click|stopPropagation>
-			<div class="p-6">
-				<div class="flex items-center mb-4">
-					<div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
-						<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-						</svg>
-					</div>
-					<div>
-						<h3 class="text-lg font-semibold text-gray-900">Remove Member</h3>
-						<p class="text-sm text-gray-600">This action cannot be undone.</p>
-					</div>
-				</div>
-
-				<p class="text-gray-700 mb-6">
-					Are you sure you want to remove "<span class="font-medium">{removeMemberName}</span>" from this namespace?
-				</p>
-
-				<div class="flex justify-end gap-2">
-					<button 
-						on:click={closeRemoveModal}
-						class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-					>
-						Cancel
-					</button>
-					<button 
-						on:click={confirmRemove}
-						class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
-					>
-						Remove Member
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
+<!-- Delete Modal -->
+{#if showDeleteModal}
+	<DeleteModal
+		title="Remove Member"
+		itemName={deleteMemberName}
+		onConfirm={confirmDelete}
+		onClose={closeDeleteModal}
+	/>
 {/if}

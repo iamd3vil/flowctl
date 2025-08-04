@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE SET NULL,
+    FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE CASCADE,
     FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX idx_nodes_uuid ON nodes(uuid);
