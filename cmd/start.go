@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
@@ -20,6 +21,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/handlers"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/tasks"
+	"github.com/cvhariharan/flowctl/internal/utils"
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -35,16 +37,22 @@ import (
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start flowctl server or worker",
-	Long:  "Use --worker to start a worker. The default command runs the server",
+	Short: "Start flowctl server",
 	Run: func(cmd *cobra.Command, args []string) {
-		isWorker, _ := cmd.Flags().GetBool("worker")
-		start(isWorker)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// start worker
+			start(true)
+		}()
+		// start server
+		start(false)
+		wg.Wait()
 	},
 }
 
 func init() {
-	startCmd.Flags().Bool("worker", false, "Start flowctl worker")
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -351,6 +359,8 @@ func processYAMLFiles(rootDir string, store repo.Store) (map[string]models.Flow,
 	return m, nil
 }
 
+// startWorker creates a worker that processes jobs from redis.
+// A single worker automatically uses all available CPU cores for concurrency.
 func startWorker(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Logger, keeper *secrets.Keeper, enforcer *casbin.Enforcer) {
 	asynqClient := asynq.NewClientFromRedisClient(redisClient)
 	defer asynqClient.Close()
@@ -361,6 +371,7 @@ func startWorker(db *sqlx.DB, redisClient redis.UniversalClient, logger *slog.Lo
 			"default": 5,
 			"resume":  5,
 		},
+		Logger: &utils.SlogAdapter{Logger: logger.WithGroup("worker")},
 	})
 
 	s := repo.NewPostgresStore(db)
