@@ -211,6 +211,63 @@ func (q *Queries) GetApprovalRequestForActionAndExec(ctx context.Context, arg Ge
 	return i, err
 }
 
+const getApprovalRequestForExec = `-- name: GetApprovalRequestForExec :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+), latest_version AS (
+    SELECT MAX(version) as max_version
+    FROM execution_log
+    WHERE exec_id = $1
+      AND namespace_id = (SELECT id FROM namespace_lookup)
+)
+SELECT
+    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.decided_by, a.namespace_id, a.created_at, a.updated_at,
+    u.name as requested_by
+FROM approvals a
+JOIN execution_log el ON a.exec_log_id = el.id
+JOIN flows f ON el.flow_id = f.id
+JOIN users u ON el.triggered_by = u.id
+WHERE el.exec_id = $1
+  AND f.namespace_id = (SELECT id FROM namespace_lookup)
+  AND el.version = (SELECT max_version FROM latest_version)
+`
+
+type GetApprovalRequestForExecParams struct {
+	ExecID string    `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+type GetApprovalRequestForExecRow struct {
+	ID          int32          `db:"id" json:"id"`
+	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
+	ExecLogID   int32          `db:"exec_log_id" json:"exec_log_id"`
+	ActionID    string         `db:"action_id" json:"action_id"`
+	Status      ApprovalStatus `db:"status" json:"status"`
+	DecidedBy   sql.NullInt32  `db:"decided_by" json:"decided_by"`
+	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	RequestedBy string         `db:"requested_by" json:"requested_by"`
+}
+
+func (q *Queries) GetApprovalRequestForExec(ctx context.Context, arg GetApprovalRequestForExecParams) (GetApprovalRequestForExecRow, error) {
+	row := q.db.QueryRowContext(ctx, getApprovalRequestForExec, arg.ExecID, arg.Uuid)
+	var i GetApprovalRequestForExecRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.ExecLogID,
+		&i.ActionID,
+		&i.Status,
+		&i.DecidedBy,
+		&i.NamespaceID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RequestedBy,
+	)
+	return i, err
+}
+
 const getApprovalsPaginated = `-- name: GetApprovalsPaginated :many
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $1
@@ -314,64 +371,6 @@ func (q *Queries) GetApprovalsPaginated(ctx context.Context, arg GetApprovalsPag
 		return nil, err
 	}
 	return items, nil
-}
-
-const getPendingApprovalRequestForExec = `-- name: GetPendingApprovalRequestForExec :one
-WITH namespace_lookup AS (
-    SELECT id FROM namespaces WHERE namespaces.uuid = $2
-), latest_version AS (
-    SELECT MAX(version) as max_version
-    FROM execution_log
-    WHERE exec_id = $1
-      AND namespace_id = (SELECT id FROM namespace_lookup)
-)
-SELECT
-    a.id, a.uuid, a.exec_log_id, a.action_id, a.status, a.decided_by, a.namespace_id, a.created_at, a.updated_at,
-    u.name as requested_by
-FROM approvals a
-JOIN execution_log el ON a.exec_log_id = el.id
-JOIN flows f ON el.flow_id = f.id
-JOIN users u ON el.triggered_by = u.id
-WHERE el.exec_id = $1
-  AND a.status = 'pending'
-  AND f.namespace_id = (SELECT id FROM namespace_lookup)
-  AND el.version = (SELECT max_version FROM latest_version)
-`
-
-type GetPendingApprovalRequestForExecParams struct {
-	ExecID string    `db:"exec_id" json:"exec_id"`
-	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
-}
-
-type GetPendingApprovalRequestForExecRow struct {
-	ID          int32          `db:"id" json:"id"`
-	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
-	ExecLogID   int32          `db:"exec_log_id" json:"exec_log_id"`
-	ActionID    string         `db:"action_id" json:"action_id"`
-	Status      ApprovalStatus `db:"status" json:"status"`
-	DecidedBy   sql.NullInt32  `db:"decided_by" json:"decided_by"`
-	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
-	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
-	RequestedBy string         `db:"requested_by" json:"requested_by"`
-}
-
-func (q *Queries) GetPendingApprovalRequestForExec(ctx context.Context, arg GetPendingApprovalRequestForExecParams) (GetPendingApprovalRequestForExecRow, error) {
-	row := q.db.QueryRowContext(ctx, getPendingApprovalRequestForExec, arg.ExecID, arg.Uuid)
-	var i GetPendingApprovalRequestForExecRow
-	err := row.Scan(
-		&i.ID,
-		&i.Uuid,
-		&i.ExecLogID,
-		&i.ActionID,
-		&i.Status,
-		&i.DecidedBy,
-		&i.NamespaceID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.RequestedBy,
-	)
-	return i, err
 }
 
 const rejectRequestByUUID = `-- name: RejectRequestByUUID :one

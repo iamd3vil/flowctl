@@ -187,7 +187,7 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 	return areq.Uuid.String(), nil
 }
 
-func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string, namespaceID string) (models.ApprovalRequest, error) {
+func (c *Core) GetApprovalsRequestsForExec(ctx context.Context, execID string, namespaceID string) (models.ApprovalRequest, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
@@ -208,12 +208,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string, na
 
 	// Get from DB
 	if errors.Is(err, redis.Nil) {
-		namespaceUUID, err := uuid.Parse(namespaceID)
-		if err != nil {
-			return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
-		}
-
-		areq, err := c.store.GetPendingApprovalRequestForExec(ctx, repo.GetPendingApprovalRequestForExecParams{
+		areq, err := c.store.GetApprovalRequestForExec(ctx, repo.GetApprovalRequestForExecParams{
 			ExecID: execID,
 			Uuid:   namespaceUUID,
 		})
@@ -238,11 +233,7 @@ func (c *Core) GetPendingApprovalsForExec(ctx context.Context, execID string, na
 		}
 	}
 
-	if existingReq.Status == models.ApprovalStatusPending {
-		return existingReq, nil
-	}
-
-	return models.ApprovalRequest{}, nil
+	return existingReq, nil
 }
 
 func (c *Core) BeforeActionHook(ctx context.Context, execID string, action tasks.Action, namespaceID string) error {

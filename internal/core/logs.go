@@ -191,8 +191,9 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespa
 			case <-ctx.Done():
 				return
 			default:
-				a, err := c.GetPendingApprovalsForExec(ctx, execID, namespaceID)
+				a, err := c.GetApprovalsRequestsForExec(ctx, execID, namespaceID)
 				if err != nil && !errors.Is(err, ErrNil) {
+					log.Println(err)
 					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
 					return
 				}
@@ -200,7 +201,11 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespa
 				if a.Status == "pending" {
 					ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: []byte(a.UUID)}
 					return
+				} else if a.Status == "rejected" {
+					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte("approval request has been rejected")}
+					return
 				}
+				log.Printf("approval request: %v", a)
 			}
 			time.Sleep(5 * time.Second)
 		}

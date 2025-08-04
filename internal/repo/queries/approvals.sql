@@ -92,7 +92,7 @@ WHERE el.exec_id = $1
   AND a.action_id = $2
   AND f.namespace_id = (SELECT id FROM namespace_lookup);
 
--- name: GetPendingApprovalRequestForExec :one
+-- name: GetApprovalRequestForExec :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ), latest_version AS (
@@ -109,7 +109,6 @@ JOIN execution_log el ON a.exec_log_id = el.id
 JOIN flows f ON el.flow_id = f.id
 JOIN users u ON el.triggered_by = u.id
 WHERE el.exec_id = $1
-  AND a.status = 'pending'
   AND f.namespace_id = (SELECT id FROM namespace_lookup)
   AND el.version = (SELECT max_version FROM latest_version);
 
