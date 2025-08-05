@@ -13,7 +13,10 @@ import (
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/gorilla/websocket"
+	"github.com/gosimple/slug"
 	"github.com/labstack/echo/v4"
+	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -252,21 +255,6 @@ func (h *Handler) handleLogStreaming(c echo.Context, msg models.StreamMessage, w
 	return nil
 }
 
-func (h *Handler) HandleListFlows(c echo.Context) error {
-	namespace, ok := c.Get("namespace").(string)
-	if !ok {
-		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
-	}
-
-	flows, err := h.co.GetAllFlows(c.Request().Context(), namespace)
-	if err != nil {
-		return wrapError(http.StatusInternalServerError, "could not list flows", err, nil)
-	}
-
-	response := coreFlowsToFlows(flows)
-	return c.JSON(http.StatusOK, response)
-}
-
 func (h *Handler) HandleFlowsPagination(c echo.Context) error {
 	namespace, ok := c.Get("namespace").(string)
 	if !ok {
@@ -479,5 +467,59 @@ func (h *Handler) HandleGetFlowMeta(c echo.Context) error {
 	return c.JSON(http.StatusOK, FlowMetaResp{
 		Metadata: meta,
 		Actions:  actions,
+	})
+}
+
+func (h *Handler) HandleCreateFlow(c echo.Context) error {
+	namespace := c.Param("namespace")
+
+	var req FlowCreateReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(http.StatusBadRequest, "invalid request", err, nil)
+	}
+
+	flow := models.Flow{
+		Meta: models.Metadata{
+			ID:          slug.Make(req.Meta.Name),
+			Name:        req.Meta.Name,
+			Description: req.Meta.Description,
+			Namespace:   namespace,
+		},
+		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
+		Actions: convertFlowActionsReqToActions(req.Actions),
+		Outputs: convertOutputsReqToOutputs(req.Outputs),
+	}
+
+	if err := flow.Validate(); err != nil {
+		return wrapError(http.StatusBadRequest, "flow validation error", err, nil)
+	}
+
+	flowsDir := viper.GetString("app.flows_directory")
+	if flowsDir == "" {
+		flowsDir = "flows"
+	}
+
+	namespaceDirPath := filepath.Join(flowsDir, namespace)
+	if err := os.MkdirAll(namespaceDirPath, 0755); err != nil {
+		return wrapError(http.StatusInternalServerError, "could not create namespace directory", err, nil)
+	}
+
+	yamlFilePath := filepath.Join(namespaceDirPath, fmt.Sprintf("%s.yaml", flow.Meta.ID))
+
+	if _, err := os.Stat(yamlFilePath); err == nil {
+		return wrapError(http.StatusConflict, "flow with this ID already exists", nil, nil)
+	}
+
+	yamlData, err := yaml.Marshal(flow)
+	if err != nil {
+		return wrapError(http.StatusInternalServerError, "could not marshal flow to YAML", err, nil)
+	}
+
+	if err := os.WriteFile(yamlFilePath, yamlData, 0644); err != nil {
+		return wrapError(http.StatusInternalServerError, "could not write flow file", err, nil)
+	}
+
+	return c.JSON(http.StatusCreated, FlowCreateResp{
+		ID: flow.Meta.ID,
 	})
 }

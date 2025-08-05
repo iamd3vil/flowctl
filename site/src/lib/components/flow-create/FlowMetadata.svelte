@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { createSlug } from '$lib/utils';
+
   let {
     metadata = $bindable()
   }: {
@@ -10,16 +12,11 @@
     }
   } = $props();
 
-  function sanitizeId(value: string) {
-    return value.replace(/[^a-zA-Z0-9_]/g, '');
-  }
-
-  function updateId(value: string) {
-    metadata.id = sanitizeId(value);
-  }
 
   function updateName(value: string) {
     metadata.name = value;
+    // Auto-generate ID from name
+    metadata.id = createSlug(value);
   }
 
   function updateDescription(value: string) {
@@ -36,19 +33,7 @@
     </svg>
     Flow Information
   </h2>
-  <div class="grid grid-cols-2 gap-4">
-    <div>
-      <label for="flow-id" class="block text-sm font-medium text-gray-700 mb-2">Flow ID *</label>
-      <input 
-        type="text" 
-        id="flow-id" 
-        value={metadata.id}
-        oninput={(e) => updateId(e.currentTarget.value)}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        placeholder="unique_flow_id"
-      />
-      <p class="mt-1 text-xs text-gray-500">Alphanumeric and underscores only</p>
-    </div>
+  <div class="grid grid-cols-1 gap-4">
     <div>
       <label for="flow-name" class="block text-sm font-medium text-gray-700 mb-2">Flow Name *</label>
       <input 
@@ -60,7 +45,7 @@
         placeholder="My Flow Name"
       />
     </div>
-    <div class="col-span-2">
+    <div>
       <label for="flow-description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
       <textarea 
         id="flow-description" 

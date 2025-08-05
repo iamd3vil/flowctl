@@ -10,6 +10,8 @@ import type {
   FlowInputsResp,
   FlowMetaResp,
   FlowTriggerResp,
+  FlowCreateReq,
+  FlowCreateResp,
   NodeReq,
   NodeResp,
   NodesPaginateResponse,
@@ -209,8 +211,8 @@ export const apiClient = {
   flows: {
     list: (namespace: string, params: PaginateRequest = {}) =>
       baseFetch<FlowsPaginateResponse>(`/api/v1/${namespace}/flows${buildQueryString(params)}`),
-    create: (namespace: string, flowData: any) =>
-      baseFetch<any>(`/api/v1/${namespace}/flows`, {
+    create: (namespace: string, flowData: FlowCreateReq) =>
+      baseFetch<FlowCreateResp>(`/api/v1/${namespace}/flows`, {
         method: 'POST',
         body: JSON.stringify(flowData),
       }),

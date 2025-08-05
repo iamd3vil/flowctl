@@ -8,6 +8,8 @@
   import FlowActions from '$lib/components/flow-create/FlowActions.svelte';
   import ValidationModal from '$lib/components/flow-create/ValidationModal.svelte';
   import type { PageData } from './$types';
+  import type { FlowCreateReq, FlowInputReq, FlowActionReq } from '$lib/types.js';
+  import { goto } from '$app/navigation';
 
   let { data }: { data: PageData } = $props();
   const namespace = $page.params.namespace as string;
@@ -33,6 +35,7 @@
 
   // Loading and error states
   let saving = $state(false);
+  let saveError = $state('');
   const availableExecutors = data.availableExecutors;
 
   onMount(() => {
@@ -76,8 +79,6 @@
     const errors: string[] = [];
 
     // Validate metadata
-    if (!flow.metadata.id) errors.push('Flow ID is required');
-    if (!/^[a-zA-Z0-9_]+$/.test(flow.metadata.id)) errors.push('Flow ID must be alphanumeric with underscores only');
     if (!flow.metadata.name) errors.push('Flow Name is required');
 
     // Validate inputs
@@ -91,13 +92,17 @@
     });
 
     // Validate actions
+    const actionNames = new Set();
     const actionIds = new Set();
     flow.actions.forEach((action, i) => {
-      if (!action.id) errors.push(`Action #${i+1} (${action.name || 'Untitled'}) is missing an ID`);
+      if (!action.name) errors.push(`Action #${i+1} is missing a name`);
+      else if (actionNames.has(action.name)) errors.push(`Duplicate action name: ${action.name}`);
+      else actionNames.add(action.name);
+
+      if (!action.id) errors.push(`Action "${action.name || i+1}" is missing an ID`);
       else if (actionIds.has(action.id)) errors.push(`Duplicate action ID: ${action.id}`);
       else actionIds.add(action.id);
 
-      if (!action.name) errors.push(`Action #${i+1} is missing a name`);
       if (!action.executor) errors.push(`Action "${action.name || i+1}" is missing an executor`);
     });
 
@@ -110,37 +115,65 @@
     if (!validateFlow()) return;
     
     saving = true;
+    saveError = '';
+    
     try {
-      // Create a POST request to /flows endpoint
-      const flowData = {
-        metadata: flow.metadata,
-        inputs: flow.inputs.filter(i => i.name),
-        actions: flow.actions.filter(a => a.id)
+      // Transform the flow data to match the API schema
+      const flowData: FlowCreateReq = {
+        metadata: {
+          name: flow.metadata.name,
+          description: flow.metadata.description || undefined
+        },
+        inputs: flow.inputs
+          .filter(i => i.name)
+          .map((input): FlowInputReq => ({
+            name: input.name,
+            type: input.type,
+            label: input.label || undefined,
+            description: input.description || undefined,
+            validation: input.validation || undefined,
+            required: input.required || false,
+            default: input.default || undefined,
+            options: input.type === 'select' && input.optionsText 
+              ? input.optionsText.split('\n').filter(o => o.trim()) 
+              : undefined
+          })),
+        actions: flow.actions
+          .filter(a => a.name && a.id)
+          .map((action): FlowActionReq => ({
+            id: action.id,
+            name: action.name,
+            executor: action.executor as 'script' | 'docker',
+            with: action.with || {},
+            approval: action.approval || false,
+            variables: action.variables?.length ? action.variables : undefined,
+            artifacts: action.artifactsText 
+              ? action.artifactsText.split('\n').filter(a => a.trim())
+              : undefined,
+            condition: action.condition || undefined,
+            on: action.on ? action.on.split(',').map(n => n.trim()).filter(n => n) : undefined
+          }))
       };
 
-      await apiClient.flows.create(namespace, flowData);
-      console.log('Flow saved successfully!');
+      const result = await apiClient.flows.create(namespace, flowData);
+      console.log('Flow created successfully:', result);
       
-    } catch (error) {
+      // Redirect to the flows list or flow detail page
+      await goto(`/view/${namespace}/flows`);
+      
+    } catch (error: any) {
       console.error('Error saving flow:', error);
+      if (error.data?.error) {
+        saveError = error.data.error;
+      } else {
+        saveError = 'Failed to create flow. Please try again.';
+      }
     } finally {
       saving = false;
     }
   }
 
-  // Header actions - create a derived expression
-  const headerActions = $derived([
-    {
-      label: 'Validate',
-      onClick: validateFlow,
-      variant: 'secondary' as const
-    },
-    {
-      label: saving ? 'Saving...' : 'Save Flow',
-      onClick: saveFlow,
-      variant: 'primary' as const
-    }
-  ]);
+  // Remove header actions - buttons moved to bottom
 </script>
 
 <svelte:head>
@@ -151,8 +184,7 @@
   <!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <Header 
-      breadcrumbs={[namespace, 'Flows', 'Create']} 
-      actions={headerActions}
+      breadcrumbs={[namespace, 'Flows', 'Create']}
     />
 
     <!-- Page Content -->
@@ -165,6 +197,35 @@
           {addAction} 
           {availableExecutors}
         />
+        
+        <!-- Submit Button at Bottom -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+          {#if saveError}
+            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-red-800">{saveError}</p>
+                </div>
+              </div>
+            </div>
+          {/if}
+          
+          <div class="flex justify-end">
+            <button 
+              type="button"
+              onclick={saveFlow}
+              disabled={saving}
+              class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Creating...' : 'Create Flow'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -300,6 +300,46 @@ export interface ApiErrorResponse {
   details?: FlowInputValidationError[];
 }
 
+// Flow creation types
+export interface FlowCreateReq {
+  metadata: FlowMetaReq;
+  inputs: FlowInputReq[];
+  actions: FlowActionReq[];
+  outputs?: Record<string, any>[];
+}
+
+export interface FlowMetaReq {
+  name: string;
+  description?: string;
+}
+
+export interface FlowInputReq {
+  name: string;
+  type: 'string' | 'number' | 'password' | 'file' | 'datetime' | 'checkbox' | 'select';
+  label?: string;
+  description?: string;
+  validation?: string;
+  required?: boolean;
+  default?: string;
+  options?: string[];
+}
+
+export interface FlowActionReq {
+  id: string;
+  name: string;
+  executor: 'script' | 'docker';
+  with: Record<string, any>;
+  approval?: boolean;
+  variables?: Record<string, any>[];
+  artifacts?: string[];
+  condition?: string;
+  on?: string[];
+}
+
+export interface FlowCreateResp {
+  id: string;
+}
+
 // Table component types
 export interface TableColumn<T = any> {
   key: string;

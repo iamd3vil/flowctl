@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/cvhariharan/flowctl/internal/core/models"
+	"github.com/gosimple/slug"
 )
 
 const (
@@ -486,4 +487,92 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 		CompletedAt:     e.CompletedAt.Format(TimeFormat),
 		Duration:        e.Duration(),
 	}
+}
+
+type FlowCreateReq struct {
+	Meta    FlowMetaReq      `json:"metadata" validate:"required"`
+	Inputs  []FlowInputReq   `json:"inputs" validate:"required,dive"`
+	Actions []FlowActionReq  `json:"actions" validate:"required,dive"`
+	Outputs []map[string]any `json:"outputs"`
+}
+
+type FlowMetaReq struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description"`
+}
+
+type FlowInputReq struct {
+	Name        string   `json:"name" validate:"required"`
+	Type        string   `json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
+	Label       string   `json:"label"`
+	Description string   `json:"description"`
+	Validation  string   `json:"validation"`
+	Required    bool     `json:"required"`
+	Default     string   `json:"default"`
+	Options     []string `json:"options"`
+}
+
+type FlowActionReq struct {
+	Name      string           `json:"name" validate:"required"`
+	Executor  string           `json:"executor" validate:"required,oneof=script docker"`
+	With      map[string]any   `json:"with" validate:"required"`
+	Approval  bool             `json:"approval"`
+	Variables []map[string]any `json:"variables"`
+	Artifacts []string         `json:"artifacts"`
+	Condition string           `json:"condition"`
+	On        []string         `json:"on"`
+}
+
+type FlowCreateResp struct {
+	ID string `json:"id"`
+}
+
+// Helper functions to convert request types to models
+func convertFlowInputsReqToInputs(inputsReq []FlowInputReq) []models.Input {
+	inputs := make([]models.Input, len(inputsReq))
+	for i, input := range inputsReq {
+		inputs[i] = models.Input{
+			Name:        input.Name,
+			Type:        models.InputType(input.Type),
+			Label:       input.Label,
+			Description: input.Description,
+			Validation:  input.Validation,
+			Required:    input.Required,
+			Default:     input.Default,
+			Options:     input.Options,
+		}
+	}
+	return inputs
+}
+
+func convertFlowActionsReqToActions(actionsReq []FlowActionReq) []models.Action {
+	actions := make([]models.Action, len(actionsReq))
+	for i, action := range actionsReq {
+		// Convert variables
+		variables := make([]models.Variable, len(action.Variables))
+		for j, v := range action.Variables {
+			variables[j] = models.Variable(v)
+		}
+
+		actions[i] = models.Action{
+			ID:        slug.Make(action.Name),
+			Name:      action.Name,
+			Executor:  action.Executor,
+			With:      action.With,
+			Approval:  action.Approval,
+			Variables: variables,
+			Artifacts: action.Artifacts,
+			Condition: action.Condition,
+			On:        action.On,
+		}
+	}
+	return actions
+}
+
+func convertOutputsReqToOutputs(outputsReq []map[string]any) []models.Output {
+	outputs := make([]models.Output, len(outputsReq))
+	for i, output := range outputsReq {
+		outputs[i] = models.Output(output)
+	}
+	return outputs
 }
