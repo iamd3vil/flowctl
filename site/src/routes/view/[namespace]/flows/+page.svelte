@@ -35,7 +35,7 @@
       await authorizer.setUser(`user:${data.user?.id!}`);
 
       // Check if user can create flows in this namespace  
-      const result = await authorizer.can('view', 'flow', data.namespaceId);
+      const result = await authorizer.can('create', 'flow', data.namespaceId);
       canCreateFlow = result;
     } catch (err) {
       console.error('Failed to check permissions:', err);

@@ -468,12 +468,21 @@ func (q *Queries) GrantGroupNamespaceAccess(ctx context.Context, arg GrantGroupN
 const listNamespaces = `-- name: ListNamespaces :many
 WITH filtered AS (
     SELECT DISTINCT n.id, n.uuid, n.name, n.created_at, n.updated_at FROM namespaces n
-    LEFT JOIN group_namespace_access gna ON n.id = gna.namespace_id
-    LEFT JOIN group_memberships gm ON gna.group_id = gm.group_id
-    LEFT JOIN users u ON gm.user_id = u.id
+    LEFT JOIN namespace_members nm_user ON n.id = nm_user.namespace_id AND nm_user.subject_type = 'user'
+    LEFT JOIN namespace_members nm_group ON n.id = nm_group.namespace_id AND nm_group.subject_type = 'group'
+    LEFT JOIN group_memberships gm ON nm_group.subject_uuid IN (
+        SELECT g.uuid FROM groups g 
+        JOIN group_memberships gm2 ON g.id = gm2.group_id 
+        WHERE gm2.user_id = (SELECT id FROM users WHERE users.uuid = $1)
+    )
     WHERE (
         (SELECT role FROM users WHERE users.uuid = $1) = 'superuser'
-        OR (u.uuid = $1 AND gna.namespace_id IS NOT NULL)
+        OR nm_user.subject_uuid = $1
+        OR nm_group.subject_uuid IN (
+            SELECT g.uuid FROM groups g 
+            JOIN group_memberships gm3 ON g.id = gm3.group_id 
+            WHERE gm3.user_id = (SELECT id FROM users WHERE users.uuid = $1)
+        )
     )
 ),
 total AS (

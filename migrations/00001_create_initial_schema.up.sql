@@ -247,13 +247,3 @@ CREATE TABLE casbin_rule (
     v5 VARCHAR(100),
     CONSTRAINT idx_casbin_rule UNIQUE(ptype, v0, v1, v2, v3, v4, v5)
 );
-
-CREATE TABLE IF NOT EXISTS group_namespace_access (
-    id SERIAL PRIMARY KEY,
-    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE(group_id, namespace_id)
-);
-CREATE INDEX idx_group_namespace_access_group_id ON group_namespace_access(group_id);
-CREATE INDEX idx_group_namespace_access_namespace_id ON group_namespace_access(namespace_id);
