@@ -485,7 +485,6 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 		},
 		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
 		Actions: convertFlowActionsReqToActions(req.Actions),
-		Outputs: convertOutputsReqToOutputs(req.Outputs),
 	}
 
 	if err := flow.Validate(); err != nil {
@@ -498,5 +497,26 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 
 	return c.JSON(http.StatusCreated, FlowCreateResp{
 		ID: flow.Meta.ID,
+	})
+}
+
+func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
+	}
+
+	f, err := h.co.GetFlowByID(c.Param("flowID"), namespace)
+	if err != nil {
+		return wrapError(http.StatusNotFound, "could not get flow", err, nil)
+	}
+
+	return c.JSON(http.StatusOK, FlowCreateReq{
+		Meta: FlowMetaReq{
+			Name:        f.Meta.Name,
+			Description: f.Meta.Description,
+		},
+		Inputs:  convertFlowInputsToInputsReq(f.Inputs),
+		Actions: convertFlowActionsToActionsReq(f.Actions),
 	})
 }

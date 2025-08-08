@@ -490,10 +490,9 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 }
 
 type FlowCreateReq struct {
-	Meta    FlowMetaReq      `json:"metadata" validate:"required"`
-	Inputs  []FlowInputReq   `json:"inputs" validate:"required,dive"`
-	Actions []FlowActionReq  `json:"actions" validate:"required,dive"`
-	Outputs []map[string]any `json:"outputs"`
+	Meta    FlowMetaReq     `json:"metadata" validate:"required"`
+	Inputs  []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions []FlowActionReq `json:"actions" validate:"required,dive"`
 }
 
 type FlowMetaReq struct {
@@ -569,10 +568,43 @@ func convertFlowActionsReqToActions(actionsReq []FlowActionReq) []models.Action 
 	return actions
 }
 
-func convertOutputsReqToOutputs(outputsReq []map[string]any) []models.Output {
-	outputs := make([]models.Output, len(outputsReq))
-	for i, output := range outputsReq {
-		outputs[i] = models.Output(output)
+// Helper functions to convert models to request types
+func convertFlowInputsToInputsReq(inputs []models.Input) []FlowInputReq {
+	inputsReq := make([]FlowInputReq, len(inputs))
+	for i, input := range inputs {
+		inputsReq[i] = FlowInputReq{
+			Name:        input.Name,
+			Type:        string(input.Type),
+			Label:       input.Label,
+			Description: input.Description,
+			Validation:  input.Validation,
+			Required:    input.Required,
+			Default:     input.Default,
+			Options:     input.Options,
+		}
 	}
-	return outputs
+	return inputsReq
+}
+
+func convertFlowActionsToActionsReq(actions []models.Action) []FlowActionReq {
+	actionsReq := make([]FlowActionReq, len(actions))
+	for i, action := range actions {
+		// Convert variables
+		variables := make([]map[string]any, len(action.Variables))
+		for j, v := range action.Variables {
+			variables[j] = map[string]any(v)
+		}
+
+		actionsReq[i] = FlowActionReq{
+			Name:      action.Name,
+			Executor:  action.Executor,
+			With:      action.With,
+			Approval:  action.Approval,
+			Variables: variables,
+			Artifacts: action.Artifacts,
+			Condition: action.Condition,
+			On:        action.On,
+		}
+	}
+	return actionsReq
 }

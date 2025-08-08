@@ -1,8 +1,8 @@
 type: http_request
 model: http_request
-id: rq_eGiZvUgDBs
-createdAt: 2025-07-17T02:13:53.589974215
-updatedAt: 2025-08-08T11:37:46.601624810
+id: rq_bvvJhzZouU
+createdAt: 2025-08-08T11:36:16.181176311
+updatedAt: 2025-08-08T11:37:01.302313400
 workspaceId: wk_f7os23Vq2X
 folderId: fl_XaZk4pk63J
 authentication: {}
@@ -12,7 +12,7 @@ bodyType: null
 description: ''
 headers: []
 method: GET
-name: List Flows
-sortPriority: 999.9999
-url: http://localhost:7000/api/v1/default/flows
+name: Get Flow Config
+sortPriority: 250.0018
+url: http://localhost:7000/api/v1/default/flows/test_flow_3/config
 urlParameters: []
