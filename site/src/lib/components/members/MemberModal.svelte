@@ -1,16 +1,20 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import UserGroupSelector from '$lib/components/shared/UserGroupSelector.svelte';
-  import type { NamespaceMemberReq, User, Group } from '$lib/types';
+  import type { NamespaceMemberReq, NamespaceMemberResp, User, Group } from '$lib/types';
   
   interface Props {
     show?: boolean;
+    isEditMode?: boolean;
+    memberData?: NamespaceMemberResp | null;
     onSave: (memberData: NamespaceMemberReq) => void;
     onClose: () => void;
   }
 
   let {
     show = false,
+    isEditMode = false,
+    memberData = null,
     onSave,
     onClose
   }: Props = $props();
@@ -31,10 +35,24 @@
   let loading = $state(false);
   let error = $state('');
 
-  // Reset form when show changes
+  // Initialize form data when memberData changes or when show changes
   $effect(() => {
     if (show) {
-      resetForm();
+      if (isEditMode && memberData) {
+        // Pre-populate form with existing member data
+        memberForm.subject_type = memberData.subject_type as 'user' | 'group';
+        memberForm.subject_id = memberData.subject_id;
+        memberForm.role = memberData.role as 'user' | 'reviewer' | 'admin';
+        
+        // Create a selectedSubject object for the UserGroupSelector
+        selectedSubject = {
+          id: memberData.subject_id,
+          name: memberData.subject_name,
+          username: memberData.subject_name // For users, this would be the username
+        } as User | Group;
+      } else {
+        resetForm();
+      }
     }
   });
 
@@ -100,7 +118,9 @@
     <!-- Modal Content -->
     <div class="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto" on:click|stopPropagation>
       <div class="p-6">
-        <h3 class="font-bold text-lg mb-4 text-gray-900">Add Member</h3>
+        <h3 class="font-bold text-lg mb-4 text-gray-900">
+          {isEditMode ? 'Edit Member' : 'Add Member'}
+        </h3>
         
         {#if error}
           <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -117,11 +137,14 @@
               on:change={onSubjectTypeChange}
               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
               required
-              disabled={loading}
+              disabled={loading || isEditMode}
             >
               <option value="user">User</option>
               <option value="group">Group</option>
             </select>
+            {#if isEditMode}
+              <p class="text-xs text-gray-500 mt-1">Member type cannot be changed when editing.</p>
+            {/if}
           </div>
 
           <!-- User/Group Selection -->
@@ -129,12 +152,39 @@
             <label class="block mb-1 font-medium text-gray-900">
               {memberForm.subject_type === 'user' ? 'User' : 'Group'} *
             </label>
-            <UserGroupSelector 
-              bind:type={memberForm.subject_type}
-              bind:selectedSubject={selectedSubject}
-              placeholder="Search {memberForm.subject_type}s..."
-              disabled={loading}
-            />
+            {#if isEditMode && memberData}
+              <!-- Show selected member in edit mode -->
+              <div class="p-3 bg-gray-50 rounded-lg border">
+                <div class="flex items-center">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3"
+                       class:bg-blue-100={memberData.subject_type === 'user'}
+                       class:bg-purple-100={memberData.subject_type === 'group'}>
+                    <svg class="w-4 h-4"
+                         class:text-blue-600={memberData.subject_type === 'user'}
+                         class:text-purple-600={memberData.subject_type === 'group'}
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {#if memberData.subject_type === 'user'}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                      {:else}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                      {/if}
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium text-gray-900">{memberData.subject_name}</div>
+                    <div class="text-xs text-gray-500">{memberData.subject_id}</div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Member cannot be changed when editing.</p>
+            {:else}
+              <UserGroupSelector 
+                bind:type={memberForm.subject_type}
+                bind:selectedSubject={selectedSubject}
+                placeholder="Search {memberForm.subject_type}s..."
+                disabled={loading}
+              />
+            {/if}
           </div>
 
           <!-- Role Selection -->
@@ -173,7 +223,7 @@
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               {/if}
-              Add Member
+              {isEditMode ? 'Update Member' : 'Add Member'}
             </button>
           </div>
         </form>

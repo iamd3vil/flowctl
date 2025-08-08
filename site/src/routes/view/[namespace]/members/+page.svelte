@@ -7,7 +7,7 @@
 	import MemberCell from '$lib/components/members/MemberCell.svelte';
 	import MemberTypeBadge from '$lib/components/members/MemberTypeBadge.svelte';
 	import MemberRoleBadge from '$lib/components/members/MemberRoleBadge.svelte';
-	import AddMemberModal from '$lib/components/members/AddMemberModal.svelte';
+	import MemberModal from '$lib/components/members/MemberModal.svelte';
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import type { NamespaceMemberResp, NamespaceMemberReq } from '$lib/types';
@@ -18,8 +18,10 @@
 	// State
 	let members = $state(data.members);
 	let loading = $state(false);
-	let showAddModal = $state(false);
+	let showMemberModal = $state(false);
 	let showDeleteModal = $state(false);
+	let isEditMode = $state(false);
+	let selectedMember = $state<NamespaceMemberResp | null>(null);
 	let deleteMemberId = $state<string | null>(null);
 	let deleteMemberName = $state('');
 
@@ -49,6 +51,11 @@
 
 	let tableActions = [
 		{
+			label: 'Edit',
+			onClick: (member: NamespaceMemberResp) => handleEdit(member),
+			className: 'text-blue-600 hover:text-blue-800'
+		},
+		{
 			label: 'Remove',
 			onClick: (member: NamespaceMemberResp) => handleDelete(member.id, member.subject_name),
 			className: 'text-red-600 hover:text-red-800'
@@ -73,19 +80,34 @@
 
 	async function handleMemberSave(memberData: NamespaceMemberReq) {
 		try {
-			await apiClient.namespaces.members.add(data.namespace, memberData);
-			showAddModal = false;
+			if (isEditMode && selectedMember) {
+				// Update existing member - only role can be updated
+				await apiClient.namespaces.members.update(data.namespace, selectedMember.id, { role: memberData.role });
+				notifySuccess('Member updated successfully');
+			} else {
+				// Add new member
+				await apiClient.namespaces.members.add(data.namespace, memberData);
+				notifySuccess('Member added successfully');
+			}
+			closeMemberModal();
 			await fetchMembers();
-			notifySuccess('Member added successfully');
 		} catch (error) {
-			console.error('Failed to add member:', error);
-			notifyError('Failed to add member');
+			console.error('Failed to save member:', error);
+			notifyError(isEditMode ? 'Failed to update member' : 'Failed to add member');
 			throw error; // Re-throw so modal can handle it
 		}
 	}
 
 	function handleAdd() {
-		showAddModal = true;
+		isEditMode = false;
+		selectedMember = null;
+		showMemberModal = true;
+	}
+
+	function handleEdit(member: NamespaceMemberResp) {
+		isEditMode = true;
+		selectedMember = member;
+		showMemberModal = true;
 	}
 
 	function handleDelete(memberId: string, memberName: string) {
@@ -109,8 +131,10 @@
 		}
 	}
 
-	function closeAddModal() {
-		showAddModal = false;
+	function closeMemberModal() {
+		showMemberModal = false;
+		isEditMode = false;
+		selectedMember = null;
 	}
 
 	function closeDeleteModal() {
@@ -186,12 +210,14 @@
 	</div>
 </div>
 
-<!-- Add Member Modal -->
-{#if showAddModal}
-	<AddMemberModal
-		show={showAddModal}
+<!-- Member Modal (Add/Edit) -->
+{#if showMemberModal}
+	<MemberModal
+		show={showMemberModal}
+		{isEditMode}
+		memberData={selectedMember}
 		onSave={handleMemberSave}
-		onClose={closeAddModal}
+		onClose={closeMemberModal}
 	/>
 {/if}
 
