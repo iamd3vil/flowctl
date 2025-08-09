@@ -1,6 +1,7 @@
 package qssh
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -49,22 +50,70 @@ func NewRemoteClient(node executor.Node) (remoteclient.RemoteClient, error) {
 	}, nil
 }
 
-func (q *qsshClient) RunCommand(command string) (string, error) {
+func (q *qsshClient) RunCommand(ctx context.Context, command string, stdout, stderr io.Writer) error {
 	session, err := q.sshClient.NewSession()
 	if err != nil {
-		return "", fmt.Errorf("could not create session: %w", err)
+		return fmt.Errorf("could not create session: %w", err)
 	}
 	defer session.Close()
 
-	output, err := session.CombinedOutput(command)
-	if err != nil {
-		return "", fmt.Errorf("could not run command: %w", err)
-	}
+	// Set stdout and stderr writers
+	session.Stdout = stdout
+	session.Stderr = stderr
 
-	return string(output), err
+	// Create a channel to receive the result
+	type result struct {
+		err error
+	}
+	resultCh := make(chan result, 1)
+
+	// Run command in goroutine
+	go func() {
+		err := session.Run(command)
+		resultCh <- result{err}
+	}()
+
+	// Wait for either context cancellation or command completion
+	select {
+	case <-ctx.Done():
+		// Context was cancelled, close the session to interrupt the command
+		session.Close()
+		return ctx.Err()
+	case res := <-resultCh:
+		if res.err != nil {
+			return fmt.Errorf("could not run command: %w", res.err)
+		}
+		return nil
+	}
 }
 
-func (q *qsshClient) Download(remotePath, localPath string) error {
+func (q *qsshClient) Download(ctx context.Context, remotePath, localPath string) error {
+	// Create a channel to receive the result
+	type result struct {
+		err error
+	}
+	resultCh := make(chan result, 1)
+
+	// Run download in goroutine
+	go func() {
+		err := q.downloadFile(remotePath, localPath)
+		resultCh <- result{err}
+	}()
+
+	// Wait for either context cancellation or download completion
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case res := <-resultCh:
+		if res.err != nil {
+			return fmt.Errorf("failed to download file from remote: %w", res.err)
+		}
+		return nil
+	}
+}
+
+// downloadFile implements the actual SFTP download
+func (q *qsshClient) downloadFile(remotePath, localPath string) error {
 	sftpClient, err := sftp.NewClient(q.sshClient)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)
@@ -99,7 +148,33 @@ func (q *qsshClient) Download(remotePath, localPath string) error {
 	return nil
 }
 
-func (q *qsshClient) Upload(localPath, remotePath string) error {
+func (q *qsshClient) Upload(ctx context.Context, localPath, remotePath string) error {
+	// Create a channel to receive the result
+	type result struct {
+		err error
+	}
+	resultCh := make(chan result, 1)
+
+	// Run upload in goroutine
+	go func() {
+		err := q.uploadFile(localPath, remotePath)
+		resultCh <- result{err}
+	}()
+
+	// Wait for either context cancellation or upload completion
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case res := <-resultCh:
+		if res.err != nil {
+			return fmt.Errorf("failed to upload file to remote: %w", res.err)
+		}
+		return nil
+	}
+}
+
+// uploadFile implements the actual SFTP upload
+func (q *qsshClient) uploadFile(localPath, remotePath string) error {
 	sftpClient, err := sftp.NewClient(q.sshClient)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)

@@ -282,6 +282,16 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	return execID, err
 }
 
+// CancelFlowExecution sets a cancellation signal for the given execution ID, this is best effort cancellation
+func (c *Core) CancelFlowExecution(ctx context.Context, execID string) error {
+	key := fmt.Sprintf("%s:%s", tasks.CancellationSignalKey, execID)
+	err := c.redisClient.Set(ctx, key, "1", 24*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("failed to set cancellation signal: %w", err)
+	}
+	return nil
+}
+
 func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, triggeredBy string, namespaceID string) ([]models.ExecutionSummary, error) {
 	userID, err := uuid.Parse(triggeredBy)
 	if err != nil {

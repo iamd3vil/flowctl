@@ -79,15 +79,15 @@ func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.Execution
 
 	// Create output file for capturing environment variables
 	tempFile := fmt.Sprintf("/tmp/script-executor-output-%s", xid.New().String())
-	if err := s.createFileOrDirectory(tempFile, false); err != nil {
+	if err := s.createFileOrDirectory(ctx, tempFile, false); err != nil {
 		return nil, fmt.Errorf("failed to create temp file for output: %w", err)
 	}
 
 	// Create artifacts directories
-	if err := s.createFileOrDirectory(filepath.Join(s.artifactsDirectory, "push"), true); err != nil {
+	if err := s.createFileOrDirectory(ctx, filepath.Join(s.artifactsDirectory, "push"), true); err != nil {
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
-	if err := s.createFileOrDirectory(filepath.Join(s.artifactsDirectory, "pull"), true); err != nil {
+	if err := s.createFileOrDirectory(ctx, filepath.Join(s.artifactsDirectory, "pull"), true); err != nil {
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
@@ -100,7 +100,7 @@ func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	}
 
 	// Read output file and parse environment variables
-	outputContents, err := s.readTempFileContents(tempFile)
+	outputContents, err := s.readTempFileContents(ctx, tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read temp file contents: %w", err)
 	}
@@ -162,25 +162,16 @@ func (s *ScriptExecutor) runRemoteScript(ctx context.Context, config ScriptWithC
 	defer os.Remove(localScriptFile)
 
 	// Upload script to remote
-	if err := s.remoteClient.Upload(localScriptFile, scriptFile); err != nil {
+	if err := s.remoteClient.Upload(ctx, localScriptFile, scriptFile); err != nil {
 		return fmt.Errorf("failed to upload script to remote: %w", err)
 	}
 
 	// Execute the script on remote
-	output, err := s.remoteClient.RunCommand(fmt.Sprintf("chmod +x %s && %s", scriptFile, scriptFile))
-	if err != nil {
-		return fmt.Errorf("remote script execution failed: %w", err)
-	}
-
-	// Write output to stdout
-	if s.stdout != nil {
-		s.stdout.Write([]byte(output))
-	}
-
-	// Clean up remote script file
-	s.remoteClient.RunCommand(fmt.Sprintf("rm -f %s", scriptFile))
-
-	return nil
+	defer func() {
+		// Delete the script file after execution
+		s.remoteClient.RunCommand(ctx, fmt.Sprintf("rm -f %s", scriptFile), io.Discard, io.Discard)
+	}()
+	return s.remoteClient.RunCommand(ctx, fmt.Sprintf("chmod +x %s && %s", scriptFile, scriptFile), s.stdout, s.stderr)
 }
 
 func (s *ScriptExecutor) buildRemoteScript(config ScriptWithConfig, env []string) string {
@@ -203,7 +194,7 @@ func (s *ScriptExecutor) buildRemoteScript(config ScriptWithConfig, env []string
 	return script.String()
 }
 
-func (s *ScriptExecutor) readTempFileContents(tempFile string) (io.Reader, error) {
+func (s *ScriptExecutor) readTempFileContents(ctx context.Context, tempFile string) (io.Reader, error) {
 	readFile := func(filePath string) (io.Reader, error) {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
@@ -221,7 +212,7 @@ func (s *ScriptExecutor) readTempFileContents(tempFile string) (io.Reader, error
 		defer os.Remove(localTempFile.Name())
 		defer localTempFile.Close()
 
-		if err := s.remoteClient.Download(tempFile, localTempFile.Name()); err != nil {
+		if err := s.remoteClient.Download(ctx, tempFile, localTempFile.Name()); err != nil {
 			return nil, fmt.Errorf("failed to download temp file from remote: %w", err)
 		}
 
@@ -232,7 +223,7 @@ func (s *ScriptExecutor) readTempFileContents(tempFile string) (io.Reader, error
 	}
 }
 
-func (s *ScriptExecutor) createFileOrDirectory(name string, dir bool) error {
+func (s *ScriptExecutor) createFileOrDirectory(ctx context.Context, name string, dir bool) error {
 	if s.remoteClient == nil {
 		if dir {
 			return os.MkdirAll(name, 0755)
@@ -248,13 +239,12 @@ func (s *ScriptExecutor) createFileOrDirectory(name string, dir bool) error {
 	} else {
 		cmd = fmt.Sprintf("touch %s && chmod 755 %s", name, name)
 	}
-	_, err := s.remoteClient.RunCommand(cmd)
-	return err
+	return s.remoteClient.RunCommand(ctx, cmd, io.Discard, io.Discard)
 }
 
 func (s *ScriptExecutor) PushFile(ctx context.Context, localFilePath string, remoteFilePath string) error {
 	destPath := filepath.Join(s.artifactsDirectory, "push", remoteFilePath)
-	if err := s.createFileOrDirectory(filepath.Dir(destPath), true); err != nil {
+	if err := s.createFileOrDirectory(ctx, filepath.Dir(destPath), true); err != nil {
 		return fmt.Errorf("failed to create directory for %s: %w", destPath, err)
 	}
 
@@ -279,7 +269,7 @@ func (s *ScriptExecutor) PushFile(ctx context.Context, localFilePath string, rem
 	}
 
 	// Remote execution: upload file to remote machine
-	if err := s.remoteClient.Upload(localFilePath, destPath); err != nil {
+	if err := s.remoteClient.Upload(ctx, localFilePath, destPath); err != nil {
 		return fmt.Errorf("failed to upload file %s to remote path %s: %w", localFilePath, destPath, err)
 	}
 	return nil
@@ -307,7 +297,7 @@ func (s *ScriptExecutor) PullFile(ctx context.Context, remoteFilePath string, lo
 	}
 
 	// Download the file from the remote machine to the local path
-	if err := s.remoteClient.Download(srcFile, localFilePath); err != nil {
+	if err := s.remoteClient.Download(ctx, srcFile, localFilePath); err != nil {
 		return fmt.Errorf("failed to download file from remote path %s to local path %s: %w", srcFile, localFilePath, err)
 	}
 	return nil

@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	TypeFlowExecution   = "flow_execution"
-	TypeActionExecution = "action_execution"
-	MaxRetries          = 0
+	TypeFlowExecution     = "flow_execution"
+	TypeActionExecution   = "action_execution"
+	MaxRetries            = 0
+	CancellationSignalKey = "cancelled_executions"
 )
 
 var (
@@ -75,6 +76,15 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		payload.StartingActionIdx = len(payload.Workflow.Actions)
 	}
 
+	// Create cancellable context for this execution
+	execCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Start cancellation monitoring goroutine
+	cancelChan := make(chan struct{})
+	go r.monitorCancellation(payload.ExecID, cancel, cancelChan)
+	defer close(cancelChan)
+
 	// Create temporary directory for artifacts shared across all actions in this flow
 	artifactDir, err := os.MkdirTemp("", fmt.Sprintf("artifacts-%s-", payload.ExecID))
 	if err != nil {
@@ -89,6 +99,10 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	defer streamLogger.Close(payload.ExecID)
 
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
+		// Check if context was cancelled (either by timeout, cancellation signal, or error)
+		if execCtx.Err() != nil {
+			return fmt.Errorf("execution cancelled")
+		}
 		action := payload.Workflow.Actions[i]
 
 		if r.onBeforeActionFn != nil {
@@ -101,7 +115,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		// Only run action if it has not already run, if it has run, use the existing results
 		res, err := streamLogger.Results(action.ID)
 		if err != nil {
-			res, err = r.runAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir)
+			res, err = r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir)
 			if err != nil {
 				streamLogger.Checkpoint(action.ID, err.Error(), streamlogger.ErrMessageType)
 				return err
@@ -312,4 +326,35 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 	}
 
 	return mergedResults, nil
+}
+
+// isCancelled checks if the execution has been cancelled by looking for a cancellation signal in Redis
+func (r *FlowRunner) isCancelled(execID string) bool {
+	key := fmt.Sprintf("%s:%s", CancellationSignalKey, execID)
+	exists, err := r.redisClient.Exists(context.Background(), key).Result()
+	if err != nil {
+		r.debugLogger.Debug("failed to check cancellation status", "execID", execID, "error", err)
+		return false
+	}
+	return exists > 0
+}
+
+// monitorCancellation continuously monitors for cancellation signals and calls cancel when detected
+func (r *FlowRunner) monitorCancellation(execID string, cancel context.CancelFunc, done <-chan struct{}) {
+	ticker := time.NewTicker(1 * time.Second) // Check every second for quick response
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			// Execution finished, stop monitoring
+			return
+		case <-ticker.C:
+			if r.isCancelled(execID) {
+				r.debugLogger.Debug("cancellation signal detected, cancelling execution", "execID", execID)
+				cancel()
+				return
+			}
+		}
+	}
 }

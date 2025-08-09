@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/gorilla/websocket"
@@ -482,7 +483,7 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 
 	flow := models.Flow{
 		Meta: models.Metadata{
-			ID:          slug.Make(req.Meta.Name),
+			ID:          strings.Replace(slug.Make(req.Meta.Name), "-", "_", -1),
 			Name:        req.Meta.Name,
 			Description: req.Meta.Description,
 			Namespace:   namespace,
@@ -490,6 +491,7 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
 		Actions: convertFlowActionsReqToActions(req.Actions),
 	}
+	h.logger.Debug("flow", flow)
 
 	if err := flow.Validate(); err != nil {
 		return wrapError(http.StatusBadRequest, "flow validation error", err, nil)
@@ -572,5 +574,33 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 		},
 		Inputs:  convertFlowInputsToInputsReq(f.Inputs),
 		Actions: convertFlowActionsToActionsReq(f.Actions),
+	})
+}
+
+func (h *Handler) HandleCancelExecution(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
+	}
+
+	execID := c.Param("execID")
+	if execID == "" {
+		return wrapError(http.StatusBadRequest, "execution ID is required", nil, nil)
+	}
+
+	// Verify the execution exists and user has permission to cancel it
+	_, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), execID, namespace)
+	if err != nil {
+		return wrapError(http.StatusNotFound, "execution not found", err, nil)
+	}
+
+	err = h.co.CancelFlowExecution(c.Request().Context(), execID)
+	if err != nil {
+		return wrapError(http.StatusInternalServerError, "failed to cancel execution", err, nil)
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Cancellation signal sent",
+		"execID":  execID,
 	})
 }

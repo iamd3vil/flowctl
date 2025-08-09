@@ -8,10 +8,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
-
-	"os"
+	"time"
 
 	"github.com/cvhariharan/flowctl/sdk/executor"
 	"github.com/cvhariharan/flowctl/sdk/remoteclient"
@@ -160,16 +160,16 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 
 	// create a file for storing output
 	tempFile := fmt.Sprintf("/tmp/docker-executor-output-%s", xid.New().String())
-	err = d.createFileOrDirectory(tempFile, false)
+	err = d.createFileOrDirectory(ctx, tempFile, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for output: %w", err)
 	}
 
 	// create artifacts directory
-	if err := d.createFileOrDirectory(filepath.Join(d.artifactsDirectory, PUSH_DIR), true); err != nil {
+	if err := d.createFileOrDirectory(ctx, filepath.Join(d.artifactsDirectory, PUSH_DIR), true); err != nil {
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
-	if err := d.createFileOrDirectory(filepath.Join(d.artifactsDirectory, PULL_DIR), true); err != nil {
+	if err := d.createFileOrDirectory(ctx, filepath.Join(d.artifactsDirectory, PULL_DIR), true); err != nil {
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
@@ -196,7 +196,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		return nil, err
 	}
 
-	outputContents, err := d.readTempFileContents(tempFile)
+	outputContents, err := d.readTempFileContents(ctx, tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read temp file contents: %w", err)
 	}
@@ -209,7 +209,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	return outputEnv, nil
 }
 
-func (d *DockerExecutor) readTempFileContents(tempFile string) (io.Reader, error) {
+func (d *DockerExecutor) readTempFileContents(ctx context.Context, tempFile string) (io.Reader, error) {
 	readFile := func(filePath string) (io.Reader, error) {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
@@ -227,7 +227,7 @@ func (d *DockerExecutor) readTempFileContents(tempFile string) (io.Reader, error
 		defer os.Remove(localTempFile.Name())
 		defer localTempFile.Close()
 
-		if err := d.remoteClient.Download(tempFile, localTempFile.Name()); err != nil {
+		if err := d.remoteClient.Download(ctx, tempFile, localTempFile.Name()); err != nil {
 			return nil, fmt.Errorf("failed to download temp file from remote: %w", err)
 		}
 
@@ -253,8 +253,10 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 	// Only schedule removal if KeepContainer is false
 	if !d.dockerOptions.KeepContainer {
 		defer func() {
-			if rErr := d.client.ContainerRemove(ctx, resp.ID, container.RemoveOptions{}); rErr != nil {
-				log.Printf("Error removing container: %v", rErr)
+			if ctx.Err() == nil {
+				if rErr := d.client.ContainerRemove(ctx, resp.ID, container.RemoveOptions{}); rErr != nil {
+					log.Printf("Error removing container: %v", rErr)
+				}
 			}
 		}()
 	}
@@ -267,6 +269,20 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 	if err := d.client.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("unable to start container: %v", err)
 	}
+
+	// Start goroutine to monitor context cancellation and stop container if cancelled
+	go func() {
+		<-ctx.Done()
+		if ctx.Err() != nil {
+			// Context was cancelled, stop the container
+			stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			if err := d.client.ContainerStop(stopCtx, resp.ID, container.StopOptions{}); err != nil {
+				log.Printf("Error stopping container %s after cancellation: %v", resp.ID, err)
+			}
+		}
+	}()
 
 	logs, err := d.client.ContainerLogs(ctx, resp.ID, container.LogsOptions{
 		ShowStdout: true,
@@ -290,6 +306,8 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 		if status.StatusCode != 0 {
 			return fmt.Errorf("container exited with code %d", status.StatusCode)
 		}
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	// Retrieve artifacts from the container
@@ -314,7 +332,7 @@ func (d *DockerExecutor) copyArtifactsToContainer(ctx context.Context, container
 
 	// Remote execution: use docker cp command
 	dockerCpCmd := fmt.Sprintf("cd %s && tar -c . | docker cp - %s:%s", pushDir, containerID, WORKING_DIR)
-	if _, err := d.remoteClient.RunCommand(dockerCpCmd); err != nil {
+	if err := d.remoteClient.RunCommand(ctx, dockerCpCmd, io.Discard, io.Discard); err != nil {
 		return fmt.Errorf("failed to copy artifacts to container via docker cp: %v", err)
 	}
 	return nil
@@ -333,7 +351,7 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 			defer tar.Close()
 
 			pullDir := filepath.Join(d.artifactsDirectory, PULL_DIR, filepath.Dir(artifact))
-			if err := d.createFileOrDirectory(pullDir, true); err != nil {
+			if err := d.createFileOrDirectory(ctx, pullDir, true); err != nil {
 				return fmt.Errorf("unable to create artifact directory %s: %v", pullDir, err)
 			}
 
@@ -346,14 +364,14 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 		} else {
 			// Remote execution: use docker cp command
 			remotePath := filepath.Join(d.artifactsDirectory, PULL_DIR, artifact)
-			if err := d.createFileOrDirectory(filepath.Dir(remotePath), true); err != nil {
+			if err := d.createFileOrDirectory(ctx, filepath.Dir(remotePath), true); err != nil {
 				return fmt.Errorf("unable to create artifact directory %s: %v", filepath.Dir(remotePath), err)
 			}
 
 			dockerCpCmd := fmt.Sprintf("docker cp %s:%s - | tar -xf - -C %s",
 				containerID, containerPath, filepath.Dir(remotePath))
 
-			if _, err := d.remoteClient.RunCommand(dockerCpCmd); err != nil {
+			if err := d.remoteClient.RunCommand(ctx, dockerCpCmd, io.Discard, io.Discard); err != nil {
 				return fmt.Errorf("failed to copy artifact %s from container via docker cp: %v", artifact, err)
 			}
 		}
@@ -362,7 +380,7 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 }
 
 // createFileOrDirectory creates a directory or file, handling local and remote execution.
-func (d *DockerExecutor) createFileOrDirectory(name string, dir bool) error {
+func (d *DockerExecutor) createFileOrDirectory(ctx context.Context, name string, dir bool) error {
 	if d.remoteClient == nil {
 		if dir {
 			return os.MkdirAll(name, 0755)
@@ -378,8 +396,7 @@ func (d *DockerExecutor) createFileOrDirectory(name string, dir bool) error {
 	} else {
 		cmd = fmt.Sprintf("touch %s && chmod 755 %s", name, name)
 	}
-	_, err := d.remoteClient.RunCommand(cmd)
-	return err
+	return d.remoteClient.RunCommand(ctx, cmd, io.Discard, io.Discard)
 }
 
 func (d *DockerExecutor) pullImage(ctx context.Context, cli *client.Client) error {
@@ -497,7 +514,7 @@ func createSSHTunnel(ctx context.Context, client remoteclient.RemoteClient) (net
 // remoteFilePath is the path inside the container where the file should be uploaded
 func (d *DockerExecutor) PushFile(ctx context.Context, localFilePath string, remoteFilePath string) error {
 	destPath := filepath.Join(d.artifactsDirectory, PUSH_DIR, remoteFilePath)
-	if err := d.createFileOrDirectory(filepath.Dir(destPath), true); err != nil {
+	if err := d.createFileOrDirectory(ctx, filepath.Dir(destPath), true); err != nil {
 		return fmt.Errorf("failed to create directory for %s: %w", destPath, err)
 	}
 
@@ -522,7 +539,7 @@ func (d *DockerExecutor) PushFile(ctx context.Context, localFilePath string, rem
 	}
 
 	// Remote execution: upload file to remote machine
-	if err := d.remoteClient.Upload(localFilePath, destPath); err != nil {
+	if err := d.remoteClient.Upload(ctx, localFilePath, destPath); err != nil {
 		return fmt.Errorf("failed to upload file %s to remote path %s: %w", localFilePath, destPath, err)
 	}
 	return nil
@@ -553,7 +570,7 @@ func (d *DockerExecutor) PullFile(ctx context.Context, remoteFilePath string, lo
 	}
 
 	// Download the file from the remote machine to the local path
-	if err := d.remoteClient.Download(srcFile, localFilePath); err != nil {
+	if err := d.remoteClient.Download(ctx, srcFile, localFilePath); err != nil {
 		return fmt.Errorf("failed to download file from remote path %s to local path %s: %w", srcFile, localFilePath, err)
 	}
 	return nil
