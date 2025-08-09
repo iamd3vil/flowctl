@@ -526,6 +526,11 @@ type FlowCreateResp struct {
 	ID string `json:"id"`
 }
 
+type FlowUpdateReq struct {
+	Inputs  []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions []FlowActionReq `json:"actions" validate:"required,dive"`
+}
+
 // Helper functions to convert request types to models
 func convertFlowInputsReqToInputs(inputsReq []FlowInputReq) []models.Input {
 	inputs := make([]models.Input, len(inputsReq))

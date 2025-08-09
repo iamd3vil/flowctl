@@ -28,7 +28,11 @@ func (c *Core) InitializeRBACPolicies() error {
 
 	// Admin role policies - for all namespaces
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionCreate))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionUpdate))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionDelete))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionUpdate))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionDelete))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionDelete))

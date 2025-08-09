@@ -340,6 +340,12 @@ export interface FlowCreateResp {
   id: string;
 }
 
+export interface FlowUpdateReq {
+  inputs: FlowInputReq[];
+  actions: FlowActionReq[];
+  outputs?: Record<string, any>[];
+}
+
 // Table component types
 export interface TableColumn<T = any> {
   key: string;

@@ -21,9 +21,14 @@
   let error = $state(data.error);
   let loading = $state(false);
   let canCreateFlow = $state(false);
+  let canUpdateFlows = $state(false);
 
   const goToFlow = (flowSlug: string) => {
     goto(`/view/${page.params.namespace}/flows/${flowSlug}`);
+  };
+
+  const goToEditFlow = (flowSlug: string) => {
+    goto(`/view/${page.params.namespace}/flows/${flowSlug}/edit`);
   };
 
   // Check permissions on component mount
@@ -35,11 +40,16 @@
       await authorizer.setUser(`user:${data.user?.id!}`);
 
       // Check if user can create flows in this namespace  
-      const result = await authorizer.can('create', 'flow', data.namespaceId);
-      canCreateFlow = result;
+      const createResult = await authorizer.can('create', 'flow', data.namespaceId);
+      canCreateFlow = createResult;
+
+      // Check if user can update flows in this namespace
+      const updateResult = await authorizer.can('update', 'flow', data.namespaceId);
+      canUpdateFlows = updateResult;
     } catch (err) {
       console.error('Failed to check permissions:', err);
       canCreateFlow = false;
+      canUpdateFlows = false;
     }
   };
 
@@ -117,13 +127,19 @@
     },
   ];
 
-  const actions: TableAction<FlowListItem>[] = [
-    {
-      label: "Run Flow",
-      onClick: (row: FlowListItem) => goToFlow(row.slug),
-      className: "text-blue-600 hover:text-blue-700 transition-colors",
-    },
-  ];
+  const actions = $derived(() => {
+    const actionsList: TableAction<FlowListItem>[] = [];
+
+    if (canUpdateFlows) {
+      actionsList.push({
+        label: "Edit",
+        onClick: (row: FlowListItem) => goToEditFlow(row.slug),
+        className: "text-blue-600 hover:text-blue-700 transition-colors cursor-pointer",
+      });
+    }
+
+    return actionsList;
+  });
 </script>
 
 <svelte:head>
@@ -168,7 +184,7 @@
     <Table
       {columns}
       data={flows}
-      {actions}
+      actions={actions()}
       {loading}
       onRowClick={(row) => goToFlow(row.slug)}
       emptyMessage={searchValue

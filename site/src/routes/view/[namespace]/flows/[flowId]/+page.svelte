@@ -152,6 +152,7 @@
 <Header 
   breadcrumbs={[`${page.params.namespace}`, 'Flows', data.flowMeta?.meta?.name || 'Loading...']} 
   actions={[
+    { label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' },
     { label: 'Back to Flows', onClick: () => goto(`/view/${namespace}/flows`), variant: 'secondary' }
   ]}
 />

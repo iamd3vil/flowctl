@@ -12,6 +12,8 @@ import type {
   FlowTriggerResp,
   FlowCreateReq,
   FlowCreateResp,
+  FlowUpdateReq,
+  Flow,
   NodeReq,
   NodeResp,
   NodesPaginateResponse,
@@ -214,6 +216,13 @@ export const apiClient = {
     create: (namespace: string, flowData: FlowCreateReq) =>
       baseFetch<FlowCreateResp>(`/api/v1/${namespace}/flows`, {
         method: 'POST',
+        body: JSON.stringify(flowData),
+      }),
+    getConfig: (namespace: string, flowId: string) =>
+      baseFetch<FlowCreateReq>(`/api/v1/${namespace}/flows/${flowId}/config`),
+    update: (namespace: string, flowId: string, flowData: FlowUpdateReq) =>
+      baseFetch<FlowCreateResp>(`/api/v1/${namespace}/flows/${flowId}`, {
+        method: 'PUT',
         body: JSON.stringify(flowData),
       }),
     getInputs: (namespace: string, flowId: string) =>

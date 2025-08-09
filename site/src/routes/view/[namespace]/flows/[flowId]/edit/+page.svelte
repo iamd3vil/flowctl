@@ -1,0 +1,312 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { apiClient } from '$lib/apiClient.js';
+  import Header from '$lib/components/shared/Header.svelte';
+  import FlowMetadata from '$lib/components/flow-create/FlowMetadata.svelte';
+  import FlowInputs from '$lib/components/flow-create/FlowInputs.svelte';
+  import FlowActions from '$lib/components/flow-create/FlowActions.svelte';
+  import ValidationModal from '$lib/components/flow-create/ValidationModal.svelte';
+  import type { PageData } from './$types';
+  import type { FlowUpdateReq, FlowInputReq, FlowActionReq } from '$lib/types.js';
+  import { goto } from '$app/navigation';
+
+  let { data }: { data: PageData } = $props();
+  const namespace = $page.params.namespace as string;
+  const flowId = $page.params.flowId as string;
+
+  // Flow state
+  let flow = $state({
+    metadata: {
+      id: '',
+      name: '',
+      description: '',
+      namespace: namespace
+    },
+    inputs: [] as any[],
+    actions: [] as any[]
+  });
+
+  // Modal states
+  let showValidation = $state(false);
+  let validationResult = $state({
+    success: false,
+    errors: [] as string[]
+  });
+
+  // Loading and error states
+  let loading = $state(true);
+  let saving = $state(false);
+  let loadError = $state('');
+  let saveError = $state('');
+  const availableExecutors = data.availableExecutors;
+
+  onMount(async () => {
+    await loadFlowConfig();
+  });
+
+  async function loadFlowConfig() {
+    loading = true;
+    loadError = '';
+    
+    try {
+      const config = await apiClient.flows.getConfig(namespace, flowId);
+      
+      // Transform the config data to match our form state
+      flow.metadata = {
+        id: flowId,
+        name: config.metadata.name,
+        description: config.metadata.description || '',
+        namespace: namespace
+      };
+      
+      // Transform inputs
+      flow.inputs = (config.inputs || []).map(input => ({
+        ...input,
+        optionsText: input.options ? input.options.join('\n') : ''
+      }));
+      
+      // Transform actions
+      flow.actions = (config.actions || []).map((action, index) => ({
+        tempId: Date.now() + index,
+        ...action,
+        artifactsText: action.artifacts ? action.artifacts.join('\n') : '',
+        on: action.on ? action.on.join(',') : '',
+        collapsed: false
+      }));
+      
+    } catch (error: any) {
+      console.error('Error loading flow config:', error);
+      if (error.data?.error) {
+        loadError = error.data.error;
+      } else {
+        loadError = 'Failed to load flow configuration. Please try again.';
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
+  function addInput() {
+    flow.inputs.push({
+      name: '',
+      type: 'string',
+      label: '',
+      description: '',
+      required: false,
+      default: '',
+      validation: '',
+      options: [],
+      optionsText: ''
+    });
+  }
+
+  function addAction() {
+    const tempId = Date.now() + Math.random();
+    flow.actions.push({
+      tempId: tempId,
+      id: '',
+      name: '',
+      executor: '',
+      with: {},
+      on: '',
+      variables: [],
+      approval: false,
+      artifacts: [],
+      artifactsText: '',
+      condition: '',
+      collapsed: false
+    });
+  }
+
+  function validateFlow() {
+    const errors: string[] = [];
+
+    // Validate metadata
+    if (!flow.metadata.name) errors.push('Flow Name is required');
+
+    // Validate inputs
+    const inputNames = new Set();
+    flow.inputs.forEach((input, i) => {
+      if (!input.name) errors.push(`Input #${i+1} is missing a name`);
+      else if (inputNames.has(input.name)) errors.push(`Duplicate input name: ${input.name}`);
+      else inputNames.add(input.name);
+
+      if (!input.type) errors.push(`Input "${input.name || i+1}" is missing a type`);
+    });
+
+    // Validate actions
+    const actionNames = new Set();
+    const actionIds = new Set();
+    flow.actions.forEach((action, i) => {
+      if (!action.name) errors.push(`Action #${i+1} is missing a name`);
+      else if (actionNames.has(action.name)) errors.push(`Duplicate action name: ${action.name}`);
+      else actionNames.add(action.name);
+
+      if (!action.id) errors.push(`Action "${action.name || i+1}" is missing an ID`);
+      else if (actionIds.has(action.id)) errors.push(`Duplicate action ID: ${action.id}`);
+      else actionIds.add(action.id);
+
+      if (!action.executor) errors.push(`Action "${action.name || i+1}" is missing an executor`);
+    });
+
+    validationResult = { success: errors.length === 0, errors: errors };
+    showValidation = true;
+    return errors.length === 0;
+  }
+
+  async function updateFlow() {
+    if (!validateFlow()) return;
+    
+    saving = true;
+    saveError = '';
+    
+    try {
+      // Transform the flow data to match the API schema for update
+      const flowData: FlowUpdateReq = {
+        inputs: flow.inputs
+          .filter(i => i.name)
+          .map((input): FlowInputReq => ({
+            name: input.name,
+            type: input.type,
+            label: input.label || undefined,
+            description: input.description || undefined,
+            validation: input.validation || undefined,
+            required: input.required || false,
+            default: input.default || undefined,
+            options: input.type === 'select' && input.optionsText 
+              ? input.optionsText.split('\n').filter(o => o.trim()) 
+              : undefined
+          })),
+        actions: flow.actions
+          .filter(a => a.name && a.id)
+          .map((action): FlowActionReq => ({
+            id: action.id,
+            name: action.name,
+            executor: action.executor as 'script' | 'docker',
+            with: action.with || {},
+            approval: action.approval || false,
+            variables: action.variables?.length ? action.variables : undefined,
+            artifacts: action.artifactsText 
+              ? action.artifactsText.split('\n').filter(a => a.trim())
+              : undefined,
+            condition: action.condition || undefined,
+            on: action.on ? action.on.split(',').map(n => n.trim()).filter(n => n) : undefined
+          }))
+      };
+
+      await apiClient.flows.update(namespace, flowId, flowData);
+      console.log('Flow updated successfully');
+      
+      // Redirect to the flow detail page
+      await goto(`/view/${namespace}/flows/${flowId}`);
+      
+    } catch (error: any) {
+      console.error('Error updating flow:', error);
+      if (error.data?.error) {
+        saveError = error.data.error;
+      } else {
+        saveError = 'Failed to update flow. Please try again.';
+      }
+    } finally {
+      saving = false;
+    }
+  }
+</script>
+
+<svelte:head>
+  <title>Edit Flow - {flow.metadata.name || 'Loading...'} | Flowctl</title>
+</svelte:head>
+
+<div class="flex h-screen bg-gray-50">
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <Header 
+      breadcrumbs={[namespace, 'Flows', flow.metadata.name || 'Loading...', 'Edit']}
+      actions={[
+        { label: 'Cancel', onClick: () => goto(`/view/${namespace}/flows/${flowId}`), variant: 'secondary' }
+      ]}
+    />
+
+    <!-- Page Content -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="max-w-6xl mx-auto p-6">
+        {#if loading}
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div class="animate-pulse">
+              <div class="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+            </div>
+          </div>
+        {:else if loadError}
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div class="p-4 bg-red-50 border border-red-200 rounded-md">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-red-800">{loadError}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        {:else}
+          <FlowMetadata bind:metadata={flow.metadata} readonly={true} />
+          <FlowInputs bind:inputs={flow.inputs} {addInput} />
+          <FlowActions 
+            bind:actions={flow.actions} 
+            {addAction} 
+            {availableExecutors}
+          />
+          
+          <!-- Submit Button at Bottom -->
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+            {#if saveError}
+              <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-red-800">{saveError}</p>
+                  </div>
+                </div>
+              </div>
+            {/if}
+            
+            <div class="flex justify-end space-x-3">
+              <button 
+                type="button"
+                onclick={() => goto(`/view/${namespace}/flows/${flowId}`)}
+                class="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onclick={updateFlow}
+                disabled={saving}
+                class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Updating...' : 'Update Flow'}
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+</div>
+
+{#if showValidation}
+  <ValidationModal 
+    bind:show={showValidation}
+    {validationResult}
+  />
+{/if}

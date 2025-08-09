@@ -2,24 +2,28 @@
   import { createSlug } from '$lib/utils';
 
   let {
-    metadata = $bindable()
+    metadata = $bindable(),
+    readonly = false
   }: {
     metadata: {
       id: string;
       name: string;
       description: string;
       namespace: string;
-    }
+    };
+    readonly?: boolean;
   } = $props();
 
 
   function updateName(value: string) {
+    if (readonly) return;
     metadata.name = value;
     // Auto-generate ID from name
     metadata.id = createSlug(value);
   }
 
   function updateDescription(value: string) {
+    if (readonly) return;
     metadata.description = value;  
   }
 </script>
@@ -41,8 +45,9 @@
         id="flow-name" 
         value={metadata.name}
         oninput={(e) => updateName(e.currentTarget.value)}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {readonly ? 'bg-gray-50 cursor-not-allowed' : ''}"
         placeholder="My Flow Name"
+        disabled={readonly}
       />
     </div>
     <div>
@@ -51,8 +56,9 @@
         id="flow-description" 
         value={metadata.description}
         oninput={(e) => updateDescription(e.currentTarget.value)}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-20"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-20 {readonly ? 'bg-gray-50 cursor-not-allowed' : ''}"
         placeholder="Describe what this flow does..."
+        disabled={readonly}
       ></textarea>
     </div>
   </div>

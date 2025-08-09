@@ -500,6 +500,33 @@ func (c *Core) CreateFlow(f models.Flow, namespaceName string) error {
 	return nil
 }
 
+func (c *Core) UpdateFlow(f models.Flow, namespaceName string) error {
+	namespaceDirPath := filepath.Join(c.flowDirectory, namespaceName)
+	flowDir := filepath.Join(namespaceDirPath, f.Meta.ID)
+
+	yamlFilePath := filepath.Join(flowDir, fmt.Sprintf("%s.yaml", f.Meta.ID))
+	if _, err := os.Stat(yamlFilePath); err != nil {
+		return fmt.Errorf("flow with this ID does not exist: %w", err)
+	}
+
+	yamlData, err := yaml.Marshal(f)
+	if err != nil {
+		return fmt.Errorf("could not marshal flow to YAML: %w", err)
+	}
+
+	if err := os.WriteFile(yamlFilePath, yamlData, 0644); err != nil {
+		return fmt.Errorf("could not write flow file: %w", err)
+	}
+
+	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, namespaceName)
+	if err != nil {
+		return fmt.Errorf("could not import flow after creation: %w", err)
+	}
+
+	c.flows[fmt.Sprintf("%s:%s", importedFlow.Meta.ID, namespaceUUID)] = importedFlow
+	return nil
+}
+
 func (c *Core) LoadFlows() error {
 	m := make(map[string]models.Flow)
 

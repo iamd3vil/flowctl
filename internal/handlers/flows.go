@@ -470,6 +470,10 @@ func (h *Handler) HandleGetFlowMeta(c echo.Context) error {
 
 func (h *Handler) HandleCreateFlow(c echo.Context) error {
 	namespace := c.Param("namespace")
+	_, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
+	}
 
 	var req FlowCreateReq
 	if err := c.Bind(&req); err != nil {
@@ -492,10 +496,47 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 	}
 
 	if err := h.co.CreateFlow(flow, namespace); err != nil {
-		return wrapError(http.StatusConflict, err.Error(), err, nil)
+		return wrapError(http.StatusInternalServerError, err.Error(), err, nil)
 	}
 
 	return c.JSON(http.StatusCreated, FlowCreateResp{
+		ID: flow.Meta.ID,
+	})
+}
+
+func (h *Handler) HandleUpdateFlow(c echo.Context) error {
+	namespace := c.Param("namespace")
+	namespaceID, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
+	}
+	flowID := c.Param("flowID")
+
+	var req FlowUpdateReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(http.StatusBadRequest, "invalid request", err, nil)
+	}
+
+	f, err := h.co.GetFlowByID(flowID, namespaceID)
+	if err != nil {
+		return wrapError(http.StatusNotFound, "could not get flow", err, nil)
+	}
+
+	flow := models.Flow{
+		Meta:    f.Meta,
+		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
+		Actions: convertFlowActionsReqToActions(req.Actions),
+	}
+
+	if err := flow.Validate(); err != nil {
+		return wrapError(http.StatusBadRequest, "flow validation error", err, nil)
+	}
+
+	if err := h.co.UpdateFlow(flow, namespace); err != nil {
+		return wrapError(http.StatusInternalServerError, err.Error(), err, nil)
+	}
+
+	return c.JSON(http.StatusOK, FlowCreateResp{
 		ID: flow.Meta.ID,
 	})
 }
