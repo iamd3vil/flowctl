@@ -225,6 +225,10 @@ export const apiClient = {
         method: 'PUT',
         body: JSON.stringify(flowData),
       }),
+    delete: (namespace: string, flowId: string) =>
+      baseFetch<void>(`/api/v1/${namespace}/flows/${flowId}`, {
+        method: 'DELETE',
+      }),
     getInputs: (namespace: string, flowId: string) =>
       baseFetch<FlowInputsResp>(`/api/v1/${namespace}/flows/${flowId}/inputs`),
     getMeta: (namespace: string, flowId: string) =>

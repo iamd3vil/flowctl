@@ -64,6 +64,20 @@ func (q *Queries) DeleteAllFlows(ctx context.Context) error {
 	return err
 }
 
+const deleteFlow = `-- name: DeleteFlow :exec
+DELETE FROM flows WHERE slug = $1 AND namespace_id = (SELECT id FROM namespaces where namespaces.uuid = $2)
+`
+
+type DeleteFlowParams struct {
+	Slug string    `db:"slug" json:"slug"`
+	Uuid uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) DeleteFlow(ctx context.Context, arg DeleteFlowParams) error {
+	_, err := q.db.ExecContext(ctx, deleteFlow, arg.Slug, arg.Uuid)
+	return err
+}
+
 const getFlowBySlug = `-- name: GetFlowBySlug :one
 SELECT f.id, f.slug, f.name, f.checksum, f.description, f.namespace_id, f.created_at, f.updated_at FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id

@@ -27,6 +27,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAllFlows(ctx context.Context) error
 	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
+	DeleteFlow(ctx context.Context, arg DeleteFlowParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNamespace(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNode(ctx context.Context, arg DeleteNodeParams) error

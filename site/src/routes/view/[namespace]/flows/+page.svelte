@@ -11,6 +11,7 @@
   import type { TableColumn, TableAction, FlowListItem } from "$lib/types";
   import { FLOWS_PER_PAGE } from "$lib/constants";
   import { Authorizer } from "casbin.js";
+  import DeleteModal from "$lib/components/shared/DeleteModal.svelte";
 
   let { data } = $props();
   let searchValue = $state("");
@@ -22,6 +23,9 @@
   let loading = $state(false);
   let canCreateFlow = $state(false);
   let canUpdateFlows = $state(false);
+  let canDeleteFlows = $state(false);
+  let showDeleteModal = $state(false);
+  let flowToDelete = $state<FlowListItem | null>(null);
 
   const goToFlow = (flowSlug: string) => {
     goto(`/view/${page.params.namespace}/flows/${flowSlug}`);
@@ -29,6 +33,25 @@
 
   const goToEditFlow = (flowSlug: string) => {
     goto(`/view/${page.params.namespace}/flows/${flowSlug}/edit`);
+  };
+
+  const handleDeleteFlow = (flow: FlowListItem) => {
+    flowToDelete = flow;
+    showDeleteModal = true;
+  };
+
+  const confirmDeleteFlow = async () => {
+    if (!flowToDelete) return;
+    
+    await apiClient.flows.delete(page.params.namespace!, flowToDelete.slug);
+    await loadFlows(searchValue, currentPage);
+    showDeleteModal = false;
+    flowToDelete = null;
+  };
+
+  const cancelDelete = () => {
+    showDeleteModal = false;
+    flowToDelete = null;
   };
 
   // Check permissions on component mount
@@ -46,10 +69,15 @@
       // Check if user can update flows in this namespace
       const updateResult = await authorizer.can('update', 'flow', data.namespaceId);
       canUpdateFlows = updateResult;
+
+      // Check if user can delete flows in this namespace
+      const deleteResult = await authorizer.can('delete', 'flow', data.namespaceId);
+      canDeleteFlows = deleteResult;
     } catch (err) {
       console.error('Failed to check permissions:', err);
       canCreateFlow = false;
       canUpdateFlows = false;
+      canDeleteFlows = false;
     }
   };
 
@@ -138,6 +166,14 @@
       });
     }
 
+    if (canDeleteFlows) {
+      actionsList.push({
+        label: "Delete",
+        onClick: (row: FlowListItem) => handleDeleteFlow(row),
+        className: "text-red-600 hover:text-red-700 transition-colors cursor-pointer",
+      });
+    }
+
     return actionsList;
   });
 </script>
@@ -213,3 +249,13 @@
     {/if}
   </div>
 </div>
+
+<!-- Delete Modal -->
+{#if showDeleteModal && flowToDelete}
+  <DeleteModal
+    title="Delete Flow"
+    itemName={flowToDelete.name}
+    onConfirm={confirmDeleteFlow}
+    onClose={cancelDelete}
+  />
+{/if}

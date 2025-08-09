@@ -28,6 +28,8 @@ var (
 )
 
 func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
 	f, ok := c.flows[fmt.Sprintf("%s:%s", id, namespaceID)]
 	if !ok {
 		return models.Flow{}, ErrFlowNotFound
@@ -37,6 +39,8 @@ func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 }
 
 func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Flow, error) {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
@@ -55,6 +59,8 @@ func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Fl
 }
 
 func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit, offset int) ([]models.Flow, int64, int64, error) {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
@@ -82,6 +88,8 @@ func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit,
 }
 
 func (c *Core) SearchFlows(ctx context.Context, namespaceID string, query string, limit, offset int) ([]models.Flow, int64, int64, error) {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
@@ -462,12 +470,19 @@ func (c *Core) GetExecutionByExecID(ctx context.Context, execID string, namespac
 	}, nil
 }
 
-func (c *Core) CreateFlow(f models.Flow, namespaceName string) error {
+func (c *Core) CreateFlow(ctx context.Context, f models.Flow, namespaceID string) error {
+	c.rwf.RLock()
 	if _, exists := c.flows[f.Meta.ID]; exists {
 		return fmt.Errorf("flow with id %s already exists", f.Meta.ID)
 	}
+	c.rwf.RUnlock()
 
-	namespaceDirPath := filepath.Join(c.flowDirectory, namespaceName)
+	n, err := c.GetNamespaceByID(ctx, namespaceID)
+	if err != nil {
+		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
+	}
+
+	namespaceDirPath := filepath.Join(c.flowDirectory, n.Name)
 	if err := os.MkdirAll(namespaceDirPath, 0755); err != nil {
 		return fmt.Errorf("could not create namespace directory: %w", err)
 	}
@@ -491,17 +506,30 @@ func (c *Core) CreateFlow(f models.Flow, namespaceName string) error {
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, namespaceName)
+	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
 
+	c.rwf.Lock()
+	defer c.rwf.Unlock()
 	c.flows[fmt.Sprintf("%s:%s", importedFlow.Meta.ID, namespaceUUID)] = importedFlow
 	return nil
 }
 
-func (c *Core) UpdateFlow(f models.Flow, namespaceName string) error {
-	namespaceDirPath := filepath.Join(c.flowDirectory, namespaceName)
+func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string) error {
+	c.rwf.RLock()
+	if _, exists := c.flows[fmt.Sprintf("%s:%s", f.Meta.ID, namespaceID)]; !exists {
+		return fmt.Errorf("flow with id %s does not exist", f.Meta.ID)
+	}
+	c.rwf.RUnlock()
+
+	n, err := c.GetNamespaceByID(ctx, namespaceID)
+	if err != nil {
+		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
+	}
+
+	namespaceDirPath := filepath.Join(c.flowDirectory, n.Name)
 	flowDir := filepath.Join(namespaceDirPath, f.Meta.ID)
 
 	yamlFilePath := filepath.Join(flowDir, fmt.Sprintf("%s.yaml", f.Meta.ID))
@@ -518,12 +546,51 @@ func (c *Core) UpdateFlow(f models.Flow, namespaceName string) error {
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, namespaceName)
+	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
 
+	c.rwf.Lock()
+	defer c.rwf.Unlock()
 	c.flows[fmt.Sprintf("%s:%s", importedFlow.Meta.ID, namespaceUUID)] = importedFlow
+	return nil
+}
+
+func (c *Core) DeleteFlow(ctx context.Context, flowID, namespaceID string) error {
+	c.rwf.RLock()
+	if _, exists := c.flows[fmt.Sprintf("%s:%s", flowID, namespaceID)]; !exists {
+		return fmt.Errorf("flow with id %s does not exist", flowID)
+	}
+	c.rwf.RUnlock()
+
+	n, err := c.GetNamespaceByID(ctx, namespaceID)
+	if err != nil {
+		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
+	}
+
+	namespaceDirPath := filepath.Join(c.flowDirectory, n.Name)
+	flowDir := filepath.Join(namespaceDirPath, flowID)
+
+	if err := os.RemoveAll(flowDir); err != nil {
+		return fmt.Errorf("could not delete flow: %w", err)
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	if err := c.store.DeleteFlow(ctx, repo.DeleteFlowParams{
+		Slug: flowID,
+		Uuid: namespaceUUID,
+	}); err != nil {
+		return fmt.Errorf("could not delete flow %s from DB: %w", flowID, err)
+	}
+
+	c.rwf.Lock()
+	defer c.rwf.Unlock()
+	delete(c.flows, fmt.Sprintf("%s:%s", flowID, namespaceID))
 	return nil
 }
 

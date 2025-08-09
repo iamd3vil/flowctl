@@ -470,7 +470,7 @@ func (h *Handler) HandleGetFlowMeta(c echo.Context) error {
 
 func (h *Handler) HandleCreateFlow(c echo.Context) error {
 	namespace := c.Param("namespace")
-	_, ok := c.Get("namespace").(string)
+	namespaceID, ok := c.Get("namespace").(string)
 	if !ok {
 		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
 	}
@@ -495,7 +495,7 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 		return wrapError(http.StatusBadRequest, "flow validation error", err, nil)
 	}
 
-	if err := h.co.CreateFlow(flow, namespace); err != nil {
+	if err := h.co.CreateFlow(c.Request().Context(), flow, namespaceID); err != nil {
 		return wrapError(http.StatusInternalServerError, err.Error(), err, nil)
 	}
 
@@ -505,7 +505,6 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 }
 
 func (h *Handler) HandleUpdateFlow(c echo.Context) error {
-	namespace := c.Param("namespace")
 	namespaceID, ok := c.Get("namespace").(string)
 	if !ok {
 		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
@@ -532,13 +531,27 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 		return wrapError(http.StatusBadRequest, "flow validation error", err, nil)
 	}
 
-	if err := h.co.UpdateFlow(flow, namespace); err != nil {
+	if err := h.co.UpdateFlow(c.Request().Context(), flow, namespaceID); err != nil {
 		return wrapError(http.StatusInternalServerError, err.Error(), err, nil)
 	}
 
 	return c.JSON(http.StatusOK, FlowCreateResp{
 		ID: flow.Meta.ID,
 	})
+}
+
+func (h *Handler) HandleDeleteFlow(c echo.Context) error {
+	namespaceID, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(http.StatusBadRequest, "could not get namespace", nil, nil)
+	}
+	flowID := c.Param("flowID")
+
+	if err := h.co.DeleteFlow(c.Request().Context(), flowID, namespaceID); err != nil {
+		return wrapError(http.StatusInternalServerError, err.Error(), err, nil)
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 func (h *Handler) HandleGetFlowConfig(c echo.Context) error {

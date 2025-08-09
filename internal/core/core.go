@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"sync"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/cvhariharan/flowctl/internal/core/models"
@@ -19,6 +20,7 @@ type Core struct {
 	redisClient redis.UniversalClient
 	store       repo.Store
 	q           *asynq.Client
+	rwf         sync.RWMutex
 	flows       map[string]models.Flow
 	keeper      *secrets.Keeper
 

@@ -26,6 +26,9 @@ UPDATE flows SET
 WHERE slug = $4 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $5)
 RETURNING *;
 
+-- name: DeleteFlow :exec
+DELETE FROM flows WHERE slug = $1 AND namespace_id = (SELECT id FROM namespaces where namespaces.uuid = $2);
+
 -- name: GetFlowsByNamespace :many
 SELECT f.*, n.uuid AS namespace_uuid
 FROM flows f
