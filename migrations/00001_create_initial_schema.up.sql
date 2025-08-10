@@ -112,6 +112,7 @@ GROUP BY
     u.id, u.uuid, u.name, u.username, u.password, u.login_type, u.role, u.created_at, u.updated_at;
 
 CREATE TYPE execution_status AS ENUM (
+    'cancelled',
     'completed',
     'errored',
     'pending',

@@ -31,7 +31,8 @@ const (
 )
 
 var (
-	ErrPendingApproval = errors.New("pending approval")
+	ErrPendingApproval    = errors.New("pending approval")
+	ErrExecutionCancelled = errors.New("execution cancelled")
 )
 
 type FlowExecutionPayload struct {
@@ -99,9 +100,12 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	defer streamLogger.Close(payload.ExecID)
 
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
-		// Check if context was cancelled (either by timeout, cancellation signal, or error)
 		if execCtx.Err() != nil {
-			return fmt.Errorf("execution cancelled")
+			// Send a cancelled message before returning
+			if err := streamLogger.Checkpoint("", "execution cancelled", streamlogger.CancelledMessageType); err != nil {
+				r.debugLogger.Debug("failed to send cancelled message", "error", err)
+			}
+			return ErrExecutionCancelled
 		}
 		action := payload.Workflow.Actions[i]
 
@@ -117,6 +121,15 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		if err != nil {
 			res, err = r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir)
 			if err != nil {
+				// Check if the error is due to context cancellation
+				r.debugLogger.Debug("context cancelled action", "err", err, "is", errors.Is(err, context.Canceled))
+				if errors.Is(err, context.Canceled) {
+					// Send a cancelled message before returning
+					if streamErr := streamLogger.Checkpoint(action.ID, "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
+						r.debugLogger.Debug("failed to send cancelled message", "error", streamErr)
+					}
+					return ErrExecutionCancelled
+				}
 				streamLogger.Checkpoint(action.ID, err.Error(), streamlogger.ErrMessageType)
 				return err
 			}
@@ -318,6 +331,10 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 	mergedResults := make(map[string]string)
 	for res := range resChan {
 		if res.err != nil {
+			// Check if any executor returned a context cancellation error
+			if errors.Is(res.err, context.Canceled) {
+				return nil, context.Canceled
+			}
 			return nil, res.err
 		}
 		for key, value := range res.result {

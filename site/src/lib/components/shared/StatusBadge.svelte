@@ -16,6 +16,8 @@
         return 'bg-yellow-100 text-yellow-800';
       case 'running':
         return 'bg-blue-100 text-blue-800';
+      case 'cancelled':
+        return 'bg-orange-100 text-orange-800';
       case 'errored':
         return 'bg-red-100 text-red-800';
       case 'rejected':
@@ -35,6 +37,8 @@
         return 'bg-yellow-400';
       case 'running':
         return 'bg-blue-400';
+      case 'cancelled':
+        return 'bg-orange-400';
       case 'errored':
         return 'bg-red-400';
       case 'rejected':

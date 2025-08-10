@@ -204,7 +204,7 @@ export interface ApprovalResp {
 }
 
 // Execution types
-export type ExecutionStatus = 'pending' | 'completed' | 'errored' | 'pending_approval' | 'running';
+export type ExecutionStatus = 'cancelled' | 'pending' | 'completed' | 'errored' | 'pending_approval' | 'running';
 
 export interface ExecutionSummary {
   id: string;

@@ -78,6 +78,13 @@ func (s *StreamLogger) Checkpoint(id string, val interface{}, mtype MessageType)
 		}
 		sm.MType = LogMessageType
 		sm.Val = d
+	case CancelledMessageType:
+		e, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("expected string type for cancelled got %T in stream checkpoint", val)
+		}
+		sm.MType = CancelledMessageType
+		sm.Val = []byte(e)
 	}
 
 	return s.r.XAdd(context.Background(), &redis.XAddArgs{

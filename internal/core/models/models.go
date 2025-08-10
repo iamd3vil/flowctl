@@ -18,10 +18,11 @@ type LogMessage struct {
 type MessageType string
 
 const (
-	LogMessageType    MessageType = "log"
-	ErrMessageType    MessageType = "error"
-	ResultMessageType MessageType = "result"
-	ApprovalMessageType  MessageType = "approval"
+	LogMessageType      MessageType = "log"
+	ErrMessageType      MessageType = "error"
+	ResultMessageType   MessageType = "result"
+	ApprovalMessageType MessageType = "approval"
+	CancelledMessageType MessageType = "cancelled"
 )
 
 type StreamMessage struct {
@@ -121,6 +122,7 @@ func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
 type ExecutionStatus string
 
 const (
+	ExecutionStatusCancelled ExecutionStatus = "cancelled"
 	ExecutionStatusPending   ExecutionStatus = "pending"
 	ExecutionStatusCompleted ExecutionStatus = "completed"
 	ExecutionStatusErrored   ExecutionStatus = "errored"

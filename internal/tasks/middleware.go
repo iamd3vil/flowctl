@@ -58,6 +58,9 @@ func (s *StatusTrackerDB) TrackerMiddleware(next func(context.Context, *asynq.Ta
 			if errors.Is(err, ErrPendingApproval) {
 				return s.SetStatus(ctx, payload.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, nil)
 			}
+			if errors.Is(err, ErrExecutionCancelled) {
+				return s.SetStatus(ctx, payload.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, nil)
+			}
 			return s.SetStatus(ctx, payload.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, err)
 		}
 

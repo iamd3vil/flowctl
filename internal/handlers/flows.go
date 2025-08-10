@@ -235,7 +235,7 @@ func (h *Handler) handleLogStreaming(c echo.Context, msg models.StreamMessage, w
 			return err
 		}
 	default:
-		h.logger.Debug("Default message", "value", string(msg.Val))
+		h.logger.Debug("Default message", "type", msg.MType, "value", string(msg.Val))
 		if err := json.NewEncoder(&buf).Encode(FlowLogResp{
 			ActionID: msg.ActionID,
 			MType:    string(msg.MType),

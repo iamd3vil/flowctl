@@ -310,6 +310,10 @@ export const apiClient = {
       baseFetch<ExecutionSummary>(`/api/v1/${namespace}/flows/executions/${execId}`),
     listForFlow: (namespace: string, flowId: string, params: PaginateRequest = {}) =>
       baseFetch<ExecutionsPaginateResponse>(`/api/v1/${namespace}/flows/${flowId}/executions${buildQueryString(params)}`),
+    cancel: (namespace: string, execId: string) =>
+      baseFetch<{message: string; execID: string}>(`/api/v1/${namespace}/flows/executions/${execId}/cancel`, {
+        method: 'POST',
+      }),
   },
 
   // Executors

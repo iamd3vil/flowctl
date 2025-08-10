@@ -12,6 +12,7 @@
   import EmptyState from '$lib/components/flow-status/EmptyState.svelte';
   import type { PageData } from './$types';
   import type { FlowMetaResp, ExecutionSummary } from '$lib/types';
+  import { apiClient } from '$lib/apiClient';
 
   let { data }: { 
     data: {
@@ -25,7 +26,7 @@
   } = $props();
 
   // Flow execution state
-  let status = $state<'running' | 'completed' | 'awaiting_approval' | 'errored'>('running');
+  let status = $state<'running' | 'completed' | 'awaiting_approval' | 'errored' | 'cancelled'>('running');
   let currentActionIndex = $state(-1);
   let completedActions = $state<number[]>([]);
   let failedActionIndex = $state(-1);
@@ -41,6 +42,7 @@
   // WebSocket connection
   let ws: WebSocket | null = null;
   let hasReceivedMessages = $state(false);
+  let manuallyClosed = $state(false);
 
   // Derived values
   let namespace = $derived(data.namespace);
@@ -86,6 +88,11 @@
 
     ws.onclose = (event) => {
       console.log('WebSocket closed:', event);
+      // Don't update status if we manually closed the connection (e.g., during cancellation)
+      if (manuallyClosed) {
+        return;
+      }
+      
       if (event.code === 1000) {
         status = 'completed';
         for (let i = 0; i < actions.length; i++) {
@@ -124,6 +131,10 @@
     } else if (executionStatus === 'errored') {
       failedActionIndex = currentActionIndex;
       currentActionIndex = -1;
+    } else if (executionStatus === 'cancelled') {
+      failedActionIndex = currentActionIndex;
+      currentActionIndex = -1;
+      status = 'cancelled';
     } else if (executionStatus === 'running' || executionStatus === 'pending') {
       currentActionIndex = currentActionIndex;
     } else if (executionStatus === 'pending_approval') {
@@ -156,8 +167,14 @@
         }
         break;
       case 'error':
-        errorMessage = msg.value || "An error occurred.";
-        status = 'errored';
+        // Check if the error indicates cancellation
+        if (msg.value && msg.value.includes('cancelled')) {
+          status = 'cancelled';
+          errorMessage = null; // Don't show error message for cancellation
+        } else {
+          errorMessage = msg.value || "An error occurred.";
+          status = 'errored';
+        }
         if (currentActionIndex !== -1) {
           failedActionIndex = currentActionIndex;
         }
@@ -166,6 +183,11 @@
         approvalID = msg.value;
         showApproval = true;
         status = 'awaiting_approval';
+        break;
+      case 'cancelled':
+        status = 'cancelled';
+        errorMessage = null; // Don't show error message for cancellation
+        logOutput += (msg.value || 'Flow execution was cancelled') + '\n';
         break;
       default:
         logOutput += (msg.value || '') + '\n';
@@ -191,13 +213,44 @@
     showApproval = false;
   };
 
+  const stopFlow = async () => {
+    try {
+      const result = await apiClient.executions.cancel(namespace, logId);
+      console.log('Flow cancellation initiated:', result);
+      
+      // Set status first, then close WebSocket to prevent race condition
+      status = 'cancelled';
+      errorMessage = null; // Don't show error message for cancellation
+      
+      // Mark as manually closed and close WebSocket connection
+      manuallyClosed = true;
+      if (ws) {
+        ws.close();
+      }
+    } catch (error) {
+      console.error('Error cancelling flow:', error);
+      errorMessage = `Failed to cancel flow: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  };
+
   // Initialize component
   onMount(() => {
     if (data.executionSummary) {
       const execStatus = data.executionSummary.status;
-      status = execStatus === 'pending' ? 'running' : 
-               execStatus === 'pending_approval' ? 'awaiting_approval' : 
-               execStatus;
+      if (execStatus === 'pending') {
+        status = 'running';
+      } else if (execStatus === 'pending_approval') {
+        status = 'awaiting_approval';
+      } else if (execStatus === 'cancelled') {
+        status = 'cancelled';
+      } else if (execStatus === 'completed') {
+        status = 'completed';
+      } else if (execStatus === 'errored') {
+        status = 'errored';
+      } else if (execStatus === 'running') {
+        status = 'running';
+      }
+      
       startTime = new Date(data.executionSummary.started_at).toLocaleString();
       flowName = data.executionSummary.flow_name || data.flowMeta?.meta?.name || '';
       
@@ -228,10 +281,15 @@
     <Header 
       breadcrumbs={['Flows', flowName || 'Loading...', 'Execution Status']}
       actions={[
+        ...(status === 'running' ? [{
+          label: 'Stop Flow',
+          onClick: stopFlow,
+          variant: 'danger' as const
+        }] : []),
         {
           label: 'Back to Flows',
           onClick: goBack,
-          variant: 'secondary'
+          variant: 'secondary' as const
         }
       ]}
     >

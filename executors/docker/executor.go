@@ -241,12 +241,12 @@ func (d *DockerExecutor) readTempFileContents(ctx context.Context, tempFile stri
 // The run, createSrcDirectories, pullImage, and createContainer
 func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionContext) error {
 	if err := d.pullImage(ctx, d.client); err != nil {
-		return fmt.Errorf("could not pull image: %v", err)
+		return fmt.Errorf("could not pull image: %w", err)
 	}
 
 	resp, err := d.createContainer(ctx, d.client)
 	if err != nil {
-		return fmt.Errorf("unable to create container: %v", err)
+		return fmt.Errorf("unable to create container: %w", err)
 	}
 	d.containerID = resp.ID
 
@@ -263,11 +263,11 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 
 	// Copy the artifacts directory to the container
 	if err := d.copyArtifactsToContainer(ctx, resp.ID); err != nil {
-		return fmt.Errorf("unable to copy artifacts to container: %v", err)
+		return fmt.Errorf("unable to copy artifacts to container: %w", err)
 	}
 
 	if err := d.client.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
-		return fmt.Errorf("unable to start container: %v", err)
+		return fmt.Errorf("unable to start container: %w", err)
 	}
 
 	// Start goroutine to monitor context cancellation and stop container if cancelled
@@ -290,18 +290,18 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 		Follow:     true,
 	})
 	if err != nil {
-		return fmt.Errorf("unable to get container logs: %v", err)
+		return fmt.Errorf("unable to get container logs: %w", err)
 	}
 	defer logs.Close()
 
 	if _, err := stdcopy.StdCopy(d.stdout, d.stderr, logs); err != nil {
-		return fmt.Errorf("error copying logs: %v", err)
+		return fmt.Errorf("error copying logs: %w", err)
 	}
 
 	statusCh, errCh := d.client.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
-		return fmt.Errorf("error waiting for container: %v", err)
+		return fmt.Errorf("error waiting for container: %w", err)
 	case status := <-statusCh:
 		if status.StatusCode != 0 {
 			return fmt.Errorf("container exited with code %d", status.StatusCode)
@@ -312,7 +312,7 @@ func (d *DockerExecutor) run(ctx context.Context, execCtx executor.ExecutionCont
 
 	// Retrieve artifacts from the container
 	if err := d.getArtifactsFromContainer(ctx, resp.ID, execCtx.Artifacts); err != nil {
-		return fmt.Errorf("unable to retrieve artifacts from container: %v", err)
+		return fmt.Errorf("unable to retrieve artifacts from container: %w", err)
 	}
 
 	return nil
@@ -333,7 +333,7 @@ func (d *DockerExecutor) copyArtifactsToContainer(ctx context.Context, container
 	// Remote execution: use docker cp command
 	dockerCpCmd := fmt.Sprintf("cd %s && tar -c . | docker cp - %s:%s", pushDir, containerID, WORKING_DIR)
 	if err := d.remoteClient.RunCommand(ctx, dockerCpCmd, io.Discard, io.Discard); err != nil {
-		return fmt.Errorf("failed to copy artifacts to container via docker cp: %v", err)
+		return fmt.Errorf("failed to copy artifacts to container via docker cp: %w", err)
 	}
 	return nil
 }
@@ -346,33 +346,33 @@ func (d *DockerExecutor) getArtifactsFromContainer(ctx context.Context, containe
 			// Local execution: use Docker API
 			tar, _, err := d.client.CopyFromContainer(ctx, containerID, containerPath)
 			if err != nil {
-				return fmt.Errorf("unable to copy artifact %s from container: %v", artifact, err)
+				return fmt.Errorf("unable to copy artifact %s from container: %w", artifact, err)
 			}
 			defer tar.Close()
 
 			pullDir := filepath.Join(d.artifactsDirectory, PULL_DIR, filepath.Dir(artifact))
 			if err := d.createFileOrDirectory(ctx, pullDir, true); err != nil {
-				return fmt.Errorf("unable to create artifact directory %s: %v", pullDir, err)
+				return fmt.Errorf("unable to create artifact directory %s: %w", pullDir, err)
 			}
 
 			if err := archive.Untar(tar, pullDir, &archive.TarOptions{
 				NoLchown:             true,
 				NoOverwriteDirNonDir: true,
 			}); err != nil {
-				return fmt.Errorf("unable to untar artifact %s: %v", artifact, err)
+				return fmt.Errorf("unable to untar artifact %s: %w", artifact, err)
 			}
 		} else {
 			// Remote execution: use docker cp command
 			remotePath := filepath.Join(d.artifactsDirectory, PULL_DIR, artifact)
 			if err := d.createFileOrDirectory(ctx, filepath.Dir(remotePath), true); err != nil {
-				return fmt.Errorf("unable to create artifact directory %s: %v", filepath.Dir(remotePath), err)
+				return fmt.Errorf("unable to create artifact directory %s: %w", filepath.Dir(remotePath), err)
 			}
 
 			dockerCpCmd := fmt.Sprintf("docker cp %s:%s - | tar -xf - -C %s",
 				containerID, containerPath, filepath.Dir(remotePath))
 
 			if err := d.remoteClient.RunCommand(ctx, dockerCpCmd, io.Discard, io.Discard); err != nil {
-				return fmt.Errorf("failed to copy artifact %s from container via docker cp: %v", artifact, err)
+				return fmt.Errorf("failed to copy artifact %s from container via docker cp: %w", artifact, err)
 			}
 		}
 	}

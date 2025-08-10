@@ -144,6 +144,7 @@ func (ns NullConnectionType) Value() (driver.Value, error) {
 type ExecutionStatus string
 
 const (
+	ExecutionStatusCancelled       ExecutionStatus = "cancelled"
 	ExecutionStatusCompleted       ExecutionStatus = "completed"
 	ExecutionStatusErrored         ExecutionStatus = "errored"
 	ExecutionStatusPending         ExecutionStatus = "pending"

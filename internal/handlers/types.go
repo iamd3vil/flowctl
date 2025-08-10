@@ -460,6 +460,7 @@ func coreNamespaceMembersToResp(members []models.NamespaceMember) NamespaceMembe
 type ExecutionStatus string
 
 const (
+	ExecutionStatusCancelled ExecutionStatus = "cancelled"
 	ExecutionStatusPending   ExecutionStatus = "pending"
 	ExecutionStatusCompleted ExecutionStatus = "completed"
 	ExecutionStatusErrored   ExecutionStatus = "errored"

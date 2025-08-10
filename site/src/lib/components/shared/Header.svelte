@@ -8,7 +8,7 @@
     children
   }: { 
     breadcrumbs?: string[],
-    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' }>,
+    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' }>,
     showUserDropdown?: boolean,
     children?: any
   } = $props();
@@ -38,7 +38,7 @@
       {#each actions as action}
         <button 
           onclick={action.onClick}
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors {action.variant === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors {action.variant === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700' : action.variant === 'danger' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
         >
           {action.label}
         </button>
