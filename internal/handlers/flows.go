@@ -599,8 +599,8 @@ func (h *Handler) HandleCancelExecution(c echo.Context) error {
 		return wrapError(ErrOperationFailed, "failed to cancel execution", err, nil)
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Cancellation signal sent",
-		"execID":  execID,
+	return c.JSON(http.StatusOK, FlowCancellationResp{
+		Message: "Cancellation signal sent",
+		ExecID:  execID,
 	})
 }

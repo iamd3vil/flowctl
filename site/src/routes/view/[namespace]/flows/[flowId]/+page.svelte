@@ -14,6 +14,7 @@
   import type { PageData } from './$types';
   import type { TableColumn } from '$lib/types';
   import { DEFAULT_PAGE_SIZE } from '$lib/constants';
+  import { permissionChecker } from '$lib/utils/permissions';
 
   let { data }: { data: PageData } = $props();
   
@@ -24,9 +25,15 @@
   let historyItemsPerPage = $state(DEFAULT_PAGE_SIZE);
   let historyTotalCount = $state(0);
   let historyPageCount = $state(0);
+  let canUpdateFlow = $state(false);
 
   let namespace = $derived(page.params.namespace);
   let flowId = $derived(page.params.flowId);
+
+  // Check update permission on mount
+  permissionChecker(data.user!, 'flow', data.namespaceId, ['update']).then(permissions => {
+    canUpdateFlow = permissions.canUpdate;
+  });
 
 
   const loadFlowHistory = async () => {
@@ -150,8 +157,8 @@
 <Header 
   breadcrumbs={[`${page.params.namespace}`, 'Flows', data.flowMeta?.meta?.name || 'Loading...']} 
   actions={[
-    { label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' },
-    { label: 'Back to Flows', onClick: () => goto(`/view/${namespace}/flows`), variant: 'secondary' }
+    ...(canUpdateFlow ? [{ label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' as const }] : []),
+    { label: 'Back to Flows', onClick: () => goto(`/view/${namespace}/flows`), variant: 'secondary' as const }
   ]}
 />
 

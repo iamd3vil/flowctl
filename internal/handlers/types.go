@@ -638,3 +638,8 @@ func coreFlowSecretToFlowSecretResp(secret models.FlowSecret) FlowSecretResp {
 		UpdatedAt:   secret.UpdatedAt,
 	}
 }
+
+type FlowCancellationResp struct {
+	Message string `json:"message"`
+	ExecID  string `json:"execID"`
+}

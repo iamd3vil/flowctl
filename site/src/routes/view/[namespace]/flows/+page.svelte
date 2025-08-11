@@ -10,7 +10,7 @@
   import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
   import type { TableColumn, TableAction, FlowListItem } from "$lib/types";
   import { FLOWS_PER_PAGE } from "$lib/constants";
-  import { Authorizer } from "casbin.js";
+  import { permissionChecker, type ResourcePermissions } from "$lib/utils/permissions";
   import DeleteModal from "$lib/components/shared/DeleteModal.svelte";
 
   let { data } = $props();
@@ -20,9 +20,12 @@
   let totalCount = $state(data.totalCount);
   let currentPage = $state(data.currentPage);
   let loading = $state(false);
-  let canCreateFlow = $state(false);
-  let canUpdateFlows = $state(false);
-  let canDeleteFlows = $state(false);
+  let permissions = $state<ResourcePermissions>({
+    canCreate: false,
+    canRead: false,
+    canUpdate: false,
+    canDelete: false
+  });
   let showDeleteModal = $state(false);
   let flowToDelete = $state<FlowListItem | null>(null);
 
@@ -59,34 +62,11 @@
     flowToDelete = null;
   };
 
-  // Check permissions on component mount
+  // Check permissions on mount
   const checkPermissions = async () => {
-    try {
-      const authorizer = new Authorizer('auto', {
-        endpoint: '/api/v1/permissions'
-      });
-      await authorizer.setUser(`user:${data.user?.id!}`);
-
-      // Check if user can create flows in this namespace  
-      const createResult = await authorizer.can('create', 'flow', data.namespaceId);
-      canCreateFlow = createResult;
-
-      // Check if user can update flows in this namespace
-      const updateResult = await authorizer.can('update', 'flow', data.namespaceId);
-      canUpdateFlows = updateResult;
-
-      // Check if user can delete flows in this namespace
-      const deleteResult = await authorizer.can('delete', 'flow', data.namespaceId);
-      canDeleteFlows = deleteResult;
-    } catch (err) {
-      handleInlineError(err, 'Unable to Check Permissions');
-      canCreateFlow = false;
-      canUpdateFlows = false;
-      canDeleteFlows = false;
-    }
+    permissions = await permissionChecker(data.user!, 'flow', data.namespaceId, ['create', 'update', 'delete']);
   };
 
-  // Run permission check on mount
   checkPermissions();
 
   const loadFlows = async (filter: string = "", pageNumber: number = 1) => {
@@ -161,7 +141,7 @@
   const actions = $derived(() => {
     const actionsList: TableAction<FlowListItem>[] = [];
 
-    if (canUpdateFlows) {
+    if (permissions.canUpdate) {
       actionsList.push({
         label: "Edit",
         onClick: (row: FlowListItem) => goToEditFlow(row.slug),
@@ -169,7 +149,7 @@
       });
     }
 
-    if (canDeleteFlows) {
+    if (permissions.canDelete) {
       actionsList.push({
         label: "Delete",
         onClick: (row: FlowListItem) => handleDeleteFlow(row),
@@ -201,7 +181,7 @@
   <div class="max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <PageHeader title="Flows" subtitle="Manage and run your workflows" />
-      {#if canCreateFlow}
+      {#if permissions.canCreate}
         <button
           class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           onclick={() => goto(`/view/${page.params.namespace}/flows/create`)}
