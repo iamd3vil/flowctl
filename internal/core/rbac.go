@@ -42,6 +42,10 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMembers), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMembers), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMembers), string(models.RBACActionDelete))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionCreate))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionUpdate))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionDelete))
 
 	// Role inheritance - for all namespaces
 	c.enforcer.AddGroupingPolicy("role:reviewer", "role:user", "*")

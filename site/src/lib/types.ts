@@ -253,6 +253,21 @@ export interface CredentialsPaginateResponse extends PaginatedResponse<Credentia
   credentials: CredentialResp[];
 }
 
+// Flow secrets types
+export interface FlowSecretReq {
+  key: string;
+  value: string;
+  description?: string;
+}
+
+export interface FlowSecretResp {
+  id: string;
+  key: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface ApprovalsPaginateResponse extends PaginatedResponse<ApprovalResp> {
   approvals: ApprovalResp[];
@@ -326,7 +341,6 @@ export interface FlowInputReq {
 }
 
 export interface FlowActionReq {
-  id: string;
   name: string;
   executor: 'script' | 'docker';
   with: Record<string, any>;

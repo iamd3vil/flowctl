@@ -12,6 +12,7 @@ type Resource string
 
 const (
 	ResourceFlow       Resource = "flow"
+	ResourceFlowSecret Resource = "flow_secret"
 	ResourceNode       Resource = "node"
 	ResourceCredential Resource = "credential"
 	ResourceMembers    Resource = "members"

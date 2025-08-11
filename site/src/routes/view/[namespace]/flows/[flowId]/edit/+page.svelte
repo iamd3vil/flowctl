@@ -7,6 +7,8 @@
   import FlowInputs from '$lib/components/flow-create/FlowInputs.svelte';
   import FlowActions from '$lib/components/flow-create/FlowActions.svelte';
   import ValidationModal from '$lib/components/flow-create/ValidationModal.svelte';
+  import Stepper from '$lib/components/shared/Stepper.svelte';
+  import SecretsTab from '$lib/components/secrets/SecretsTab.svelte';
   import type { PageData } from './$types';
   import type { FlowUpdateReq, FlowInputReq, FlowActionReq } from '$lib/types.js';
   import { goto } from '$app/navigation';
@@ -42,6 +44,16 @@
   
   // Executor configs for actions
   let executorConfigs = $state({} as Record<string, any>);
+
+  // Stepper state
+  let currentStep = $state('metadata');
+
+  const steps = [
+    { id: 'metadata', label: 'Metadata', description: 'Basic flow information' },
+    { id: 'inputs', label: 'Inputs', description: 'User input parameters' },
+    { id: 'actions', label: 'Actions', description: 'Workflow execution steps' },
+    { id: 'secrets', label: 'Secrets', description: 'Encrypted values' } // Always enabled in edit mode
+  ];
 
   onMount(async () => {
     await loadFlowConfig();
@@ -92,6 +104,11 @@
       flow.actions = (config.actions || []).map((action, index) => ({
         tempId: Date.now() + index,
         ...action,
+        // Transform variables from API format {key: value} to UI format {name: key, value: value}
+        variables: action.variables ? action.variables.map(varObj => {
+          const [key, value] = Object.entries(varObj)[0];
+          return { name: key, value: value };
+        }) : [],
         artifactsText: action.artifacts ? action.artifacts.join('\n') : '',
         on: action.on ? action.on.join(',') : '',
         collapsed: false
@@ -158,23 +175,22 @@
             required: input.required || false,
             default: input.default || undefined,
             options: input.type === 'select' && input.optionsText 
-              ? input.optionsText.split('\n').filter(o => o.trim()) 
+              ? input.optionsText.split('\n').filter((o: string) => o.trim()) 
               : undefined
           })),
         actions: flow.actions
-          .filter(a => a.name && a.id)
+          .filter(a => a.name)
           .map((action): FlowActionReq => ({
-            id: action.id,
             name: action.name,
             executor: action.executor as 'script' | 'docker',
             with: action.with || {},
             approval: action.approval || false,
-            variables: action.variables?.length ? action.variables : undefined,
+            variables: action.variables?.length ? action.variables.map(v => ({[v.name]: v.value})) : undefined,
             artifacts: action.artifactsText 
-              ? action.artifactsText.split('\n').filter(a => a.trim())
+              ? action.artifactsText.split('\n').filter((a: string) => a.trim())
               : undefined,
             condition: action.condition || undefined,
-            on: action.on ? action.on.split(',').map(n => n.trim()).filter(n => n) : undefined
+            on: action.on ? action.on.split(',').map((n: string) => n.trim()).filter((n: string) => n) : undefined
           }))
       };
 
@@ -218,35 +234,50 @@
             </div>
           </div>
         {:else}
-          <FlowMetadata bind:metadata={flow.metadata} readonly={true} />
-          <FlowInputs bind:inputs={flow.inputs} {addInput} />
-          <FlowActions 
-            bind:actions={flow.actions} 
-            {addAction} 
-            {availableExecutors}
-            bind:executorConfigs={executorConfigs}
-          />
+          <!-- Stepper Navigation -->
+          <Stepper bind:currentStep {steps} />
+
+          <!-- Step Content -->
+          {#if currentStep === 'metadata'}
+            <FlowMetadata bind:metadata={flow.metadata} readonly={true} />
+          {:else if currentStep === 'inputs'}
+            <FlowInputs bind:inputs={flow.inputs} {addInput} />
+          {:else if currentStep === 'actions'}
+            <FlowActions 
+              bind:actions={flow.actions} 
+              {addAction} 
+              {availableExecutors}
+              bind:executorConfigs={executorConfigs}
+            />
+          {:else if currentStep === 'secrets'}
+            <SecretsTab 
+              {namespace} 
+              {flowId}
+            />
+          {/if}
           
-          <!-- Submit Button at Bottom -->
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-            <div class="flex justify-end space-x-3">
-              <button 
-                type="button"
-                onclick={() => goto(`/view/${namespace}/flows/${flowId}`)}
-                class="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Cancel
-              </button>
-              <button 
-                type="button"
-                onclick={updateFlow}
-                disabled={saving}
-                class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Updating...' : 'Update Flow'}
-              </button>
+          <!-- Submit Button at Bottom (only show on non-secrets steps) -->
+          {#if currentStep !== 'secrets'}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+              <div class="flex justify-end space-x-3">
+                <button 
+                  type="button"
+                  onclick={() => goto(`/view/${namespace}/flows/${flowId}`)}
+                  class="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onclick={updateFlow}
+                  disabled={saving}
+                  class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Updating...' : 'Update Flow'}
+                </button>
+              </div>
             </div>
-          </div>
+          {/if}
         {/if}
       </div>
     </div>

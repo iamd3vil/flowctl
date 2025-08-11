@@ -191,6 +191,13 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	namespaceGroup.GET("/flows/:flowID/inputs", h.HandleGetFlowInputs, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/meta", h.HandleGetFlowMeta, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/config", h.HandleGetFlowConfig, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
+
+	// Flow secrets routes - only admins can manage secrets
+	namespaceGroup.GET("/flows/:flowID/secrets", h.HandleListFlowSecrets, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))
+	namespaceGroup.GET("/flows/:flowID/secrets/:secretID", h.HandleGetFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))
+	namespaceGroup.POST("/flows/:flowID/secrets", h.HandleCreateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionCreate))
+	namespaceGroup.PUT("/flows/:flowID/secrets/:secretID", h.HandleUpdateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionUpdate))
+	namespaceGroup.DELETE("/flows/:flowID/secrets/:secretID", h.HandleDeleteFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionDelete))
 	namespaceGroup.POST("/trigger/:flow", h.HandleFlowTrigger, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.GET("/logs/:logID", h.HandleLogStreaming, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
 
@@ -260,7 +267,7 @@ func startWorker(db *sqlx.DB, co *core.Core, redisClient redis.UniversalClient, 
 
 	s := repo.NewPostgresStore(db)
 
-	flowRunner := tasks.NewFlowRunner(redisClient, co.BeforeActionHook, nil, logger)
+	flowRunner := tasks.NewFlowRunner(redisClient, co.BeforeActionHook, nil, co.GetDecryptedFlowSecrets, logger)
 
 	st := tasks.NewStatusTracker(s)
 

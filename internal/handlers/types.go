@@ -614,3 +614,27 @@ func convertFlowActionsToActionsReq(actions []models.Action) []FlowActionReq {
 	}
 	return actionsReq
 }
+
+type FlowSecretReq struct {
+	Key         string `json:"key" validate:"required,min=1,max=255"`
+	Value       string `json:"value" validate:"required"`
+	Description string `json:"description"`
+}
+
+type FlowSecretResp struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+func coreFlowSecretToFlowSecretResp(secret models.FlowSecret) FlowSecretResp {
+	return FlowSecretResp{
+		ID:          secret.ID,
+		Key:         secret.Key,
+		Description: secret.Description,
+		CreatedAt:   secret.CreatedAt,
+		UpdatedAt:   secret.UpdatedAt,
+	}
+}

@@ -7,6 +7,8 @@
   import FlowInputs from '$lib/components/flow-create/FlowInputs.svelte';
   import FlowActions from '$lib/components/flow-create/FlowActions.svelte';
   import ValidationModal from '$lib/components/flow-create/ValidationModal.svelte';
+  import Stepper from '$lib/components/shared/Stepper.svelte';
+  import SecretsTab from '$lib/components/secrets/SecretsTab.svelte';
   import type { PageData } from './$types';
   import type { FlowCreateReq, FlowInputReq, FlowActionReq } from '$lib/types.js';
   import { goto } from '$app/navigation';
@@ -40,6 +42,17 @@
   
   // Executor configs for actions
   let executorConfigs = $state({} as Record<string, any>);
+
+  // Stepper state
+  let currentStep = $state('metadata');
+  let createdFlowId = $state<string | null>(null);
+
+  const steps = [
+    { id: 'metadata', label: 'Metadata', description: 'Basic flow information' },
+    { id: 'inputs', label: 'Inputs', description: 'User input parameters' },
+    { id: 'actions', label: 'Actions', description: 'Workflow execution steps' },
+    { id: 'secrets', label: 'Secrets', description: 'Encrypted values', disabled: !createdFlowId }
+  ];
 
   onMount(() => {
     // Add first action by default
@@ -110,7 +123,7 @@
             executor: action.executor as 'script' | 'docker',
             with: action.with || {},
             approval: action.approval || false,
-            variables: action.variables?.length ? action.variables : undefined,
+            variables: action.variables?.length ? action.variables.map(v => ({[v.name]: v.value})) : undefined,
             artifacts: action.artifactsText 
               ? action.artifactsText.split('\n').filter(a => a.trim())
               : undefined,
@@ -120,10 +133,15 @@
       };
 
       const result = await apiClient.flows.create(namespace, flowData);
-      showSuccess('Flow Created', `Flow "${flow.metadata.name}" has been created successfully.`);
       
-      // Redirect to the flows list or flow detail page
-      await goto(`/view/${namespace}/flows`);
+      // Enable secrets step after successful creation
+      createdFlowId = result.id;
+      steps[3].disabled = false;
+      
+      showSuccess('Flow Created', `Flow "${flow.metadata.name}" has been created successfully. You can now add secrets.`);
+      
+      // Switch to secrets step to encourage adding secrets
+      currentStep = 'secrets';
       
     } catch (error: any) {
       handleInlineError(error, 'Unable to Create Flow');
@@ -149,28 +167,44 @@
     <!-- Page Content -->
     <div class="flex-1 overflow-y-auto">
       <div class="max-w-6xl mx-auto p-6">
-        <FlowMetadata bind:metadata={flow.metadata} />
-        <FlowInputs bind:inputs={flow.inputs} {addInput} />
-        <FlowActions 
-          bind:actions={flow.actions} 
-          {addAction} 
-          {availableExecutors}
-          bind:executorConfigs={executorConfigs}
-        />
+        <!-- Stepper Navigation -->
+        <Stepper bind:currentStep {steps} />
+
+        <!-- Step Content -->
+        {#if currentStep === 'metadata'}
+          <FlowMetadata bind:metadata={flow.metadata} />
+        {:else if currentStep === 'inputs'}
+          <FlowInputs bind:inputs={flow.inputs} {addInput} />
+        {:else if currentStep === 'actions'}
+          <FlowActions 
+            bind:actions={flow.actions} 
+            {addAction} 
+            {availableExecutors}
+            bind:executorConfigs={executorConfigs}
+          />
+        {:else if currentStep === 'secrets'}
+          <SecretsTab 
+            {namespace} 
+            flowId={createdFlowId || undefined}
+            disabled={!createdFlowId}
+          />
+        {/if}
         
-        <!-- Submit Button at Bottom -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
-          <div class="flex justify-end">
-            <button 
-              type="button"
-              onclick={saveFlow}
-              disabled={saving}
-              class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Creating...' : 'Create Flow'}
-            </button>
+        <!-- Submit Button at Bottom (only show on non-secrets steps) -->
+        {#if currentStep !== 'secrets'}
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+            <div class="flex justify-end">
+              <button 
+                type="button"
+                onclick={saveFlow}
+                disabled={saving}
+                class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Creating...' : 'Create Flow'}
+              </button>
+            </div>
           </div>
-        </div>
+        {/if}
       </div>
     </div>
   </div>

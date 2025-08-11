@@ -248,3 +248,22 @@ CREATE TABLE casbin_rule (
     v5 VARCHAR(100),
     CONSTRAINT idx_casbin_rule UNIQUE(ptype, v0, v1, v2, v3, v4, v5)
 );
+
+CREATE TABLE IF NOT EXISTS flow_secrets (
+    id SERIAL PRIMARY KEY,
+    uuid UUID NOT NULL DEFAULT uuid_generate_v4(),
+    flow_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    encrypted_value TEXT NOT NULL,
+    description TEXT,
+    namespace_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE CASCADE,
+    FOREIGN KEY (namespace_id) REFERENCES namespaces(id) ON DELETE CASCADE,
+    UNIQUE(flow_id, key, namespace_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_flow_secrets_uuid ON flow_secrets(uuid);
+CREATE INDEX IF NOT EXISTS idx_flow_secrets_flow_id ON flow_secrets(flow_id);
+CREATE INDEX IF NOT EXISTS idx_flow_secrets_namespace_id ON flow_secrets(namespace_id);

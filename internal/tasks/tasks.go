@@ -19,7 +19,6 @@ import (
 	"github.com/expr-lang/expr"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,6 +43,7 @@ type FlowExecutionPayload struct {
 }
 
 type HookFn func(ctx context.Context, execID string, action Action, namespaceID string) error
+type SecretsProviderFn func(ctx context.Context, flowID string, namespaceID string) (map[string]string, error)
 
 func NewFlowExecution(f Flow, input map[string]interface{}, startingActionIdx int, ExecID, namespaceID string) (*asynq.Task, error) {
 	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, StartingActionIdx: startingActionIdx, ExecID: ExecID, NamespaceID: namespaceID})
@@ -56,12 +56,13 @@ func NewFlowExecution(f Flow, input map[string]interface{}, startingActionIdx in
 type FlowRunner struct {
 	onBeforeActionFn HookFn
 	onAfterActionFn  HookFn
+	secretsProvider  SecretsProviderFn
 	debugLogger      *slog.Logger
 	redisClient      redis.UniversalClient
 }
 
-func NewFlowRunner(redisClient redis.UniversalClient, onBeforeActionFn, onAfterActionFn HookFn, debugLogger *slog.Logger) *FlowRunner {
-	return &FlowRunner{redisClient: redisClient, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, debugLogger: debugLogger.With("component", "flow_runner")}
+func NewFlowRunner(redisClient redis.UniversalClient, onBeforeActionFn, onAfterActionFn HookFn, secretsProvider SecretsProviderFn, debugLogger *slog.Logger) *FlowRunner {
+	return &FlowRunner{redisClient: redisClient, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, secretsProvider: secretsProvider, debugLogger: debugLogger.With("component", "flow_runner")}
 }
 
 func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) error {
@@ -99,6 +100,19 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 	streamLogger := streamlogger.NewStreamLogger(r.redisClient).WithID(streamID)
 	defer streamLogger.Close(payload.ExecID)
 
+	// Get flow-specific secrets
+	var flowSecrets map[string]string
+	if r.secretsProvider != nil {
+		var err error
+		flowSecrets, err = r.secretsProvider(ctx, payload.Workflow.Meta.ID, payload.NamespaceID)
+		if err != nil {
+			r.debugLogger.Error("failed to get flow secrets", "error", err)
+			flowSecrets = make(map[string]string) // Continue with empty secrets if there's an error
+		}
+	} else {
+		flowSecrets = make(map[string]string)
+	}
+
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		if execCtx.Err() != nil {
 			// Send a cancelled message before returning
@@ -119,7 +133,7 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 		// Only run action if it has not already run, if it has run, use the existing results
 		res, err := streamLogger.Results(action.ID)
 		if err != nil {
-			res, err = r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir)
+			res, err = r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets)
 			if err != nil {
 				// Check if the error is due to context cancellation
 				r.debugLogger.Debug("context cancelled action", "err", err, "is", errors.Is(err, context.Canceled))
@@ -190,7 +204,7 @@ func (r *FlowRunner) pullArtifacts(ctx context.Context, exec executor.Executor, 
 	return nil
 }
 
-func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamlogger *streamlogger.StreamLogger, artifactDir string) (map[string]string, error) {
+func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamlogger *streamlogger.StreamLogger, artifactDir string, secrets map[string]string) (map[string]string, error) {
 	streamlogger = streamlogger.WithActionID(action.ID)
 
 	// pattern to extract interpolated variables
@@ -208,7 +222,7 @@ func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string
 			inputExpr := matches[0][1]
 			env := map[string]interface{}{
 				"input":   input,
-				"secrets": viper.GetStringMapString("secrets"),
+				"secrets": secrets,
 			}
 
 			program, err := expr.Compile(inputExpr, expr.Env(env))

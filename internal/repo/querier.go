@@ -21,6 +21,7 @@ type Querier interface {
 	AssignUserNamespaceRole(ctx context.Context, arg AssignUserNamespaceRoleParams) (NamespaceMember, error)
 	CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
+	CreateFlowSecret(ctx context.Context, arg CreateFlowSecretParams) (FlowSecret, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateNamespace(ctx context.Context, name string) (Namespace, error)
 	CreateNode(ctx context.Context, arg CreateNodeParams) (Node, error)
@@ -28,6 +29,7 @@ type Querier interface {
 	DeleteAllFlows(ctx context.Context) error
 	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
 	DeleteFlow(ctx context.Context, arg DeleteFlowParams) error
+	DeleteFlowSecret(ctx context.Context, arg DeleteFlowSecretParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNamespace(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNode(ctx context.Context, arg DeleteNodeParams) error
@@ -51,6 +53,7 @@ type Querier interface {
 	GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (Flow, error)
 	GetFlowFromExecID(ctx context.Context, arg GetFlowFromExecIDParams) (Flow, error)
 	GetFlowFromExecIDWithNamespace(ctx context.Context, arg GetFlowFromExecIDWithNamespaceParams) (Flow, error)
+	GetFlowSecretByUUID(ctx context.Context, arg GetFlowSecretByUUIDParams) (GetFlowSecretByUUIDRow, error)
 	GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error)
 	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
@@ -71,6 +74,7 @@ type Querier interface {
 	GetUserNamespacesWithRoles(ctx context.Context, argUuid uuid.UUID) ([]GetUserNamespacesWithRolesRow, error)
 	GetUsersByRole(ctx context.Context, role UserRoleType) ([]User, error)
 	ListCredentials(ctx context.Context, arg ListCredentialsParams) ([]ListCredentialsRow, error)
+	ListFlowSecrets(ctx context.Context, arg ListFlowSecretsParams) ([]ListFlowSecretsRow, error)
 	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
 	ListFlowsPaginated(ctx context.Context, arg ListFlowsPaginatedParams) ([]ListFlowsPaginatedRow, error)
 	ListNamespaces(ctx context.Context, arg ListNamespacesParams) ([]ListNamespacesRow, error)
@@ -86,6 +90,7 @@ type Querier interface {
 	UpdateExecutionActionID(ctx context.Context, arg UpdateExecutionActionIDParams) (ExecutionLog, error)
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
+	UpdateFlowSecret(ctx context.Context, arg UpdateFlowSecretParams) (FlowSecret, error)
 	UpdateGroupByUUID(ctx context.Context, arg UpdateGroupByUUIDParams) (Group, error)
 	UpdateNamespace(ctx context.Context, arg UpdateNamespaceParams) (Namespace, error)
 	UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, error)

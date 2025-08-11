@@ -12,7 +12,7 @@
   import EmptyState from '$lib/components/flow-status/EmptyState.svelte';
   import type { PageData } from './$types';
   import type { FlowMetaResp, ExecutionSummary } from '$lib/types';
-  import { apiClient } from '$lib/apiClient';
+  import { apiClient, ApiError } from '$lib/apiClient';
   import { handleInlineError, showInfo, showSuccess, showWarning } from '$lib/utils/errorHandling';
 
   let { data }: { 
@@ -171,7 +171,10 @@
         if (msg.value && msg.value.includes('cancelled')) {
           status = 'cancelled';
         } else {
-          handleInlineError(new Error(msg.value || "An error occurred."), 'Flow Execution Error');
+          handleInlineError(new ApiError(500, 'Flow execution failed', { 
+            error: msg.value || "An error occurred.", 
+            code: "OPERATION_FAILED" 
+          }), 'Flow Execution Error');
           status = 'errored';
         }
         if (currentActionIndex !== -1) {

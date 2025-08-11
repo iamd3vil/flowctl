@@ -5,18 +5,6 @@
 [
   {
     "adapter": "Delve",
-    "label": "worker",
-    "request": "launch",
-    "mode": "debug",
-    "program": ".",
-    "args": ["start", "--worker"],
-    "buildFlags": [],
-    "env": {
-      //"DOCKER_HOST": "unix:///run/user/1000/podman/podman.sock"
-    }
-  },
-  {
-    "adapter": "Delve",
     "label": "server",
     "request": "launch",
     "mode": "debug",
@@ -24,7 +12,7 @@
     "args": ["start"],
     "buildFlags": [],
     "env": {
-
+      "DOCKER_HOST": "unix:///run/user/1000/podman/podman.sock"
     }
   }
 ]

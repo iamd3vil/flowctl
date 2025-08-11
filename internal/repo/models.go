@@ -333,6 +333,18 @@ type Flow struct {
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 }
 
+type FlowSecret struct {
+	ID             int32          `db:"id" json:"id"`
+	Uuid           uuid.UUID      `db:"uuid" json:"uuid"`
+	FlowID         int32          `db:"flow_id" json:"flow_id"`
+	Key            string         `db:"key" json:"key"`
+	EncryptedValue string         `db:"encrypted_value" json:"encrypted_value"`
+	Description    sql.NullString `db:"description" json:"description"`
+	NamespaceID    int32          `db:"namespace_id" json:"namespace_id"`
+	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
+}
+
 type Group struct {
 	ID          int32          `db:"id" json:"id"`
 	Uuid        uuid.UUID      `db:"uuid" json:"uuid"`
