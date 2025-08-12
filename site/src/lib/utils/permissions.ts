@@ -12,12 +12,12 @@ export interface User {
   id: string;
 }
 
-export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
+export type PermissionAction = 'create' | 'view' | 'update' | 'delete';
 
 /**
  * Checks permissions for a resource type in a given namespace
  */
-export async function permissionChecker(user: User, resourceType: string, namespaceId: string, actions: PermissionAction[] = ['create', 'read', 'update', 'delete']): Promise<ResourcePermissions> {
+export async function permissionChecker(user: User, resourceType: string, namespaceId: string, actions: PermissionAction[] = ['create', 'view', 'update', 'delete']): Promise<ResourcePermissions> {
   const permissions: ResourcePermissions = {
     canCreate: false,
     canRead: false,
@@ -42,7 +42,7 @@ export async function permissionChecker(user: User, resourceType: string, namesp
         case 'create':
           permissions.canCreate = results[index];
           break;
-        case 'read':
+        case 'view':
           permissions.canRead = results[index];
           break;
         case 'update':

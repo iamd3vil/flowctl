@@ -2,11 +2,22 @@ import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { apiClient } from '$lib/apiClient';
 import { DEFAULT_PAGE_SIZE } from '$lib/constants';
+import { permissionChecker } from '$lib/utils/permissions';
 
 export const ssr = false;
 
-export const load: PageLoad = async ({ params, url }) => {
+export const load: PageLoad = async ({ params, url, parent }) => {
+	const { user, namespaceId } = await parent();
+
 	try {
+		const permissions = await permissionChecker(user!, 'approval', namespaceId, ['view']);
+		if (!permissions.canRead) {
+			error(403, {
+				message: 'You do not have permission to view approvals in this namespace',
+				code: 'INSUFFICIENT_PERMISSIONS'
+			});
+		}
+
 		const { namespace } = params;
 		const page = Number(url.searchParams.get('page') || '1');
 		const search = url.searchParams.get('search') || '';
@@ -30,7 +41,6 @@ export const load: PageLoad = async ({ params, url }) => {
 			namespace
 		};
 	} catch (err) {
-		console.error('Failed to load approvals data:', err);
-		throw error(500, 'Failed to load approvals data');
+		error(500, 'Failed to load approvals data');
 	}
 };

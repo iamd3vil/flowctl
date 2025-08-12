@@ -23,6 +23,7 @@
 	let pageCount = $state(data.pageCount);
 	let currentPage = $state(data.currentPage);
 	let searchQuery = $state(data.searchQuery);
+	let permissions = $state(data.permissions);
 	let loading = $state(false);
 	let showModal = $state(false);
 	let isEditMode = $state(false);
@@ -71,18 +72,27 @@
 		}
 	];
 
-	let tableActions = [
-		{
-			label: 'Edit',
-			onClick: (credential: CredentialResp) => handleEdit(credential.id),
-			className: 'text-blue-600 hover:text-blue-800'
-		},
-		{
-			label: 'Delete',
-			onClick: (credential: CredentialResp) => handleDelete(credential.id),
-			className: 'text-red-600 hover:text-red-800'
+	let tableActions = $derived(() => {
+		const actionsList = [];
+		
+		if (permissions.canUpdate) {
+			actionsList.push({
+				label: 'Edit',
+				onClick: (credential: CredentialResp) => handleEdit(credential.id),
+				className: 'text-blue-600 hover:text-blue-800'
+			});
 		}
-	];
+		
+		if (permissions.canDelete) {
+			actionsList.push({
+				label: 'Delete',
+				onClick: (credential: CredentialResp) => handleDelete(credential.id),
+				className: 'text-red-600 hover:text-red-800'
+			});
+		}
+		
+		return actionsList;
+	});
 
 	// Functions
 	async function fetchCredentials(filter: string = '', pageNumber: number = 1) {
@@ -229,14 +239,14 @@
 	<PageHeader 
 		title="Credentials"
 		subtitle="Manage SSH keys, passwords, and other authentication credentials"
-		actions={[
+		actions={permissions.canCreate ? [
 			{
 				label: 'Add Credential',
 				onClick: handleAdd,
 				variant: 'primary',
 				icon: '<i class="ti ti-plus"></i>'
 			}
-		]}
+		] : []}
 	/>
 
 	<!-- Credentials Table -->
@@ -244,7 +254,7 @@
 		<Table
 			data={credentials}
 			columns={tableColumns}
-			actions={tableActions}
+			actions={tableActions()}
 			{loading}
 			emptyMessage="No credentials found. Get started by adding your first credential."
 		/>

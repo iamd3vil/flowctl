@@ -13,14 +13,15 @@ import (
 // InitializeRBACPolicies sets up the base policies for each role
 // These policies apply to all namespaces using wildcard "*"
 func (c *Core) InitializeRBACPolicies() error {
+	// Clear all existing role-based policies to prevent duplicates
+	c.enforcer.RemoveFilteredPolicy(0, "role:user", "role:reviewer", "role:admin")
+
 	// User role policies - for all namespaces
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionView))
-	// c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionExecute))
-	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceNode), string(models.RBACActionView))
-	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceCredential), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceFlow), string(models.RBACActionExecute))
+	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceNode), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceMembers), string(models.RBACActionView))
-	// c.enforcer.AddPolicy("role:user", "*", string(models.ResourceExecution), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceNamespace), string(models.RBACActionView))
 
 	// Reviewer role policies (inherits from user) - for all namespaces
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceApproval), "*")
@@ -30,12 +31,10 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionDelete))
-	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionCreate))
-	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionUpdate))
-	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNamespace), string(models.RBACActionDelete))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionDelete))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceCredential), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceCredential), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceCredential), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceCredential), string(models.RBACActionDelete))
