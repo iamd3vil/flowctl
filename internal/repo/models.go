@@ -187,6 +187,48 @@ func (ns NullExecutionStatus) Value() (driver.Value, error) {
 	return string(ns.ExecutionStatus), nil
 }
 
+type TriggerType string
+
+const (
+	TriggerTypeManual    TriggerType = "manual"
+	TriggerTypeScheduled TriggerType = "scheduled"
+)
+
+func (e *TriggerType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TriggerType(s)
+	case string:
+		*e = TriggerType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TriggerType: %T", src)
+	}
+	return nil
+}
+
+type NullTriggerType struct {
+	TriggerType TriggerType `json:"trigger_type"`
+	Valid       bool        `json:"valid"` // Valid is true if TriggerType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTriggerType) Scan(value interface{}) error {
+	if value == nil {
+		ns.TriggerType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TriggerType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTriggerType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TriggerType), nil
+}
+
 type UserLoginType string
 
 const (
@@ -316,6 +358,7 @@ type ExecutionLog struct {
 	Error           sql.NullString  `db:"error" json:"error"`
 	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
 	Status          ExecutionStatus `db:"status" json:"status"`
+	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
 	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
 	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
@@ -323,14 +366,15 @@ type ExecutionLog struct {
 }
 
 type Flow struct {
-	ID          int32          `db:"id" json:"id"`
-	Slug        string         `db:"slug" json:"slug"`
-	Name        string         `db:"name" json:"name"`
-	Checksum    string         `db:"checksum" json:"checksum"`
-	Description sql.NullString `db:"description" json:"description"`
-	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
-	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	ID           int32          `db:"id" json:"id"`
+	Slug         string         `db:"slug" json:"slug"`
+	Name         string         `db:"name" json:"name"`
+	Checksum     string         `db:"checksum" json:"checksum"`
+	Description  sql.NullString `db:"description" json:"description"`
+	CronSchedule sql.NullString `db:"cron_schedule" json:"cron_schedule"`
+	NamespaceID  int32          `db:"namespace_id" json:"namespace_id"`
+	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 type FlowSecret struct {

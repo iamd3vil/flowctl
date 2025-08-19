@@ -173,9 +173,9 @@ func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID 
 	return nil
 }
 
-// getNodesByNames retrieves nodes by their names and returns a slice of models.Node
+// GetNodesByNames retrieves nodes by their names and returns a slice of models.Node
 // This is used as a lookup function for converting flows to task models
-func (c *Core) getNodesByNames(ctx context.Context, nodeNames []string, namespaceUUID uuid.UUID) ([]models.Node, error) {
+func (c *Core) GetNodesByNames(ctx context.Context, nodeNames []string, namespaceUUID uuid.UUID) ([]models.Node, error) {
 	if len(nodeNames) == 0 {
 		return nil, nil
 	}
@@ -247,15 +247,33 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	}
 
 	taskFlow, err := models.ToTaskFlowModel(f, func(nodeNames []string) ([]models.Node, error) {
-		return c.getNodesByNames(ctx, nodeNames, namespaceUUID)
+		return c.GetNodesByNames(ctx, nodeNames, namespaceUUID)
 	})
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to task model: %w", err)
 	}
 
-	task, err := tasks.NewFlowExecution(taskFlow, input, actionIndex, execID, namespaceID)
+	task, err := tasks.NewFlowExecution(taskFlow, input, actionIndex, execID, namespaceID, tasks.TriggerTypeManual, userUUID)
 	if err != nil {
 		return "", fmt.Errorf("error creating task: %v", err)
+	}
+
+	// Create execution log for manual flows before queuing (needed for immediate API calls)
+	inputB, err := json.Marshal(input)
+	if err != nil {
+		return "", fmt.Errorf("could not marshal input to json: %w", err)
+	}
+
+	_, err = c.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
+		ExecID:      execID,
+		FlowID:      f.Meta.DBID,
+		Input:       inputB,
+		TriggerType: repo.TriggerTypeManual,
+		Uuid:        userID,
+		Uuid_2:      namespaceUUID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not add entry to execution log: %w", err)
 	}
 
 	_, err = c.q.Enqueue(task, asynq.Retention(24*time.Hour), asynq.Queue(queue))
@@ -263,23 +281,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		return "", err
 	}
 
-	inputB, err := json.Marshal(input)
-	if err != nil {
-		return "", fmt.Errorf("could not marshal input to json: %w", err)
-	}
-
-	_, err = c.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
-		ExecID: execID,
-		FlowID: f.Meta.DBID,
-		Input:  inputB,
-		Uuid:   userID,
-		Uuid_2: namespaceUUID,
-	})
-	if err != nil {
-		return "", fmt.Errorf("could not add entry to execution log: %w", err)
-	}
-
-	return execID, err
+	return execID, nil
 }
 
 // CancelFlowExecution sets a cancellation signal for the given execution ID, this is best effort cancellation
@@ -719,19 +721,21 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 	})
 	if err != nil {
 		fd, err = c.store.CreateFlow(context.Background(), repo.CreateFlowParams{
-			Slug:        f.Meta.ID,
-			Name:        f.Meta.Name,
-			Checksum:    checksum,
-			Description: sql.NullString{String: f.Meta.Description, Valid: true},
-			Name_2:      f.Meta.Namespace,
+			Slug:         f.Meta.ID,
+			Name:         f.Meta.Name,
+			Checksum:     checksum,
+			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
+			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
+			Name_2:       f.Meta.Namespace,
 		})
 	} else if fd.Checksum != checksum {
 		fd, err = c.store.UpdateFlow(context.Background(), repo.UpdateFlowParams{
-			Name:        f.Meta.Name,
-			Description: sql.NullString{String: f.Meta.Description, Valid: true},
-			Checksum:    checksum,
-			Slug:        f.Meta.ID,
-			Name_2:      f.Meta.Namespace,
+			Name:         f.Meta.Name,
+			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
+			Checksum:     checksum,
+			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
+			Slug:         f.Meta.ID,
+			Name_2:       f.Meta.Namespace,
 		})
 	}
 	if err != nil {
@@ -740,4 +744,24 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 
 	f.Meta.DBID = fd.ID
 	return f, ns.Uuid.String(), nil
+}
+
+// GetScheduledFlows returns all flows that have a cron schedule configured
+func (c *Core) GetScheduledFlows() []models.Flow {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
+
+	var scheduledFlows []models.Flow
+
+	// Iterate through all loaded flows
+	for _, flow := range c.flows {
+		// Skip flows without a schedule
+		if flow.Meta.Schedule == "" {
+			continue
+		}
+
+		scheduledFlows = append(scheduledFlows, flow)
+	}
+
+	return scheduledFlows
 }

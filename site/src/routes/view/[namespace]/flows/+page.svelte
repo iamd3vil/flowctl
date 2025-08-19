@@ -127,6 +127,23 @@
         `<div class="text-sm text-gray-600 max-w-xs truncate">${value}</div>`,
     },
     {
+      key: "schedule",
+      header: "Schedule",
+      render: (value: string) => {
+        if (!value) {
+          return `<span class="text-sm text-gray-400 italic">Manual only</span>`;
+        }
+        return `
+          <div class="flex items-center text-sm">
+            <svg class="w-4 h-4 text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">${value}</code>
+          </div>
+        `;
+      },
+    },
+    {
       key: "step_count",
       header: "Steps",
       render: (value: number) => `

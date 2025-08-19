@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS flows (
     name VARCHAR(150) NOT NULL,
     checksum VARCHAR(128) NOT NULL,
     description TEXT,
+    cron_schedule VARCHAR(100),
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -54,6 +55,11 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE UNIQUE INDEX idx_users_uuid ON users(uuid);
 CREATE UNIQUE INDEX idx_users_username ON users(username);
+
+-- Create system user for scheduled executions
+INSERT INTO users (uuid, name, username, login_type, role, created_at, updated_at)
+VALUES ('00000000-0000-0000-0000-000000000000', 'System', 'system', 'token', 'superuser', NOW(), NOW())
+ON CONFLICT (uuid) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS groups (
     id SERIAL PRIMARY KEY,
@@ -120,6 +126,11 @@ CREATE TYPE execution_status AS ENUM (
     'running'
 );
 
+CREATE TYPE trigger_type AS ENUM (
+    'manual',
+    'scheduled'
+);
+
 CREATE TABLE IF NOT EXISTS execution_log (
     id SERIAL PRIMARY KEY,
     exec_id VARCHAR(36) NOT NULL,
@@ -129,6 +140,7 @@ CREATE TABLE IF NOT EXISTS execution_log (
     error TEXT,
     current_action_id TEXT,
     status execution_status NOT NULL DEFAULT 'pending',
+    trigger_type trigger_type NOT NULL DEFAULT 'manual',
     triggered_by INTEGER NOT NULL,
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),

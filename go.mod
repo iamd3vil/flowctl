@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/casbin/casbin/v2 v2.110.0
+	github.com/casbin/redis-adapter/v3 v3.6.0
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/cvhariharan/flowctl/executors/docker v0.0.0-20250728145512-aa56676fc961
 	github.com/cvhariharan/flowctl/executors/script v0.0.0-20250728145512-aa56676fc961
@@ -15,11 +16,11 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/gosimple/slug v1.15.0
 	github.com/hibiken/asynq v0.25.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/lib/pq v1.10.9
-	github.com/memwey/casbin-sqlx-adapter v0.3.0
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
@@ -35,7 +36,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
-	github.com/casbin/redis-adapter/v3 v3.6.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -62,7 +62,6 @@ require (
 	github.com/golang/mock v1.7.0-rc.1 // indirect
 	github.com/gomodule/redigo v1.8.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
-	github.com/gosimple/slug v1.15.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-envparse v0.1.0 // indirect

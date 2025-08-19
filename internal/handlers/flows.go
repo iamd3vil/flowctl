@@ -10,11 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/gorilla/websocket"
-	"github.com/gosimple/slug"
 	"github.com/labstack/echo/v4"
 )
 
@@ -483,9 +481,10 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 
 	flow := models.Flow{
 		Meta: models.Metadata{
-			ID:          strings.Replace(slug.Make(req.Meta.Name), "-", "_", -1),
+			ID:          GenerateSlug(req.Meta.Name),
 			Name:        req.Meta.Name,
 			Description: req.Meta.Description,
+			Schedule:    req.Meta.Schedule,
 			Namespace:   namespace,
 		},
 		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
@@ -523,8 +522,12 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
 	}
 
+	// Update the metadata schedule from request
+	updatedMeta := f.Meta
+	updatedMeta.Schedule = req.Schedule
+
 	flow := models.Flow{
-		Meta:    f.Meta,
+		Meta:    updatedMeta,
 		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
 		Actions: convertFlowActionsReqToActions(req.Actions),
 	}
@@ -571,6 +574,7 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 		Meta: FlowMetaReq{
 			Name:        f.Meta.Name,
 			Description: f.Meta.Description,
+			Schedule:    f.Meta.Schedule,
 		},
 		Inputs:  convertFlowInputsToInputsReq(f.Inputs),
 		Actions: convertFlowActionsToActionsReq(f.Actions),

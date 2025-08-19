@@ -24,6 +24,7 @@
       id: '',
       name: '',
       description: '',
+      schedule: '',
       namespace: namespace
     },
     inputs: [] as any[],
@@ -91,6 +92,7 @@
         id: flowId,
         name: config.metadata.name,
         description: config.metadata.description || '',
+        schedule: config.metadata.schedule || '',
         namespace: namespace
       };
       
@@ -164,6 +166,7 @@
     try {
       // Transform the flow data to match the API schema for update
       const flowData: FlowUpdateReq = {
+        schedule: flow.metadata.schedule,
         inputs: flow.inputs
           .filter(i => i.name)
           .map((input): FlowInputReq => ({
@@ -239,7 +242,7 @@
 
           <!-- Step Content -->
           {#if currentStep === 'metadata'}
-            <FlowMetadata bind:metadata={flow.metadata} readonly={true} />
+            <FlowMetadata bind:metadata={flow.metadata} inputs={flow.inputs} readonly={true} />
           {:else if currentStep === 'inputs'}
             <FlowInputs bind:inputs={flow.inputs} {addInput} />
           {:else if currentStep === 'actions'}

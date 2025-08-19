@@ -47,6 +47,7 @@ export interface FlowListItem {
   slug: string;
   name: string;
   description: string;
+  schedule: string;
   step_count: number;
 }
 
@@ -67,6 +68,7 @@ export interface FlowMeta {
   id: string;
   name: string;
   description: string;
+  schedule: string;
   namespace: string;
 }
 
@@ -327,6 +329,7 @@ export interface FlowCreateReq {
 export interface FlowMetaReq {
   name: string;
   description?: string;
+  schedule?: string;
 }
 
 export interface FlowInputReq {
@@ -356,6 +359,7 @@ export interface FlowCreateResp {
 }
 
 export interface FlowUpdateReq {
+  schedule: string;
   inputs: FlowInputReq[];
   actions: FlowActionReq[];
   outputs?: Record<string, any>[];

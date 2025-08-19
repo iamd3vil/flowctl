@@ -65,6 +65,7 @@ type Metadata struct {
 	DBID        int32  `yaml:"-"`
 	Name        string `yaml:"name" validate:"required"`
 	Description string `yaml:"description"`
+	Schedule    string `yaml:"schedule"`
 	SrcDir      string `yaml:"-"`
 	Namespace   string `yaml:"namespace"`
 }

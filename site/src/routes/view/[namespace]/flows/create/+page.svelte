@@ -23,11 +23,13 @@
       id: '',
       name: '',
       description: '',
+      schedule: '',
       namespace: namespace
     },
     inputs: [] as any[],
     actions: [] as any[]
   });
+
 
   // Modal states
   let showValidation = $state(false);
@@ -99,7 +101,8 @@
       const flowData: FlowCreateReq = {
         metadata: {
           name: flow.metadata.name,
-          description: flow.metadata.description || undefined
+          description: flow.metadata.description || undefined,
+          schedule: flow.metadata.schedule || undefined
         },
         inputs: flow.inputs
           .filter(i => i.name)
@@ -172,7 +175,7 @@
 
         <!-- Step Content -->
         {#if currentStep === 'metadata'}
-          <FlowMetadata bind:metadata={flow.metadata} />
+          <FlowMetadata bind:metadata={flow.metadata} inputs={flow.inputs} />
         {:else if currentStep === 'inputs'}
           <FlowInputs bind:inputs={flow.inputs} {addInput} />
         {:else if currentStep === 'actions'}

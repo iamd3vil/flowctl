@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
@@ -18,6 +19,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/handlers"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/tasks"
+	"github.com/cvhariharan/flowctl/internal/tasks/scheduler"
 	"github.com/cvhariharan/flowctl/internal/utils"
 	"github.com/hibiken/asynq"
 	"github.com/jmoiron/sqlx"
@@ -273,6 +275,37 @@ func startWorker(db *sqlx.DB, co *core.Core, redisClient redis.UniversalClient, 
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeFlowExecution, st.TrackerMiddleware(flowRunner.HandleFlowExecution))
+
+	// Create PeriodicTaskManager for scheduled flows
+	scheduleProvider := scheduler.NewFlowScheduleProvider(co)
+	preEnqueueFunc := scheduler.NewSchedulePreEnqueueFunc(co)
+
+	periodicTaskManager, err := asynq.NewPeriodicTaskManager(asynq.PeriodicTaskManagerOpts{
+		RedisUniversalClient:       redisClient,
+		PeriodicTaskConfigProvider: scheduleProvider,
+		SyncInterval:               2 * time.Minute, // Check for schedule changes every 5 minutes
+		SchedulerOpts: &asynq.SchedulerOpts{
+			PreEnqueueFunc: preEnqueueFunc,
+		},
+	})
+	if err != nil {
+		logger.Error("Failed to create periodic task manager", "error", err)
+		log.Fatal(err)
+	}
+
+	// Start periodic task manager in a goroutine
+	go func() {
+		logger.Info("Starting periodic task manager for scheduled flows")
+		if err := periodicTaskManager.Run(); err != nil {
+			logger.Error("Periodic task manager error", "error", err)
+		}
+	}()
+
+	// Ensure periodic task manager is shut down when worker exits
+	defer func() {
+		logger.Info("Shutting down periodic task manager")
+		periodicTaskManager.Shutdown()
+	}()
 
 	log.Fatal(asynqSrv.Run(mux))
 }

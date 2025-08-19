@@ -34,23 +34,56 @@ var (
 	ErrExecutionCancelled = errors.New("execution cancelled")
 )
 
+type TriggerType string
+
+const (
+	TriggerTypeManual    TriggerType = "manual"
+	TriggerTypeScheduled TriggerType = "scheduled"
+)
+
 type FlowExecutionPayload struct {
 	Workflow          Flow
 	Input             map[string]interface{}
 	StartingActionIdx int
 	ExecID            string
 	NamespaceID       string
+	TriggerType       TriggerType
+	UserUUID          string
 }
 
 type HookFn func(ctx context.Context, execID string, action Action, namespaceID string) error
 type SecretsProviderFn func(ctx context.Context, flowID string, namespaceID string) (map[string]string, error)
 
-func NewFlowExecution(f Flow, input map[string]interface{}, startingActionIdx int, ExecID, namespaceID string) (*asynq.Task, error) {
-	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: input, StartingActionIdx: startingActionIdx, ExecID: ExecID, NamespaceID: namespaceID})
+func NewFlowExecution(f Flow, input map[string]interface{}, startingActionIdx int, ExecID, namespaceID string, triggerType TriggerType, userUUID string) (*asynq.Task, error) {
+	// Apply default values for empty or missing input parameters
+	processedInput := applyDefaultValues(f.Inputs, input)
+
+	payload, err := json.Marshal(FlowExecutionPayload{Workflow: f, Input: processedInput, StartingActionIdx: startingActionIdx, ExecID: ExecID, NamespaceID: namespaceID, TriggerType: triggerType, UserUUID: userUUID})
 	if err != nil {
 		return nil, err
 	}
 	return asynq.NewTask(TypeFlowExecution, payload, asynq.MaxRetry(MaxRetries)), nil
+}
+
+// applyDefaultValues applies default values for empty or missing input parameters
+func applyDefaultValues(inputs []Input, userInput map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for k, v := range userInput {
+		result[k] = v
+	}
+
+	for _, inputDef := range inputs {
+		value, exists := result[inputDef.Name]
+
+		if !exists || (value == "") {
+			if inputDef.Default != "" {
+				result[inputDef.Name] = inputDef.Default
+			}
+		}
+	}
+
+	return result
 }
 
 type FlowRunner struct {

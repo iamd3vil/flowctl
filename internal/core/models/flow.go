@@ -74,6 +74,7 @@ type Metadata struct {
 	DBID        int32  `yaml:"-"`
 	Name        string `yaml:"name" validate:"required"`
 	Description string `yaml:"description"`
+	Schedule    string `yaml:"schedule" validate:"omitempty,cron"`
 	SrcDir      string `yaml:"-"`
 	Namespace   string `yaml:"namespace"`
 }
@@ -232,6 +233,11 @@ func (f Flow) Validate() error {
 		actionsIDs[action.ID] = 1
 	}
 
+	// Check if schedule is set on a non-schedulable flow
+	if f.Meta.Schedule != "" && !f.IsSchedulable() {
+		return fmt.Errorf("cannot set schedule on flow: flow has inputs without default values")
+	}
+
 	return validate.Struct(f)
 }
 
@@ -252,6 +258,15 @@ func (f Flow) IsApprovalRequired() bool {
 		}
 	}
 	return false
+}
+
+func (f Flow) IsSchedulable() bool {
+	for _, input := range f.Inputs {
+		if input.Default == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func (f Flow) ValidateInput(inputs map[string]interface{}) *FlowValidationError {

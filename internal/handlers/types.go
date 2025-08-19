@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"strings"
+
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/gosimple/slug"
 )
@@ -8,6 +12,19 @@ import (
 const (
 	TimeFormat = "2006-01-02T15:04:05Z"
 )
+
+// GenerateSlug creates a universally unique slug from the provided string
+// The slug uses only alphabets, numbers, and underscores
+func GenerateSlug(input string) string {
+	baseSlug := strings.ReplaceAll(slug.Make(input), "-", "_")
+
+	// Generate 4 random hex characters for uniqueness
+	bytes := make([]byte, 2)
+	rand.Read(bytes)
+	suffix := hex.EncodeToString(bytes)
+
+	return baseSlug + "_" + suffix
+}
 
 type AuthReq struct {
 	Username string `json:"username"`
@@ -274,6 +291,7 @@ type FlowListItem struct {
 	Slug        string `json:"slug"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Schedule    string `json:"schedule"`
 	StepCount   int    `json:"step_count"`
 }
 
@@ -313,6 +331,7 @@ type FlowMeta struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Schedule    string `json:"schedule"`
 	Namespace   string `json:"namespace"`
 }
 
@@ -321,6 +340,7 @@ func coreFlowMetatoFlowMeta(m models.Metadata) FlowMeta {
 		ID:          m.ID,
 		Name:        m.Name,
 		Description: m.Description,
+		Schedule:    m.Schedule,
 		Namespace:   m.Namespace,
 	}
 }
@@ -378,6 +398,7 @@ func coreFlowToFlow(flow models.Flow) FlowListItem {
 		Slug:        flow.Meta.ID,
 		Name:        flow.Meta.Name,
 		Description: flow.Meta.Description,
+		Schedule:    flow.Meta.Schedule,
 		StepCount:   len(flow.Actions),
 	}
 }
@@ -499,6 +520,7 @@ type FlowCreateReq struct {
 type FlowMetaReq struct {
 	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
+	Schedule    string `json:"schedule"`
 }
 
 type FlowInputReq struct {
@@ -528,8 +550,9 @@ type FlowCreateResp struct {
 }
 
 type FlowUpdateReq struct {
-	Inputs  []FlowInputReq  `json:"inputs" validate:"required,dive"`
-	Actions []FlowActionReq `json:"actions" validate:"required,dive"`
+	Schedule string          `json:"schedule"`
+	Inputs   []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions  []FlowActionReq `json:"actions" validate:"required,dive"`
 }
 
 // Helper functions to convert request types to models
@@ -560,7 +583,7 @@ func convertFlowActionsReqToActions(actionsReq []FlowActionReq) []models.Action 
 		}
 
 		actions[i] = models.Action{
-			ID:        slug.Make(action.Name),
+			ID:        GenerateSlug(action.Name),
 			Name:      action.Name,
 			Executor:  action.Executor,
 			With:      action.With,

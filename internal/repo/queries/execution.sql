@@ -13,10 +13,11 @@ INSERT INTO execution_log (
     flow_id,
     version,
     input,
+    trigger_type,
     triggered_by,
     namespace_id
 ) VALUES (
-    $1, $2, (SELECT version FROM next_version), $3, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup)
+    $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup)
 ) RETURNING *;
 
 -- name: UpdateExecutionStatus :one
