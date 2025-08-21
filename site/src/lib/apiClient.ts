@@ -108,8 +108,9 @@ export const apiClient = {
         body: JSON.stringify(credentials),
       }),
     logout: () =>
-      // For now, just clear client-side state by redirecting to login
-      Promise.resolve(),
+      baseFetch<void>('/logout', {
+        method: 'POST',
+      }),
   },
 
   // Users

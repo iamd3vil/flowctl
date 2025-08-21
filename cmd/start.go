@@ -140,6 +140,7 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	e.GET("/ping", h.HandlePing)
 	e.POST("/login", h.HandleLoginPage)
+	e.POST("/logout", h.HandleLogout)
 
 	// oidc
 	e.GET("/login/oidc", h.HandleOIDCLogin)

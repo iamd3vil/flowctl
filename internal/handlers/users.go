@@ -12,7 +12,7 @@ import (
 func (h *Handler) HandleGetUserProfile(c echo.Context) error {
 	user, err := h.getUserInfo(c)
 	if err != nil {
-		return wrapError(ErrInternalError, "could not retrieve user info", err, nil)
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 	}
 
 	return c.JSON(http.StatusOK, coreUserInfoToUserProfile(user))

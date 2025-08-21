@@ -134,9 +134,9 @@ func (h *Handler) processFlowInputs(c echo.Context, flow models.Flow, namespace 
 }
 
 func (h *Handler) HandleFlowTrigger(c echo.Context) error {
-	user, ok := c.Get("user").(models.UserInfo)
-	if !ok {
-		return wrapError(ErrRequiredFieldMissing, "could not get user details", nil, nil)
+	user, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 	}
 
 	namespace, ok := c.Get("namespace").(string)

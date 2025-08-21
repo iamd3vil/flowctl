@@ -63,8 +63,6 @@
           <div class="text-gray-500">{$currentUser?.username || ''}</div>
           <div class="text-xs text-gray-400">{$currentUser?.role || ''}</div>
         </div>
-        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
         <div class="border-t border-gray-100"></div>
         <button 
           onclick={logout}

@@ -64,7 +64,7 @@ func (h *Handler) HandleListNamespaces(c echo.Context) error {
 
 	userInfo, err := h.getUserInfo(c)
 	if err != nil {
-		return wrapError(ErrAuthenticationFailed, "could not get user info", err, nil)
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 	}
 
 	namespaces, pageCount, totalCount, err := h.co.ListNamespaces(c.Request().Context(), userInfo.ID, req.Count, req.Count*req.Page)

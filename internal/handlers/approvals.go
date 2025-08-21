@@ -28,9 +28,9 @@ func (h *Handler) HandleApprovalAction(c echo.Context) error {
 		return wrapError(ErrInvalidInput, "invalid action, must be approve or reject", nil, nil)
 	}
 
-	user, ok := c.Get("user").(models.UserInfo)
-	if !ok {
-		return wrapError(ErrForbidden, "could not get user details", nil, nil)
+	user, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 	}
 
 	var status models.ApprovalType
@@ -43,7 +43,7 @@ func (h *Handler) HandleApprovalAction(c echo.Context) error {
 		message = "The request has been rejected."
 	}
 
-	err := h.co.ApproveOrRejectAction(c.Request().Context(), approvalID, user.ID, status, namespace)
+	err = h.co.ApproveOrRejectAction(c.Request().Context(), approvalID, user.ID, status, namespace)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not process approval action", err, nil)
 	}
