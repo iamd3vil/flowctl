@@ -68,3 +68,12 @@ JOIN namespaces ns ON n.namespace_id = ns.id
 LEFT JOIN credentials c ON n.credential_id = c.id
 WHERE n.name = ANY($1::text[]) AND ns.uuid = $2
 ORDER BY n.name;
+
+-- name: GetNodeStats :one
+SELECT 
+    COUNT(*) AS total_hosts,
+    COUNT(*) FILTER (WHERE connection_type = 'ssh') AS ssh_hosts,
+    COUNT(*) FILTER (WHERE connection_type = 'qssh') AS qssh_hosts
+FROM nodes n
+JOIN namespaces ns ON n.namespace_id = ns.id
+WHERE ns.uuid = $1;

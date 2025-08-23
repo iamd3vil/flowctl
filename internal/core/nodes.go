@@ -228,3 +228,20 @@ func (c *Core) DeleteNode(ctx context.Context, id string, namespaceID string) er
 	})
 }
 
+func (c *Core) GetNodeStats(ctx context.Context, namespaceID string) (models.NodeStats, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return models.NodeStats{}, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	stats, err := c.store.GetNodeStats(ctx, namespaceUUID)
+	if err != nil {
+		return models.NodeStats{}, fmt.Errorf("error getting node stats: %w", err)
+	}
+
+	return models.NodeStats{
+		TotalHosts: stats.TotalHosts,
+		SSHHosts:   stats.SshHosts,
+		QSSHHosts:  stats.QsshHosts,
+	}, nil
+}

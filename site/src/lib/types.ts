@@ -129,6 +129,12 @@ export interface NodeResp {
   auth: NodeAuth;
 }
 
+export interface NodeStatsResp {
+  total_hosts: number;
+  ssh_hosts: number;
+  qssh_hosts: number;
+}
+
 // Credential types
 export interface CredentialReq {
   name: string;

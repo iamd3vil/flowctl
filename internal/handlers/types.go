@@ -193,6 +193,12 @@ type NodesPaginateResponse struct {
 	TotalCount int64      `json:"total_count"`
 }
 
+type NodeStatsResp struct {
+	TotalHosts int64 `json:"total_hosts"`
+	SSHHosts   int64 `json:"ssh_hosts"`
+	QSSHHosts  int64 `json:"qssh_hosts"`
+}
+
 func coreNodeToNodeResp(n *models.Node) NodeResp {
 	return NodeResp{
 		ID:             n.ID,

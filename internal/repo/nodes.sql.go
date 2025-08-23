@@ -184,6 +184,29 @@ func (q *Queries) GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (G
 	return i, err
 }
 
+const getNodeStats = `-- name: GetNodeStats :one
+SELECT 
+    COUNT(*) AS total_hosts,
+    COUNT(*) FILTER (WHERE connection_type = 'ssh') AS ssh_hosts,
+    COUNT(*) FILTER (WHERE connection_type = 'qssh') AS qssh_hosts
+FROM nodes n
+JOIN namespaces ns ON n.namespace_id = ns.id
+WHERE ns.uuid = $1
+`
+
+type GetNodeStatsRow struct {
+	TotalHosts int64 `db:"total_hosts" json:"total_hosts"`
+	SshHosts   int64 `db:"ssh_hosts" json:"ssh_hosts"`
+	QsshHosts  int64 `db:"qssh_hosts" json:"qssh_hosts"`
+}
+
+func (q *Queries) GetNodeStats(ctx context.Context, argUuid uuid.UUID) (GetNodeStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getNodeStats, argUuid)
+	var i GetNodeStatsRow
+	err := row.Scan(&i.TotalHosts, &i.SshHosts, &i.QsshHosts)
+	return i, err
+}
+
 const getNodesByNames = `-- name: GetNodesByNames :many
 WITH updated_credentials AS (
     UPDATE credentials 

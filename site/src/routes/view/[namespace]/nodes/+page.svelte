@@ -10,7 +10,7 @@
 	import NodeModal from '$lib/components/nodes/NodeModal.svelte';
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { NodeResp, NodeReq } from '$lib/types';
+	import type { NodeResp, NodeReq, NodeStatsResp } from '$lib/types';
     import { DEFAULT_PAGE_SIZE } from '$lib/constants';
     import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
@@ -23,6 +23,7 @@
 	let pageCount = $state(data.pageCount);
 	let currentPage = $state(data.currentPage);
 	let searchQuery = $state(data.searchQuery);
+	let stats = $state(data.stats);
 	let loading = $state(false);
 	let showModal = $state(false);
 	let isEditMode = $state(false);
@@ -31,10 +32,6 @@
 	let showDeleteModal = $state(false);
 	let deleteNodeId = $state<string | null>(null);
 	let deleteNodeName = $state('');
-
-	// Computed values
-	let linuxCount = $derived(nodes.filter(node => node.os_family === 'linux').length);
-	let windowsCount = $derived(nodes.filter(node => node.os_family === 'windows').length);
 
 
 	// Table configuration
@@ -94,7 +91,16 @@
 		}
 	];
 
-	// Functions
+	async function fetchStats() {
+		if (!browser) return;
+		
+		try {
+			stats = await apiClient.nodes.getStats(data.namespace);
+		} catch (error) {
+			handleInlineError(error, 'Unable to Load Node Statistics');
+		}
+	}
+
 	async function fetchNodes(filter: string = '', pageNumber: number = 1) {
 		if (!browser) return;
 		
@@ -162,7 +168,7 @@
 			await apiClient.nodes.delete(data.namespace, deleteNodeId);
 			closeDeleteModal(); // Close modal after successful deletion
 			showSuccess('Node deleted', `Node ${deleteNodeName} has been successfully deleted.`);
-			await fetchNodes();
+			await Promise.all([fetchNodes(), fetchStats()]);
 		} catch (error) {
 			handleInlineError(error, 'Unable to Delete Node');
 			throw error;
@@ -185,7 +191,7 @@
 				showSuccess('Node created', `Node ${nodeData.name} has been successfully created.`);
 			}
 			showModal = false;
-			await fetchNodes();
+			await Promise.all([fetchNodes(), fetchStats()]);
 		} catch (error) {
 			handleInlineError(error, 'Unable to Save Node');
 			throw error;
@@ -233,20 +239,20 @@
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 		<StatCard
-			title="Total Nodes"
-			value={totalCount}
+			title="Total Hosts"
+			value={stats.total_hosts}
 			icon='<i class="ti ti-server w-6 h-6"></i>'
 			color="blue"
 		/>
 		<StatCard
-			title="Linux Nodes"
-			value={linuxCount}
+			title="QSSH Hosts"
+			value={stats.qssh_hosts}
 			icon='<i class="ti ti-server w-6 h-6"></i>'
 			color="green"
 		/>
 		<StatCard
-			title="Windows Nodes"
-			value={windowsCount}
+			title="SSH Hosts"
+			value={stats.ssh_hosts}
 			icon='<i class="ti ti-server w-6 h-6"></i>'
 			color="purple"
 		/>

@@ -17,6 +17,7 @@ import type {
   NodeReq,
   NodeResp,
   NodesPaginateResponse,
+  NodeStatsResp,
   CredentialReq,
   CredentialResp,
   CredentialsPaginateResponse,
@@ -254,6 +255,8 @@ export const apiClient = {
   nodes: {
     list: (namespace: string, params: PaginateRequest = {}) =>
       baseFetch<NodesPaginateResponse>(`/api/v1/${namespace}/nodes${buildQueryString(params)}`),
+    getStats: (namespace: string) =>
+      baseFetch<NodeStatsResp>(`/api/v1/${namespace}/nodes/stats`),
     getById: (namespace: string, id: string) =>
       baseFetch<NodeResp>(`/api/v1/${namespace}/nodes/${id}`),
     create: (namespace: string, node: NodeReq) =>

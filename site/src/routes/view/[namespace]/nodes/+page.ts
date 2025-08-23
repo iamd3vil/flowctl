@@ -32,15 +32,16 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 		const page = Number(url.searchParams.get('page') || '1');
 		const search = url.searchParams.get('search') || '';
 
-		// Fetch nodes data
-		const nodesResponse = await apiClient.nodes.list(namespace, {
-			page,
-			count_per_page: DEFAULT_PAGE_SIZE,
-			filter: search || undefined
-		});
-
-		// Fetch credentials for the modal
-		const credentialsResponse = await apiClient.credentials.list(namespace);
+		// Fetch nodes data, stats, and credentials in parallel
+		const [nodesResponse, statsResponse, credentialsResponse] = await Promise.all([
+			apiClient.nodes.list(namespace, {
+				page,
+				count_per_page: DEFAULT_PAGE_SIZE,
+				filter: search || undefined
+			}),
+			apiClient.nodes.getStats(namespace),
+			apiClient.credentials.list(namespace)
+		]);
 
 		return {
 			nodes: nodesResponse.nodes || [],
@@ -49,6 +50,7 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 			currentPage: page,
 			searchQuery: search,
 			credentials: credentialsResponse.credentials || [],
+			stats: statsResponse,
 			namespace
 		};
 	} catch (err) {

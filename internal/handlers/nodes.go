@@ -159,3 +159,21 @@ func (h *Handler) HandleDeleteNode(c echo.Context) error {
 
 	return c.NoContent(http.StatusOK)
 }
+
+func (h *Handler) HandleGetNodeStats(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	stats, err := h.co.GetNodeStats(c.Request().Context(), namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not get node stats", err, nil)
+	}
+
+	return c.JSON(http.StatusOK, NodeStatsResp{
+		TotalHosts: stats.TotalHosts,
+		SSHHosts:   stats.SSHHosts,
+		QSSHHosts:  stats.QSSHHosts,
+	})
+}

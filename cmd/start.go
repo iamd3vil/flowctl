@@ -206,6 +206,7 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	// Node routes - only admins can create/update/delete
 	namespaceGroup.GET("/nodes", h.HandleListNodes, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
+	namespaceGroup.GET("/nodes/stats", h.HandleGetNodeStats, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
 	namespaceGroup.GET("/nodes/:nodeID", h.HandleGetNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
 	namespaceGroup.POST("/nodes", h.HandleCreateNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionCreate))
 	namespaceGroup.PUT("/nodes/:nodeID", h.HandleUpdateNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionUpdate))
