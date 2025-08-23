@@ -422,6 +422,7 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 
 	return models.ExecutionSummary{
 		ExecID:          execID,
+		Input:           e.Input,
 		FlowName:        e.FlowName,
 		Status:          models.ExecutionStatus(e.Status),
 		CreatedAt:       e.CreatedAt,

@@ -3,6 +3,7 @@ package models
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -133,6 +134,7 @@ type ExecutionSummary struct {
 	FlowName        string
 	FlowID          string
 	Status          ExecutionStatus
+	Input           json.RawMessage
 	TriggeredByName string
 	TriggeredByID   string
 	CurrentActionID string

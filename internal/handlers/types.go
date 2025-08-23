@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
@@ -492,6 +493,7 @@ type ExecutionSummary struct {
 	FlowName        string          `json:"flow_name"`
 	FlowID          string          `json:"flow_id"`
 	Status          ExecutionStatus `json:"status"`
+	Input           json.RawMessage `json:"input,omitempty"`
 	TriggeredBy     string          `json:"triggered_by"`
 	CurrentActionID string          `json:"current_action_id"`
 	CreatedAt       string          `json:"started_at"`
@@ -505,6 +507,7 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 		FlowName:        e.FlowName,
 		FlowID:          e.FlowID,
 		Status:          ExecutionStatus(e.Status),
+		Input:           e.Input,
 		TriggeredBy:     e.TriggeredByName,
 		CurrentActionID: e.CurrentActionID,
 		CreatedAt:       e.CreatedAt.Format(TimeFormat),

@@ -213,6 +213,7 @@ export interface ExecutionSummary {
   flow_name: string;
   flow_id: string;
   status: ExecutionStatus;
+  input?: any;
   triggered_by: string;
   current_action_id: string;
   started_at: string;

@@ -10,6 +10,7 @@
   import FlowInfoCard from '$lib/components/flow-status/FlowInfoCard.svelte';
   import ExecutionOutputTable from '$lib/components/flow-status/ExecutionOutputTable.svelte';
   import EmptyState from '$lib/components/flow-status/EmptyState.svelte';
+  import JsonDisplay from '$lib/components/shared/JsonDisplay.svelte';
   import type { PageData } from './$types';
   import type { FlowMetaResp, ExecutionSummary } from '$lib/types';
   import { apiClient, ApiError } from '$lib/apiClient';
@@ -306,6 +307,16 @@
           {startTime}
           executionId={logId}
         />
+
+        <!-- Flow Input -->
+        {#if data.executionSummary?.input}
+          <div class="mb-6">
+            <JsonDisplay 
+              data={data.executionSummary.input} 
+              title="Inputs"
+            />
+          </div>
+        {/if}
 
         <!-- Pipeline Progress -->
         <div class="mb-6">
