@@ -135,6 +135,7 @@ type ExecutionSummary struct {
 	FlowID          string
 	Status          ExecutionStatus
 	Input           json.RawMessage
+	TriggerType     string
 	TriggeredByName string
 	TriggeredByID   string
 	CurrentActionID string

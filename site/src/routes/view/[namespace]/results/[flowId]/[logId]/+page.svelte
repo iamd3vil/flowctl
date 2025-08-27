@@ -46,7 +46,7 @@
   let manuallyClosed = $state(false);
   
   // Polling for execution status updates
-  let statusPollingInterval: number | null = null;
+  let statusPollingInterval: NodeJS.Timeout | null = null;
 
   // Derived values
   let namespace = $derived(data.namespace);
@@ -167,9 +167,6 @@
       }
     };
 
-    ws.onerror = (error) => {
-      handleInlineError(error, 'WebSocket Connection Error');
-    };
   };
 
   const reconstructProgress = (currentActionId: string, executionStatus: string) => {

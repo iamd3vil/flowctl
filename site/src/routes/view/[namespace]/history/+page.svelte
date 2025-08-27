@@ -32,6 +32,28 @@
 			component: ExecutionIdCell
 		},
 		{
+			key: 'flow_name',
+			header: 'Flow Name',
+			sortable: true,
+			render: (_value: any, execution: ExecutionSummary) => `
+				<div class="text-sm font-medium text-gray-900">${execution.flow_name}</div>
+			`
+		},
+		{
+			key: 'trigger_type',
+			header: 'Trigger Type',
+			sortable: true,
+			render: (_value: any, execution: ExecutionSummary) => `
+				<div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+					execution.trigger_type === 'manual' 
+						? 'bg-blue-100 text-blue-800' 
+						: 'bg-green-100 text-green-800'
+				}">
+					${execution.trigger_type}
+				</div>
+			`
+		},
+		{
 			key: 'status',
 			header: 'Status',
 			sortable: true,

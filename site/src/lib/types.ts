@@ -232,6 +232,7 @@ export interface ExecutionSummary {
   flow_name: string;
   flow_id: string;
   status: ExecutionStatus;
+  trigger_type: string;
   input?: any;
   triggered_by: string;
   current_action_id: string;

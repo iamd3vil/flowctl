@@ -18,10 +18,11 @@ import (
 func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
-	errCh, err := c.checkErrors(ctx, logID, namespaceID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting execution %s errors: %w", logID, err)
-	}
+	// Remove because the log messages will already contain error messages
+	// errCh, err := c.checkErrors(ctx, logID, namespaceID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error getting execution %s errors: %w", logID, err)
+	// }
 
 	logCh, err := c.streamLogs(ctx, logID, namespaceID)
 	if err != nil {
@@ -36,16 +37,16 @@ func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string)
 	go func(ch chan models.StreamMessage) {
 		defer close(ch)
 
-		for errCh != nil || approvalCh != nil || logCh != nil {
+		for approvalCh != nil || logCh != nil {
 			select {
 			case <-ctx.Done():
 				return
-			case errMsg, ok := <-errCh:
-				if !ok {
-					errCh = nil
-					continue
-				}
-				ch <- errMsg
+			// case errMsg, ok := <-errCh:
+			// 	if !ok {
+			// 		errCh = nil
+			// 		continue
+			// 	}
+			// 	ch <- errMsg
 			case approvalReq, ok := <-approvalCh:
 				if !ok {
 					approvalCh = nil

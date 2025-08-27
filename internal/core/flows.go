@@ -294,44 +294,6 @@ func (c *Core) CancelFlowExecution(ctx context.Context, execID string) error {
 	return nil
 }
 
-func (c *Core) GetAllExecutionSummary(ctx context.Context, f models.Flow, triggeredBy string, namespaceID string) ([]models.ExecutionSummary, error) {
-	userID, err := uuid.Parse(triggeredBy)
-	if err != nil {
-		return nil, fmt.Errorf("user id is not a UUID: %w", err)
-	}
-
-	namespaceUUID, err := uuid.Parse(namespaceID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
-	}
-
-	execs, err := c.store.GetExecutionsByFlow(ctx, repo.GetExecutionsByFlowParams{
-		ID:     f.Meta.DBID,
-		Uuid:   userID,
-		Uuid_2: namespaceUUID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not get executions for %s: %w", f.Meta.ID, err)
-	}
-
-	var m []models.ExecutionSummary
-	for _, v := range execs {
-		m = append(m, models.ExecutionSummary{
-			ExecID:          v.ExecID,
-			FlowName:        v.FlowName,
-			FlowID:          v.FlowSlug,
-			CreatedAt:       v.CreatedAt,
-			CompletedAt:     v.UpdatedAt,
-			Status:          models.ExecutionStatus(v.Status),
-			TriggeredByName: v.TriggeredByName,
-			TriggeredByID:   v.TriggeredByUuid.String(),
-			CurrentActionID: v.CurrentActionID.String,
-		})
-	}
-
-	return m, nil
-}
-
 func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, namespaceID string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
@@ -358,6 +320,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 			FlowID:          v.FlowSlug,
 			CreatedAt:       v.CreatedAt,
 			CompletedAt:     v.UpdatedAt,
+			TriggerType:     string(v.TriggerType),
 			Status:          models.ExecutionStatus(v.Status),
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
@@ -395,6 +358,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 			FlowID:          v.FlowSlug,
 			CreatedAt:       v.CreatedAt,
 			CompletedAt:     v.UpdatedAt,
+			TriggerType:     string(v.TriggerType),
 			Status:          models.ExecutionStatus(v.Status),
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
@@ -424,9 +388,11 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 		ExecID:          execID,
 		Input:           e.Input,
 		FlowName:        e.FlowName,
+		FlowID:          e.FlowSlug,
 		Status:          models.ExecutionStatus(e.Status),
 		CreatedAt:       e.CreatedAt,
 		CompletedAt:     e.UpdatedAt,
+		TriggerType:     string(e.TriggerType),
 		TriggeredByName: e.TriggeredByName,
 		TriggeredByID:   e.TriggeredByUuid.String(),
 		CurrentActionID: e.CurrentActionID.String,
