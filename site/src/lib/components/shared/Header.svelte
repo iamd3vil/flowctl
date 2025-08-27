@@ -1,5 +1,11 @@
 <script lang="ts">
   import UserDropdown from './UserDropdown.svelte';
+  import { goto } from '$app/navigation';
+  
+  type BreadcrumbItem = {
+    label: string;
+    url?: string;
+  };
   
   let { 
     breadcrumbs = [], 
@@ -7,22 +13,44 @@
     showUserDropdown = true,
     children
   }: { 
-    breadcrumbs?: string[],
+    breadcrumbs?: (string | BreadcrumbItem)[],
     actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' }>,
     showUserDropdown?: boolean,
     children?: any
   } = $props();
+
+  // Convert breadcrumbs to uniform format
+  const normalizedBreadcrumbs = $derived(
+    breadcrumbs.map(crumb => 
+      typeof crumb === 'string' ? { label: crumb } : crumb
+    )
+  );
+
+  const handleBreadcrumbClick = (crumb: BreadcrumbItem) => {
+    if (crumb.url) {
+      goto(crumb.url);
+    }
+  };
 </script>
 
 <!-- Header -->
 <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-5">
-      {#if breadcrumbs.length > 0}
+      {#if normalizedBreadcrumbs.length > 0}
         <div class="flex items-center text-sm text-gray-500">
-          {#each breadcrumbs as crumb, index}
-            <span class={index === breadcrumbs.length - 1 ? 'text-gray-900' : ''}>{crumb}</span>
-            {#if index < breadcrumbs.length - 1}
+          {#each normalizedBreadcrumbs as crumb, index}
+            {#if crumb.url && index < normalizedBreadcrumbs.length - 1}
+              <button 
+                onclick={() => handleBreadcrumbClick(crumb)}
+                class="hover:text-blue-600 hover:underline transition-colors cursor-pointer"
+              >
+                {crumb.label}
+              </button>
+            {:else}
+              <span class={index === normalizedBreadcrumbs.length - 1 ? 'text-gray-900' : ''}>{crumb.label}</span>
+            {/if}
+            {#if index < normalizedBreadcrumbs.length - 1}
               <span class="mx-2">/</span>
             {/if}
           {/each}

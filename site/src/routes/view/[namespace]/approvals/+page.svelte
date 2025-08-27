@@ -154,7 +154,10 @@
   <title>Approvals - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={[`${page.params.namespace}`, "Approvals"]}>
+<Header breadcrumbs={[
+  { label: page.params.namespace!, url: `/view/${page.params.namespace}/flows` },
+  { label: "Approvals" }
+]}>
   {#snippet children()}
     <StatusFilter
       bind:value={statusFilter}

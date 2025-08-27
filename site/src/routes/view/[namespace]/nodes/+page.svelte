@@ -210,7 +210,10 @@
   <title>Nodes - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={[`${page.params.namespace}`, "Nodes"]}>
+<Header breadcrumbs={[
+  { label: page.params.namespace!, url: `/view/${page.params.namespace}/flows` },
+  { label: "Nodes" }
+]}>
   {#snippet children()}
     <SearchInput
       bind:value={searchQuery}

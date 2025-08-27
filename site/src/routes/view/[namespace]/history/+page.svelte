@@ -145,7 +145,10 @@
   <title>Execution History - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={[`${page.params.namespace}`, "History"]}>
+<Header breadcrumbs={[
+  { label: page.params.namespace!, url: `/view/${page.params.namespace}/flows` },
+  { label: "History" }
+]}>
   {#snippet children()}
     <SearchInput
       bind:value={searchQuery}

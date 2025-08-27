@@ -182,7 +182,10 @@
   <title>Flows - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={[`${page.params.namespace}`, "Flows"]}>
+<Header breadcrumbs={[
+  { label: page.params.namespace! },
+  { label: "Flows" }
+]}>
   {#snippet children()}
     <SearchInput
       bind:value={searchValue}

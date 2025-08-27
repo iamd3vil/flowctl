@@ -171,7 +171,10 @@ import type { TableAction } from '$lib/types';
   <title>Members - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={[`${page.params.namespace}`, "Members"]}>
+<Header breadcrumbs={[
+  { label: page.params.namespace!, url: `/view/${page.params.namespace}/flows` },
+  { label: "Members" }
+]}>
   {#snippet children()}
     <!-- Empty slot for now -->
   {/snippet}

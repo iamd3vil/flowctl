@@ -34,7 +34,7 @@
 	<title>Settings - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={["Settings"]}>
+<Header breadcrumbs={[{ label: "Settings" }]}>
 	{#snippet children()}
 		<!-- Search will be handled within each tab -->
 	{/snippet}

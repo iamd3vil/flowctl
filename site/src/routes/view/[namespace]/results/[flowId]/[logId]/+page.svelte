@@ -277,7 +277,11 @@
 <div class="flex h-screen bg-gray-50">
   <main class="flex-1 flex flex-col overflow-hidden">
     <Header 
-      breadcrumbs={['Flows', flowName || 'Loading...', 'Execution Status']}
+      breadcrumbs={[
+        { label: 'Flows', url: `/view/${namespace}/flows` },
+        { label: flowName || 'Loading...', url: flowName ? `/view/${namespace}/flows/${flowId}` : undefined },
+        { label: 'Execution Status' }
+      ]}
       actions={[
         ...(status === 'running' ? [{
           label: 'Stop Flow',

@@ -164,7 +164,11 @@
   <!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <Header 
-      breadcrumbs={[namespace, 'Flows', 'Create']}
+      breadcrumbs={[
+        { label: namespace, url: `/view/${namespace}/flows` },
+        { label: 'Flows', url: `/view/${namespace}/flows` },
+        { label: 'Create' }
+      ]}
     />
 
     <!-- Page Content -->

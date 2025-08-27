@@ -159,7 +159,11 @@
 </svelte:head>
 
 <Header 
-  breadcrumbs={[`${page.params.namespace}`, 'Flows', data.flowMeta?.meta?.name || 'Loading...']} 
+  breadcrumbs={[
+    { label: namespace!, url: `/view/${namespace}/flows` },
+    { label: 'Flows', url: `/view/${namespace}/flows` },
+    { label: data.flowMeta?.meta?.name || 'Loading...' }
+  ]} 
   actions={[
     ...(canUpdateFlow ? [{ label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' as const }] : []),
     { label: 'Back to Flows', onClick: () => goto(`/view/${namespace}/flows`), variant: 'secondary' as const }

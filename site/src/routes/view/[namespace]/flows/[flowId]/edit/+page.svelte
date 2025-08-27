@@ -219,7 +219,12 @@
   <!-- Main Content -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <Header 
-      breadcrumbs={[namespace, 'Flows', flow.metadata.name || 'Loading...', 'Edit']}
+      breadcrumbs={[
+        { label: namespace, url: `/view/${namespace}/flows` },
+        { label: 'Flows', url: `/view/${namespace}/flows` },
+        { label: flow.metadata.name || 'Loading...', url: `/view/${namespace}/flows/${flowId}` },
+        { label: 'Edit' }
+      ]}
       actions={[
         { label: 'Cancel', onClick: () => goto(`/view/${namespace}/flows/${flowId}`), variant: 'secondary' }
       ]}
