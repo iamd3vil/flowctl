@@ -1,5 +1,13 @@
 <script lang="ts">
-  type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
+  import {
+    IconX,
+    IconCheck,
+    IconPlayerPlay,
+    IconClockPause,
+    IconCircle,
+    IconMinus
+  } from '@tabler/icons-svelte';
+  type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval' | 'cancelled';
 
   type Step = {
     id: string;
@@ -39,17 +47,21 @@
         return `${baseClasses} ${sizeClasses[size]} bg-green-50 border-green-500`;
       case 'running':
         return `${baseClasses} ${sizeClasses[size]} bg-blue-50 border-blue-500`;
+      case 'awaiting_approval':
+        return `${baseClasses} ${sizeClasses[size]} bg-yellow-50 border-yellow-500`;
+      case 'cancelled':
+        return `${baseClasses} ${sizeClasses[size]} bg-gray-100 border-gray-400`;
       default:
         return `${baseClasses} ${sizeClasses[size]} bg-gray-50 border-gray-300`;
     }
   };
 
   const getIconClasses = (status: StepStatus) => {
-    const baseClasses = 'rounded-full flex items-center justify-center text-white text-xs font-bold';
+    const baseClasses = 'rounded-full flex items-center justify-center text-white';
     const sizeClasses = {
-      sm: 'w-5 h-5',
-      md: 'w-6 h-6',
-      lg: 'w-8 h-8'
+      sm: 'w-5 h-5 text-xs',
+      md: 'w-6 h-6 text-sm',
+      lg: 'w-8 h-8 text-base'
     };
 
     switch (status) {
@@ -59,21 +71,29 @@
         return `${baseClasses} ${sizeClasses[size]} bg-green-500`;
       case 'running':
         return `${baseClasses} ${sizeClasses[size]} bg-blue-500 animate-pulse`;
+      case 'awaiting_approval':
+        return `${baseClasses} ${sizeClasses[size]} bg-yellow-500`;
+      case 'cancelled':
+        return `${baseClasses} ${sizeClasses[size]} bg-gray-500`;
       default:
         return `${baseClasses} ${sizeClasses[size]} bg-gray-400`;
     }
   };
 
-  const getIcon = (status: StepStatus): string => {
+  const getIcon = (status: StepStatus) => {
     switch (status) {
       case 'failed':
-        return '✗';
+        return IconX;
       case 'completed':
-        return '✓';
+        return IconCheck;
       case 'running':
-        return '●';
+        return IconPlayerPlay;
+      case 'awaiting_approval':
+        return IconClockPause;
+      case 'cancelled':
+        return IconCircle;
       default:
-        return '-';
+        return IconMinus;
     }
   };
 
@@ -85,6 +105,10 @@
         return 'Completed';
       case 'running':
         return 'Processing...';
+      case 'awaiting_approval':
+        return 'Awaiting Approval';
+      case 'cancelled':
+        return 'Cancelled';
       default:
         return 'Pending';
     }
@@ -129,9 +153,7 @@
             {step.name}
           </span>
           <div class={getIconClasses(step.status)}>
-            <span class="leading-none flex items-center justify-center">
-              {getIcon(step.status)}
-            </span>
+            <svelte:component this={getIcon(step.status)} size={16} />
           </div>
         </div>
         

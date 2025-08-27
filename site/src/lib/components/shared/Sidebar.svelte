@@ -9,6 +9,16 @@
   import { DEFAULT_PAGE_SIZE } from '$lib/constants';
   import { setContext } from 'svelte';
   import { permissionChecker, type ResourcePermissions } from '$lib/utils/permissions';
+  import {
+    IconChevronDown,
+    IconGridDots,
+    IconServer,
+    IconKey,
+    IconUsers,
+    IconCircleCheck,
+    IconClock,
+    IconSettings
+  } from '@tabler/icons-svelte';
 
   let { namespace }: {namespace: string} = $props();
 
@@ -148,7 +158,7 @@
         class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
       >
         <span>{currentNamespace || 'Select namespace'}</span>
-        <i class="ti ti-chevron-down text-base text-gray-400 transition-transform" class:rotate-180={namespaceDropdownOpen}></i>
+        <IconChevronDown class="text-base text-gray-400 transition-transform {namespaceDropdownOpen ? 'rotate-180' : ''}" size={16} />
       </button>
       
       <!-- Dropdown Menu -->
@@ -190,7 +200,7 @@
         class:hover:bg-slate-700={!isActiveLink('flows')}
         class:hover:text-white={!isActiveLink('flows')}
       >
-        <i class="ti ti-grid-dots text-xl mr-3 flex-shrink-0"></i>
+        <IconGridDots class="text-xl mr-3 flex-shrink-0" size={20} />
         Flows
       </a>
     {/if}
@@ -204,7 +214,7 @@
         class:hover:bg-slate-700={!isActiveLink('nodes')}
         class:hover:text-white={!isActiveLink('nodes')}
       >
-        <i class="ti ti-server text-xl mr-3 flex-shrink-0"></i>
+        <IconServer class="text-xl mr-3 flex-shrink-0" size={20} />
         Nodes
       </a>
     {/if}
@@ -218,7 +228,7 @@
         class:hover:bg-slate-700={!isActiveLink('credentials')}
         class:hover:text-white={!isActiveLink('credentials')}
       >
-        <i class="ti ti-key text-xl mr-3 flex-shrink-0"></i>
+        <IconKey class="text-xl mr-3 flex-shrink-0" size={20} />
         Credentials
       </a>
     {/if}
@@ -232,7 +242,7 @@
         class:hover:bg-slate-700={!isActiveLink('members')}
         class:hover:text-white={!isActiveLink('members')}
       >
-        <i class="ti ti-users text-xl mr-3 flex-shrink-0"></i>
+        <IconUsers class="text-xl mr-3 flex-shrink-0" size={20} />
         Members
       </a>
     {/if}
@@ -246,7 +256,7 @@
         class:hover:bg-slate-700={!isActiveLink('approvals')}
         class:hover:text-white={!isActiveLink('approvals')}
       >
-        <i class="ti ti-circle-check text-xl mr-3 flex-shrink-0"></i>
+        <IconCircleCheck class="text-xl mr-3 flex-shrink-0" size={20} />
         Approvals
       </a>
     {/if}
@@ -260,7 +270,7 @@
         class:hover:bg-slate-700={!isActiveLink('history')}
         class:hover:text-white={!isActiveLink('history')}
       >
-        <i class="ti ti-clock text-xl mr-3 flex-shrink-0"></i>
+        <IconClock class="text-xl mr-3 flex-shrink-0" size={20} />
         History
       </a>
     {/if}
@@ -275,7 +285,7 @@
         class:hover:bg-slate-700={!isActiveLink('settings')}
         class:hover:text-white={!isActiveLink('settings')}
       >
-        <i class="ti ti-settings text-xl mr-3 flex-shrink-0"></i>
+        <IconSettings class="text-xl mr-3 flex-shrink-0" size={20} />
         Settings
       </a>
     {/if}

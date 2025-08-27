@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { handleInlineError } from '$lib/utils/errorHandling';
+	import { IconAlertTriangle } from '@tabler/icons-svelte';
 
 	let {
 		title,
@@ -55,7 +56,7 @@
 	>
 		<div class="flex items-center mb-4">
 			<div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mr-4">
-				<i class="ti ti-alert-triangle text-2xl text-red-600"></i>
+				<IconAlertTriangle class="text-2xl text-red-600" size={24} />
 			</div>
 			<div>
 				<h3 class="text-lg font-semibold text-gray-900">

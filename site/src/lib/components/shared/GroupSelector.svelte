@@ -3,6 +3,7 @@
   import { apiClient } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import type { Group } from '$lib/types';
+  import { IconChevronDown, IconUsersGroup, IconX } from '@tabler/icons-svelte';
   
   let {
     selectedGroups = $bindable([]),
@@ -117,7 +118,7 @@
         </svg>
       </div>
     {:else}
-      <i class="ti ti-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+      <IconChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
     {/if}
     
     <!-- Dropdown -->
@@ -136,7 +137,7 @@
               >
                 <div class="flex items-center">
                   <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-purple-100">
-                    <i class="ti ti-users-group text-purple-600"></i>
+                    <IconUsersGroup class="text-purple-600" size={16} />
                   </div>
                   <div>
                     <div class="text-sm font-medium text-gray-900">{group.name}</div>
@@ -168,7 +169,7 @@
               class="ml-1 text-blue-600 hover:text-blue-800"
               aria-label="Remove {group.name}"
             >
-              <i class="ti ti-x text-xs"></i>
+              <IconX size={12} />
             </button>
           {/if}
         </span>

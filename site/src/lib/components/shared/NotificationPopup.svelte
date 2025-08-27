@@ -2,6 +2,13 @@
   import { notifications, type Notification } from '$lib/stores/notifications';
   import { fly, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
+  import {
+    IconCircleCheck,
+    IconAlertCircle,
+    IconAlertTriangle,
+    IconInfoCircle,
+    IconX
+  } from '@tabler/icons-svelte';
 
   const handleDismiss = (id: string) => {
     notifications.remove(id);
@@ -11,7 +18,7 @@
     switch (type) {
       case 'success':
         return {
-          icon: 'ti ti-check-circle',
+          IconComponent: IconCircleCheck,
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           iconColor: 'text-green-400',
@@ -21,7 +28,7 @@
         };
       case 'error':
         return {
-          icon: 'ti ti-alert-circle',
+          IconComponent: IconAlertCircle,
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           iconColor: 'text-red-400',
@@ -31,7 +38,7 @@
         };
       case 'warning':
         return {
-          icon: 'ti ti-alert-triangle',
+          IconComponent: IconAlertTriangle,
           bgColor: 'bg-yellow-50',
           borderColor: 'border-yellow-200',
           iconColor: 'text-yellow-400',
@@ -42,7 +49,7 @@
       case 'info':
       default:
         return {
-          icon: 'ti ti-info-circle',
+          IconComponent: IconInfoCircle,
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           iconColor: 'text-blue-400',
@@ -64,7 +71,7 @@
       animate:flip={{ duration: 200 }}
     >
       <div class="flex">
-        <i class="{styles.icon} {styles.iconColor} mt-0.5 text-lg"></i>
+        <styles.IconComponent class="{styles.iconColor} mt-0.5" size={18} />
         <div class="ml-3 flex-1">
           <h3 class="text-sm font-medium {styles.titleColor}">
             {notification.title}
@@ -79,7 +86,7 @@
             class="ml-auto -mx-1.5 -my-1.5 rounded-lg focus:ring-2 p-1.5 inline-flex h-8 w-8 {styles.buttonColor}"
           >
             <span class="sr-only">Dismiss</span>
-            <i class="ti ti-x text-sm"></i>
+            <IconX size={16} />
           </button>
         {/if}
       </div>

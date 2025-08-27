@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ComponentType } from 'svelte';
+
   let { 
     title,
     subtitle,
@@ -10,7 +12,9 @@
       label: string, 
       onClick: () => void, 
       variant?: 'primary' | 'secondary',
-      icon?: string 
+      icon?: string,
+      IconComponent?: ComponentType,
+      iconSize?: number
     }>
   } = $props();
 </script>
@@ -30,7 +34,9 @@
           onclick={action.onClick}
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors {action.variant === 'primary' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
         >
-          {#if action.icon}
+          {#if action.IconComponent}
+            <action.IconComponent size={action.iconSize || 16} />
+          {:else if action.icon}
             {@html action.icon}
           {/if}
           {action.label}

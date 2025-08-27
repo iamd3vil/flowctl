@@ -44,6 +44,9 @@
   let ws: WebSocket | null = null;
   let hasReceivedMessages = $state(false);
   let manuallyClosed = $state(false);
+  
+  // Polling for execution status updates
+  let statusPollingInterval: number | null = null;
 
   // Derived values
   let namespace = $derived(data.namespace);
@@ -70,6 +73,66 @@
     }
   ]);
 
+  const updateExecutionStatus = async () => {
+    try {
+      const executionSummary = await apiClient.executions.getById(namespace, logId);
+      updateStatusFromSummary(executionSummary);
+    } catch (error) {
+      // Silently handle errors during polling to avoid spam
+      console.error('Failed to fetch execution summary:', error);
+    }
+  };
+
+  const startStatusPolling = () => {
+    // Poll every 2 seconds when flow is active
+    if (status === 'running' || status === 'awaiting_approval') {
+      statusPollingInterval = setInterval(updateExecutionStatus, 2000);
+    }
+  };
+
+  const stopStatusPolling = () => {
+    if (statusPollingInterval) {
+      clearInterval(statusPollingInterval);
+      statusPollingInterval = null;
+    }
+  };
+
+  const updateStatusFromSummary = (executionSummary: ExecutionSummary) => {
+    const execStatus = executionSummary.status;
+    let newStatus: typeof status;
+    
+    if (execStatus === 'pending' || execStatus === 'running') {
+      newStatus = 'running';
+    } else if (execStatus === 'pending_approval') {
+      newStatus = 'awaiting_approval';
+      approvalID = executionSummary.current_action_id; // Use current_action_id for approval context
+      showApproval = true;
+    } else if (execStatus === 'cancelled') {
+      newStatus = 'cancelled';
+    } else if (execStatus === 'completed') {
+      newStatus = 'completed';
+    } else if (execStatus === 'errored') {
+      newStatus = 'errored';
+    } else {
+      newStatus = 'running';
+    }
+    
+    // Update status and reconstruct progress
+    status = newStatus;
+    if (executionSummary.current_action_id) {
+      reconstructProgress(executionSummary.current_action_id, executionSummary.status);
+    }
+    
+    // Start/stop polling based on status
+    if (newStatus === 'completed' || newStatus === 'errored' || newStatus === 'cancelled') {
+      stopStatusPolling();
+    } else {
+      if (!statusPollingInterval) {
+        startStatusPolling();
+      }
+    }
+  };
+
   const connectWebSocket = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = `${protocol}://${window.location.host}/api/v1/${namespace}/logs/${logId}`;
@@ -94,16 +157,13 @@
         return;
       }
       
+      // Let the API polling handle status updates on WebSocket close
+      // This provides more reliable status information from the backend
       if (event.code === 1000) {
-        status = 'completed';
-        for (let i = 0; i < actions.length; i++) {
-          if (!completedActions.includes(i)) {
-            completedActions.push(i);
-          }
-        }
+        updateExecutionStatus(); // Fetch final status from API
       } else if (event.reason) {
         handleInlineError(new Error(event.reason), 'WebSocket Connection Error');
-        status = 'errored';
+        updateExecutionStatus(); // Check actual status from API
       }
     };
 
@@ -186,10 +246,12 @@
         approvalID = msg.value;
         showApproval = true;
         status = 'awaiting_approval';
+        stopStatusPolling(); // Approval state is stable, no need to poll aggressively
         break;
       case 'cancelled':
         status = 'cancelled';
         logOutput += (msg.value || 'Flow execution was cancelled') + '\n';
+        stopStatusPolling(); // Flow finished, no need to continue polling
         break;
       default:
         logOutput += (msg.value || '') + '\n';
@@ -200,10 +262,41 @@
     goto(`/view/${namespace}/flows`);
   };
 
-  const getActionStatus = (index: number): 'pending' | 'running' | 'completed' | 'failed' => {
-    if (index === failedActionIndex) return 'failed';
+  const getActionStatus = (index: number): 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval' | 'cancelled' => {
+    // Handle completed actions - they should always stay green
     if (completedActions.includes(index)) return 'completed';
-    if (index === currentActionIndex && status === 'running') return 'running';
+    
+    // Handle failed action
+    if (index === failedActionIndex) return 'failed';
+    
+    // Handle current action based on flow status
+    if (index === currentActionIndex) {
+      if (status === 'running') return 'running';
+      if (status === 'awaiting_approval') return 'awaiting_approval';
+      if (status === 'cancelled') return 'cancelled';
+      if (status === 'errored') return 'failed';
+    }
+    
+    // Special case: if flow is awaiting approval and no current action is set,
+    // find the first non-completed action to mark as awaiting approval
+    if (status === 'awaiting_approval' && currentActionIndex === -1) {
+      const firstIncompleteIndex = actions.findIndex((_, i) => !completedActions.includes(i));
+      if (index === firstIncompleteIndex) return 'awaiting_approval';
+    }
+    
+    // Handle remaining actions based on flow status
+    const lastProcessedIndex = Math.max(
+      currentActionIndex >= 0 ? currentActionIndex : -1, 
+      failedActionIndex >= 0 ? failedActionIndex : -1, 
+      completedActions.length > 0 ? Math.max(...completedActions) : -1
+    );
+    
+    // If flow has failed, errored, or cancelled, actions after the failure/cancellation point should be cancelled
+    if ((status === 'errored' || status === 'cancelled') && index > lastProcessedIndex) {
+      return 'cancelled';
+    }
+    
+    // Default to pending for actions that haven't started yet
     return 'pending';
   };
 
@@ -214,7 +307,7 @@
 
   const stopFlow = async () => {
     try {
-      const result = await apiClient.executions.cancel(namespace, logId);
+      await apiClient.executions.cancel(namespace, logId);
       
       // Set status first, then close WebSocket to prevent race condition
       status = 'cancelled';
@@ -234,39 +327,23 @@
   // Initialize component
   onMount(() => {
     if (data.executionSummary) {
-      const execStatus = data.executionSummary.status;
-      if (execStatus === 'pending') {
-        status = 'running';
-      } else if (execStatus === 'pending_approval') {
-        status = 'awaiting_approval';
-      } else if (execStatus === 'cancelled') {
-        status = 'cancelled';
-      } else if (execStatus === 'completed') {
-        status = 'completed';
-      } else if (execStatus === 'errored') {
-        status = 'errored';
-      } else if (execStatus === 'running') {
-        status = 'running';
-      }
-      
+      updateStatusFromSummary(data.executionSummary);
       startTime = new Date(data.executionSummary.started_at).toLocaleString();
       flowName = data.executionSummary.flow_name || data.flowMeta?.meta?.name || '';
-      
-      if (data.executionSummary.current_action_id) {
-        reconstructProgress(data.executionSummary.current_action_id, data.executionSummary.status);
-      }
     } else {
       flowName = data.flowMeta?.meta?.name || ''
       startTime = new Date().toLocaleString();
     }
 
     connectWebSocket();
+    startStatusPolling(); // Start polling for status updates
   });
 
   onDestroy(() => {
     if (ws) {
       ws.close();
     }
+    stopStatusPolling();
   });
 </script>
 

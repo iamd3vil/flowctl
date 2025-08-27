@@ -14,6 +14,7 @@
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
 	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
+	import { IconPlus } from '@tabler/icons-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -44,9 +45,11 @@
 					<div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${
 						credential.key_type === 'private_key' ? 'bg-green-100' : 'bg-yellow-100'
 					}">
-						<i class="ti ${
-							credential.key_type === 'private_key' ? 'ti-shield-check text-green-600' : 'ti-lock text-yellow-600'
-						}"></i>
+						${
+							credential.key_type === 'private_key' 
+								? '<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>'
+								: '<svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>'
+						}
 					</div>
 					<div>
 						<div class="text-sm font-medium text-gray-900">${credential.name}</div>
@@ -250,7 +253,8 @@
 				label: 'Add Credential',
 				onClick: handleAdd,
 				variant: 'primary',
-				icon: '<i class="ti ti-plus"></i>'
+				IconComponent: IconPlus,
+				iconSize: 16
 			}
 		] : []}
 	/>

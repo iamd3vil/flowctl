@@ -2,6 +2,14 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { isAuthenticated } from '$lib/stores/auth';
+  import {
+    IconLock,
+    IconShieldX,
+    IconFileX,
+    IconAlertTriangle,
+    IconLogin,
+    IconHome
+  } from '@tabler/icons-svelte';
 
   const error = page.error;
   const status = page.status;
@@ -11,7 +19,7 @@
   const getErrorDetails = () => {
     if (status === 401) {
       return {
-        icon: 'ti ti-lock',
+        IconComponent: IconLock,
         iconColor: 'text-yellow-600',
         bgColor: 'bg-yellow-100',
         title: 'Authentication Required',
@@ -22,7 +30,7 @@
     
     if (status === 403) {
       return {
-        icon: 'ti ti-shield-x',
+        IconComponent: IconShieldX,
         iconColor: 'text-red-600',
         bgColor: 'bg-red-100',
         title: 'Access Denied',
@@ -33,7 +41,7 @@
     
     if (status === 404) {
       return {
-        icon: 'ti ti-file-x',
+        IconComponent: IconFileX,
         iconColor: 'text-gray-600',
         bgColor: 'bg-gray-100',
         title: 'Page Not Found',
@@ -44,7 +52,7 @@
     
     // Default error
     return {
-      icon: 'ti ti-alert-triangle',
+      IconComponent: IconAlertTriangle,
       iconColor: 'text-red-600',
       bgColor: 'bg-red-100',
       title: 'Something went wrong',
@@ -70,7 +78,6 @@
 
 <svelte:head>
   <title>Error - Flowctl</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -78,7 +85,7 @@
     <!-- Error Icon -->
     <div class="mb-8">
       <div class="mx-auto w-24 h-24 {errorDetails.bgColor} rounded-full flex items-center justify-center">
-        <i class="{errorDetails.icon} text-4xl {errorDetails.iconColor}"></i>
+        <errorDetails.IconComponent class="text-4xl {errorDetails.iconColor}" size={48} />
       </div>
     </div>
 
@@ -106,7 +113,7 @@
           onclick={handleLogin}
           class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
         >
-          <i class="ti ti-login text-lg"></i>
+          <IconLogin size={18} />
           Log In
         </button>
       {/if}
@@ -115,7 +122,7 @@
         onclick={handleGoHome}
         class="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
       >
-        <i class="ti ti-home text-lg"></i>
+        <IconHome size={18} />
         {$isAuthenticated ? 'Dashboard' : 'Home'}
       </button>
     </div>

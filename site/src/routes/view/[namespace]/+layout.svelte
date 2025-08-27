@@ -5,9 +5,6 @@
   let { children, data } = $props();
 </script>
 
-<svelte:head>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-</svelte:head>
 
 <div class="flex h-screen bg-gray-50">
   <Sidebar namespace={data.namespace} />

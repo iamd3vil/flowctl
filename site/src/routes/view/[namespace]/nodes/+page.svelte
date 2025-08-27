@@ -14,6 +14,7 @@
     import { DEFAULT_PAGE_SIZE } from '$lib/constants';
     import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
+	import { IconPlus, IconServer } from '@tabler/icons-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -43,7 +44,9 @@
 			render: (_value: any, node: NodeResp) => `
 				<div class="flex items-center">
 					<div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-						<i class="ti ti-server text-blue-600"></i>
+						<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2 4h.01M17 16h.01"></path>
+						</svg>
 					</div>
 					<div>
 						<div class="text-sm font-medium text-gray-900">${node.name}</div>
@@ -236,7 +239,8 @@
 				label: 'Add Node',
 				onClick: handleAdd,
 				variant: 'primary',
-				icon: '<i class="ti ti-plus"></i>'
+				IconComponent: IconPlus,
+				iconSize: 16
 			}
 		]}
 	/>
@@ -246,19 +250,22 @@
 		<StatCard
 			title="Total Hosts"
 			value={stats.total_hosts}
-			icon='<i class="ti ti-server w-6 h-6"></i>'
+			IconComponent={IconServer}
+		iconSize={24}
 			color="blue"
 		/>
 		<StatCard
 			title="QSSH Hosts"
 			value={stats.qssh_hosts}
-			icon='<i class="ti ti-server w-6 h-6"></i>'
+			IconComponent={IconServer}
+		iconSize={24}
 			color="green"
 		/>
 		<StatCard
 			title="SSH Hosts"
 			value={stats.ssh_hosts}
-			icon='<i class="ti ti-server w-6 h-6"></i>'
+			IconComponent={IconServer}
+		iconSize={24}
 			color="purple"
 		/>
 	</div>

@@ -9,6 +9,7 @@
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import type { Group } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
+	import { IconUsersGroup, IconPlus } from '@tabler/icons-svelte';
 
 	let {
 		groups: initialGroups,
@@ -42,7 +43,7 @@
 			render: (_value: any, group: Group) => `
 				<div class="flex items-center">
 					<div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3 bg-purple-100">
-						<i class="ti ti-users-group text-purple-600"></i>
+						<IconUsersGroup class="text-purple-600" size={20} />
 					</div>
 					<div>
 						<div class="text-sm font-medium text-gray-900">${group.name}</div>
@@ -191,7 +192,7 @@
 		onclick={handleAdd}
 		class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
 	>
-		<i class="ti ti-plus text-base mr-2"></i>
+		<IconPlus class="text-base mr-2" size={16} />
 		Add Group
 	</button>
 </div>

@@ -1,12 +1,16 @@
 <script lang="ts">
+	import type { ComponentType } from 'svelte';
+
 	interface Props {
 		title: string;
 		value: number | string;
-		icon: string;
+		icon?: string;
+		IconComponent?: ComponentType;
+		iconSize?: number;
 		color?: 'blue' | 'green' | 'purple' | 'red' | 'yellow' | 'gray';
 	}
 
-	let { title, value, icon, color = 'blue' }: Props = $props();
+	let { title, value, icon, IconComponent, iconSize = 24, color = 'blue' }: Props = $props();
 
 	const colorClasses = {
 		blue: 'bg-blue-100 text-blue-600',
@@ -25,7 +29,11 @@
 			<p class="text-2xl font-bold text-gray-900">{value}</p>
 		</div>
 		<div class="w-12 h-12 {colorClasses[color]} rounded-lg flex items-center justify-center">
-			{@html icon}
+			{#if IconComponent}
+				<IconComponent size={iconSize} />
+			{:else if icon}
+				{@html icon}
+			{/if}
 		</div>
 	</div>
 </div>

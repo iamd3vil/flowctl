@@ -129,6 +129,19 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 	}
 	approval.ExecID = exec.ExecID
 
+	// When approval is rejected, mark execution as cancelled
+	if status == models.ApprovalStatusRejected {
+		_, err := c.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
+			Status: repo.ExecutionStatusCancelled,
+			Error:  sql.NullString{String: fmt.Sprintf("Flow execution cancelled due to approval rejection by %s", user.Name), Valid: true},
+			ExecID: exec.ExecID,
+			Uuid:   namespaceUUID,
+		})
+		if err != nil {
+			return fmt.Errorf("could not update execution status for rejected approval %s: %w", approvalUUID, err)
+		}
+	}
+
 	// Update the cache using approval UUID
 	if err := c.cacheApproval(ctx, execLogID, approval); err != nil {
 		return err
@@ -249,8 +262,8 @@ func (c *Core) BeforeActionHook(ctx context.Context, execID string, action tasks
 	log.Println("current action ID: ", action.ID)
 	if _, err := c.store.UpdateExecutionActionID(ctx, repo.UpdateExecutionActionIDParams{
 		CurrentActionID: sql.NullString{String: action.ID, Valid: action.ID != ""},
-		ExecID: execID,
-		Uuid: namespaceUUID,
+		ExecID:          execID,
+		Uuid:            namespaceUUID,
 	}); err != nil {
 		return fmt.Errorf("could not update current action ID in exec %s: %w", execID, err)
 	}
