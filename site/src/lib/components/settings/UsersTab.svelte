@@ -9,7 +9,7 @@
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import type { User, Group, UserWithGroups } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
-	import { IconUser, IconPlus } from '@tabler/icons-svelte';
+	import { IconPlus } from '@tabler/icons-svelte';
 
 	let {
 		users: initialUsers,
@@ -42,17 +42,24 @@
 		{
 			key: 'name',
 			header: 'Name',
-			render: (_value: any, user: User) => `
-				<div class="flex items-center">
-					<div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3 bg-blue-100">
-						<IconUser class="text-blue-600" size={20} />
+			render: (_value: any, user: User) => {
+				const firstLetter = user.name.charAt(0).toUpperCase();
+				const colors = ['bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600', 'bg-yellow-100 text-yellow-600', 'bg-purple-100 text-purple-600', 'bg-pink-100 text-pink-600', 'bg-indigo-100 text-indigo-600'];
+				const colorIndex = user.name.charCodeAt(0) % colors.length;
+				const colorClass = colors[colorIndex];
+				
+				return `
+					<div class="flex items-center">
+						<div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${colorClass} font-medium text-sm">
+							${firstLetter}
+						</div>
+						<div>
+							<div class="text-sm font-medium text-gray-900">${user.name}</div>
+							<div class="text-sm text-gray-500">${user.username}</div>
+						</div>
 					</div>
-					<div>
-						<div class="text-sm font-medium text-gray-900">${user.name}</div>
-						<div class="text-sm text-gray-500">${user.username}</div>
-					</div>
-				</div>
-			`
+				`;
+			}
 		},
 		{
 			key: 'groups',
@@ -209,9 +216,9 @@
 	<!-- Add User Button -->
 	<button
 		onclick={handleAdd}
-		class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+		class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center"
 	>
-		<IconPlus class="text-base mr-2" size={16} />
+		<IconPlus class="mr-2" size={16} />
 		Add User
 	</button>
 </div>
