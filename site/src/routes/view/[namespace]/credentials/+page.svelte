@@ -211,17 +211,9 @@
 
 
 	function formatDate(dateString: string | null): string {
-		if (!dateString) return 'Never';
+		if (!dateString || dateString === '0001-01-01T00:00:00Z') return 'Never';
 		const date = new Date(dateString);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-		const diffDays = Math.floor(diffHours / 24);
-
-		if (diffHours < 1) return 'Less than 1 hour ago';
-		if (diffHours < 24) return `${diffHours} hours ago`;
-		if (diffDays < 7) return `${diffDays} days ago`;
-		return date.toLocaleDateString();
+		return date.toLocaleString();
 	}
 </script>
 
