@@ -29,6 +29,7 @@ import type {
   NamespaceMembersResponse,
   ApprovalActionReq,
   ApprovalActionResp,
+  ApprovalDetailsResp,
   ApprovalsPaginateResponse,
   ExecutionsPaginateResponse,
   ExecutionSummary,

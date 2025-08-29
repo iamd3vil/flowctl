@@ -49,12 +49,12 @@
   let currentStep = $state('metadata');
   let createdFlowId = $state<string | null>(null);
 
-  const steps = [
+  const steps = $derived([
     { id: 'metadata', label: 'Metadata', description: 'Basic flow information' },
     { id: 'inputs', label: 'Inputs', description: 'User input parameters' },
     { id: 'actions', label: 'Actions', description: 'Workflow execution steps' },
     { id: 'secrets', label: 'Secrets', description: 'Encrypted values', disabled: !createdFlowId }
-  ];
+  ]);
 
   onMount(() => {
     // Add first action by default
@@ -115,23 +115,22 @@
             required: input.required || false,
             default: input.default || undefined,
             options: input.type === 'select' && input.optionsText 
-              ? input.optionsText.split('\n').filter(o => o.trim()) 
+              ? input.optionsText.split('\n').filter((o: string) => o.trim()) 
               : undefined
           })),
         actions: flow.actions
           .filter(a => a.name && a.id)
           .map((action): FlowActionReq => ({
-            id: action.id,
             name: action.name,
             executor: action.executor as 'script' | 'docker',
             with: action.with || {},
             approval: action.approval || false,
-            variables: action.variables?.length ? action.variables.map(v => ({[v.name]: v.value})) : undefined,
+            variables: action.variables?.length ? action.variables.map((v: any) => ({[v.name]: v.value})) : undefined,
             artifacts: action.artifactsText 
-              ? action.artifactsText.split('\n').filter(a => a.trim())
+              ? action.artifactsText.split('\n').filter((a: string) => a.trim())
               : undefined,
             condition: action.condition || undefined,
-            on: action.on ? action.on.split(',').map(n => n.trim()).filter(n => n) : undefined
+            on: action.on ? action.on.split(',').map((n: string) => n.trim()).filter((n: string) => n) : undefined
           }))
       };
 

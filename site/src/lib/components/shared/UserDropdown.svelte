@@ -28,9 +28,10 @@
 
 <!-- User Menu -->
 <div class="relative">
-  <div 
-    class="flex items-center space-x-3 cursor-pointer" 
+  <button 
+    class="flex items-center space-x-3 cursor-pointer bg-transparent border-none p-0 m-0 text-left" 
     onclick={() => userSettingsOpen = !userSettingsOpen}
+    aria-label="User menu toggle"
   >
     <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
       <span class="text-white text-sm font-medium">
@@ -49,7 +50,7 @@
     >
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
     </svg>
-  </div>
+  </button>
   
   <!-- Dropdown Menu -->
   {#if userSettingsOpen}

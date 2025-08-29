@@ -17,7 +17,7 @@
 		pageCount: initialPageCount,
 		groups
 	}: {
-		users: User[];
+		users: UserWithGroups[];
 		totalCount: number;
 		pageCount: number;
 		groups: Group[];
@@ -64,7 +64,7 @@
 		{
 			key: 'groups',
 			header: 'Groups',
-			render: (_value: any, user: User) => {
+			render: (_value: any, user: UserWithGroups) => {
 				const userGroups = user.groups || [];
 				if (userGroups.length === 0) {
 					return '<span class="text-gray-400 text-sm">No groups</span>';
@@ -73,7 +73,7 @@
 				let html = '<div class="flex flex-wrap gap-1 items-center">';
 				
 				// Show first 3 groups
-				userGroups.slice(0, 3).forEach(group => {
+				userGroups.slice(0, 3).forEach((group: any) => {
 					html += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">${group.name}</span>`;
 				});
 				

@@ -76,15 +76,15 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <!-- Modal Backdrop -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60" on:click={handleClose}>
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60" onclick={handleClose} onkeydown={(e) => e.key === 'Escape' && handleClose()} role="dialog" aria-modal="true" tabindex="-1">
 	<!-- Modal Content -->
-	<div class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6" on:click|stopPropagation>
+	<div class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6" onclick={(e) => e.stopPropagation()}>
 		<h3 class="font-bold text-lg mb-4 text-gray-900">
 			{isEditMode ? 'Edit Credential' : 'Add New Credential'}
 		</h3>
 
 
-		<form on:submit|preventDefault={handleSubmit}>
+		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 			<div class="grid grid-cols-2 gap-4 mb-4">
 				<!-- Name -->
 				<div>
@@ -149,7 +149,7 @@
 				<button 
 					type="button" 
 					class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50" 
-					on:click={handleClose}
+					onclick={handleClose}
 					disabled={loading}
 				>
 					Cancel

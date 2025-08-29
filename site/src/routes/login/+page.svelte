@@ -9,6 +9,7 @@
   let username = $state('');
   let password = $state('');
   let loading = $state(false);
+  let error = $state('');
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -42,6 +43,7 @@
     <LoginCard 
       onSubmit={submit} 
       {loading} 
+      {error}
       bind:username 
       bind:password 
     />

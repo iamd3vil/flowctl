@@ -109,6 +109,10 @@
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4"
 		onclick={handleBackdropClick}
+		onkeydown={(e) => e.key === 'Escape' && closeModal()}
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
 	>
 		<!-- Modal content -->
 		<div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -125,6 +129,7 @@
 				<button
 					onclick={closeModal}
 					class="text-gray-400 hover:text-gray-600 transition-colors"
+					aria-label="Close modal"
 				>
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -154,27 +159,27 @@
 						<div class="bg-gray-50 rounded-lg p-4">
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Action ID</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Action ID</span>
 									<span class="text-sm text-gray-900">{approval.action_id}</span>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Status</span>
 									<span class="text-sm text-gray-900 capitalize">{approval.status}</span>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Execution ID</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Execution ID</span>
 									<span class="font-mono text-sm text-gray-900">{approval.exec_id}</span>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Requested By</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Requested By</span>
 									<span class="text-sm text-gray-900">{approval.requested_by}</span>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Flow</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Flow</span>
 									<span class="text-sm text-gray-900">{approval.flow_name}</span>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 mb-1">Created</label>
+									<span class="block text-sm font-medium text-gray-700 mb-1">Created</span>
 									<span class="text-sm text-gray-900">{formatDate(approval.created_at)}</span>
 								</div>
 							</div>

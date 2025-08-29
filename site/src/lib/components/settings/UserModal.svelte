@@ -63,6 +63,7 @@
 	<div 
 		class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
 		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
 		role="document"
 	>
 		<h3 class="font-bold text-lg mb-4 text-gray-900">
@@ -98,7 +99,7 @@
 
 			<!-- Groups Field -->
 			<div class="mb-4">
-				<label class="block mb-1 font-medium text-gray-900">Groups</label>
+				<span class="block mb-1 font-medium text-gray-900">Groups</span>
 				<GroupSelector
 					bind:selectedGroups
 					disabled={saving}
