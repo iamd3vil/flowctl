@@ -511,12 +511,23 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
 	}
 
-	namespaceDirPath := filepath.Join(c.flowDirectory, n.Name)
-	flowDir := filepath.Join(namespaceDirPath, f.Meta.ID)
+	// Get the existing flow from database to retrieve the file path
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
 
-	yamlFilePath := filepath.Join(flowDir, fmt.Sprintf("%s.yaml", f.Meta.ID))
+	existingFlow, err := c.store.GetFlowBySlug(ctx, repo.GetFlowBySlugParams{
+		Slug: f.Meta.ID,
+		Uuid: namespaceUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not get existing flow: %w", err)
+	}
+
+	yamlFilePath := existingFlow.FilePath
 	if _, err := os.Stat(yamlFilePath); err != nil {
-		return fmt.Errorf("flow with this ID does not exist: %w", err)
+		return fmt.Errorf("flow file does not exist at %s: %w", yamlFilePath, err)
 	}
 
 	yamlData, err := yaml.Marshal(f)
@@ -528,14 +539,14 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, n.Name)
+	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(yamlFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
 
 	c.rwf.Lock()
 	defer c.rwf.Unlock()
-	c.flows[fmt.Sprintf("%s:%s", importedFlow.Meta.ID, namespaceUUID)] = importedFlow
+	c.flows[fmt.Sprintf("%s:%s", importedFlow.Meta.ID, namespaceUUIDStr)] = importedFlow
 	return nil
 }
 
@@ -696,6 +707,7 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 			Checksum:     checksum,
 			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
 			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
+			FilePath:     yamlFilePath,
 			Name_2:       f.Meta.Namespace,
 		})
 	} else if fd.Checksum != checksum {
@@ -704,6 +716,7 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
 			Checksum:     checksum,
 			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
+			FilePath:     yamlFilePath,
 			Slug:         f.Meta.ID,
 			Name_2:       f.Meta.Namespace,
 		})

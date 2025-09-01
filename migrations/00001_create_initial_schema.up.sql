@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS flows (
     checksum VARCHAR(128) NOT NULL,
     description TEXT,
     cron_schedule VARCHAR(100),
+    file_path TEXT NOT NULL,
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),

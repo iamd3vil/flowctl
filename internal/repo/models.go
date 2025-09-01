@@ -372,6 +372,7 @@ type Flow struct {
 	Checksum     string         `db:"checksum" json:"checksum"`
 	Description  sql.NullString `db:"description" json:"description"`
 	CronSchedule sql.NullString `db:"cron_schedule" json:"cron_schedule"`
+	FilePath     string         `db:"file_path" json:"file_path"`
 	NamespaceID  int32          `db:"namespace_id" json:"namespace_id"`
 	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time      `db:"updated_at" json:"updated_at"`

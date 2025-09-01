@@ -13,9 +13,10 @@ INSERT INTO flows (
     description,
     checksum,
     cron_schedule,
+    file_path,
     namespace_id
 ) VALUES (
-    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6)
+    $1, $2, $3, $4, $5, $6, (SELECT id FROM namespaces WHERE namespaces.name = $7)
 ) RETURNING *;
 
 -- name: UpdateFlow :one
@@ -24,8 +25,9 @@ UPDATE flows SET
     description = $2,
     checksum = $3,
     cron_schedule = $4,
+    file_path = $5,
     updated_at = NOW()
-WHERE slug = $5 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $6)
+WHERE slug = $6 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $7)
 RETURNING *;
 
 -- name: DeleteFlow :exec
