@@ -7,10 +7,15 @@ import (
 	"log"
 	"time"
 
+	"encoding/json"
+
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
+)
+
+const (
+	ExecutionLogPendingTimeout = 30 * time.Second
 )
 
 // StreamLogs reads values from a redis stream from the beginning and returns a channel to which
@@ -70,64 +75,44 @@ func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string)
 func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
-	exec, err := c.GetExecutionByExecID(ctx, execID, namespaceID)
-	if err != nil {
-		return nil, err
-	}
-
 	go func(ch chan models.StreamMessage) {
 		defer close(ch)
-		lastProcessedID := "0"
 
-		// used to decide when to close the stream
-		// a close message is used to signify an end of stream but all the children write to the same stream
-		// this can create many close messages so the stream should only be closed when the last child sends a close message
-		closeCount := exec.Version
+		// Wait until logger exists with timeout
+		timeout := time.After(ExecutionLogPendingTimeout)
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+
 		for {
-			result, err := c.redisClient.XRead(ctx, &redis.XReadArgs{
-				Streams: []string{execID, lastProcessedID},
-				Count:   200,
-				Block:   0,
-			}).Result()
-
-			if err != nil {
-				log.Println(err)
-				if err == redis.Nil {
-					continue
-				}
-				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(fmt.Errorf("error reading from stream: %w", err).Error())}
+			select {
+			case <-ctx.Done():
 				return
-			}
-
-			for _, stream := range result {
-				for _, message := range stream.Messages {
-					if _, ok := message.Values["closed"]; ok {
-						if closeCount == 0 {
-							return
-						}
-						closeCount -= 1
-					}
-
-					if checkpoint, ok := message.Values["checkpoint"]; ok {
-						var sm models.StreamMessage
-						if err := sm.UnmarshalBinary([]byte(checkpoint.(string))); err != nil {
-							log.Println(err)
-							continue
-						}
-
-						if !ok {
-							log.Printf("checkpoint not of StreamMessage type: %T", checkpoint)
-							continue
-						}
-
-						ch <- sm
-					}
-
-					lastProcessedID = message.ID
+			case <-timeout:
+				log.Printf("timeout waiting for logger %s to be created", execID)
+				return
+			case <-ticker.C:
+				if c.LogManager.LoggerExists(execID) {
+					goto streamLoop
 				}
 			}
+		}
 
-			time.Sleep(1 * time.Second)
+	streamLoop:
+		logCh, err := c.LogManager.StreamLogs(ctx, execID)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		for msg := range logCh {
+			log.Println("test", msg)
+			var sm models.StreamMessage
+			if err := json.Unmarshal([]byte(msg), &sm); err != nil {
+				log.Println(err)
+				continue
+			}
+
+			ch <- sm
 		}
 	}(ch)
 

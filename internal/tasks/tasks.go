@@ -92,10 +92,11 @@ type FlowRunner struct {
 	secretsProvider  SecretsProviderFn
 	debugLogger      *slog.Logger
 	redisClient      redis.UniversalClient
+	logManager       streamlogger.LogManager
 }
 
-func NewFlowRunner(redisClient redis.UniversalClient, onBeforeActionFn, onAfterActionFn HookFn, secretsProvider SecretsProviderFn, debugLogger *slog.Logger) *FlowRunner {
-	return &FlowRunner{redisClient: redisClient, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, secretsProvider: secretsProvider, debugLogger: debugLogger.With("component", "flow_runner")}
+func NewFlowRunner(redisClient redis.UniversalClient, onBeforeActionFn, onAfterActionFn HookFn, secretsProvider SecretsProviderFn, logmanager streamlogger.LogManager, debugLogger *slog.Logger) *FlowRunner {
+	return &FlowRunner{redisClient: redisClient, onBeforeActionFn: onBeforeActionFn, onAfterActionFn: onAfterActionFn, secretsProvider: secretsProvider, logManager: logmanager, debugLogger: debugLogger.With("component", "flow_runner")}
 }
 
 func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) error {
@@ -130,8 +131,11 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 
 	streamID := payload.ExecID
 
-	streamLogger := streamlogger.NewStreamLogger(r.redisClient).WithID(streamID)
-	defer streamLogger.Close(payload.ExecID)
+	streamLogger, err := r.logManager.NewLogger(streamID)
+	if err != nil {
+		return err
+	}
+	defer streamLogger.Close()
 
 	// Get flow-specific secrets
 	var flowSecrets map[string]string
@@ -163,23 +167,19 @@ func (r *FlowRunner) HandleFlowExecution(ctx context.Context, t *asynq.Task) err
 			}
 		}
 
-		// Only run action if it has not already run, if it has run, use the existing results
-		res, err := streamLogger.Results(action.ID)
+		res, err := r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets)
 		if err != nil {
-			res, err = r.runAction(execCtx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets)
-			if err != nil {
-				// Check if the error is due to context cancellation
-				r.debugLogger.Debug("context cancelled action", "err", err, "is", errors.Is(err, context.Canceled))
-				if errors.Is(err, context.Canceled) {
-					// Send a cancelled message before returning
-					if streamErr := streamLogger.Checkpoint(action.ID, "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
-						r.debugLogger.Debug("failed to send cancelled message", "error", streamErr)
-					}
-					return ErrExecutionCancelled
+			// Check if the error is due to context cancellation
+			r.debugLogger.Debug("context cancelled action", "err", err, "is", errors.Is(err, context.Canceled))
+			if errors.Is(err, context.Canceled) {
+				// Send a cancelled message before returning
+				if streamErr := streamLogger.Checkpoint(action.ID, "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
+					r.debugLogger.Debug("failed to send cancelled message", "error", streamErr)
 				}
-				streamLogger.Checkpoint(action.ID, err.Error(), streamlogger.ErrMessageType)
-				return err
+				return ErrExecutionCancelled
 			}
+			streamLogger.Checkpoint(action.ID, err.Error(), streamlogger.ErrMessageType)
+			return err
 		}
 		if err := streamLogger.Checkpoint(action.ID, res, streamlogger.ResultMessageType); err != nil {
 			return err
@@ -237,9 +237,7 @@ func (r *FlowRunner) pullArtifacts(ctx context.Context, exec executor.Executor, 
 	return nil
 }
 
-func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamlogger *streamlogger.StreamLogger, artifactDir string, secrets map[string]string) (map[string]string, error) {
-	streamlogger = streamlogger.WithActionID(action.ID)
-
+func (r *FlowRunner) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamlogger streamlogger.Logger, artifactDir string, secrets map[string]string) (map[string]string, error) {
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)

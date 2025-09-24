@@ -7,6 +7,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
+	"github.com/cvhariharan/flowctl/internal/streamlogger"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
 	"gocloud.dev/secrets"
@@ -23,6 +24,7 @@ type Core struct {
 	rwf         sync.RWMutex
 	flows       map[string]models.Flow
 	keeper      *secrets.Keeper
+	LogManager  streamlogger.LogManager
 
 	// store the mapping between logID and flowID
 	logMap   map[string]string

@@ -18,6 +18,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/handlers"
 	"github.com/cvhariharan/flowctl/internal/repo"
+	"github.com/cvhariharan/flowctl/internal/streamlogger"
 	"github.com/cvhariharan/flowctl/internal/tasks"
 	"github.com/cvhariharan/flowctl/internal/tasks/scheduler"
 	"github.com/cvhariharan/flowctl/internal/utils"
@@ -40,15 +41,23 @@ var startCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
+		// Create shared FileLogManager instance
+		sharedFileLogManager := streamlogger.NewFileLogManager(streamlogger.FileLogManagerCfg{
+			RetentionTime: 24 * time.Hour,
+			MaxSizeBytes:  10 * 1024 * 1024,
+			MaxCount:      5,
+			LogDir:        "./",
+		})
+
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			// start worker
-			start(true)
+			start(true, sharedFileLogManager)
 		}()
 		// start server
-		start(false)
+		start(false, sharedFileLogManager)
 		wg.Wait()
 	},
 }
@@ -57,7 +66,7 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
-func start(isWorker bool) {
+func start(isWorker bool, fileLogManager streamlogger.LogManager) {
 	loglevel := slog.LevelError
 	if os.Getenv("DEBUG_LOG") == "true" {
 		loglevel = slog.LevelDebug
@@ -119,6 +128,7 @@ func start(isWorker bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	co.LogManager = fileLogManager
 
 	if isWorker {
 		startWorker(db, co, redisClient, logger, keeper, enforcer)
@@ -272,7 +282,7 @@ func startWorker(db *sqlx.DB, co *core.Core, redisClient redis.UniversalClient, 
 
 	s := repo.NewPostgresStore(db)
 
-	flowRunner := tasks.NewFlowRunner(redisClient, co.BeforeActionHook, nil, co.GetDecryptedFlowSecrets, logger)
+	flowRunner := tasks.NewFlowRunner(redisClient, co.BeforeActionHook, nil, co.GetDecryptedFlowSecrets, co.LogManager, logger)
 
 	st := tasks.NewStatusTracker(s)
 
