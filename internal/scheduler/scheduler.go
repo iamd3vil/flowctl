@@ -26,29 +26,34 @@ type TaskScheduler interface {
 
 // Scheduler implements TaskScheduler
 type Scheduler struct {
-	store           repo.Store      // For flow metadata and cron schedules
-	jobStore        storage.Storage // For job queue
-	secretsProvider SecretsProviderFn
-	logmanager      streamlogger.LogManager
-	cancelFuncs     map[string]context.CancelFunc
-	mu              sync.RWMutex
-	taskTicker      *time.Ticker
-	periodicTicker  *time.Ticker
-	cronSyncTicker  *time.Ticker
-	stopCh          chan struct{}
-	stopped         bool
-	workerCount     int
-	logger          *slog.Logger
+	store            repo.Store      // For flow metadata and cron schedules
+	jobStore         storage.Storage // For job queue
+	secretsProvider  SecretsProviderFn
+	flowLoader       FlowLoaderFn
+	logmanager       streamlogger.LogManager
+	cancelFuncs      map[string]context.CancelFunc
+	scheduledFlows   map[string]repo.GetScheduledFlowsRow // Cache of scheduled flows
+	mu               sync.RWMutex
+	taskTicker       *time.Ticker
+	periodicTicker   *time.Ticker
+	cronSyncTicker   *time.Ticker
+	cronSyncInterval time.Duration
+	stopCh           chan struct{}
+	stopped          bool
+	workerCount      int
+	logger           *slog.Logger
 }
 
 // SchedulerBuilder provides a fluent interface for building schedulers
 type SchedulerBuilder struct {
-	store           repo.Store
-	jobStore        storage.Storage
-	secretsProvider SecretsProviderFn
-	logmanager      streamlogger.LogManager
-	workerCount     int
-	logger          *slog.Logger
+	store            repo.Store
+	jobStore         storage.Storage
+	secretsProvider  SecretsProviderFn
+	flowLoader       FlowLoaderFn
+	logmanager       streamlogger.LogManager
+	workerCount      int
+	logger           *slog.Logger
+	cronSyncInterval time.Duration
 }
 
 // NewSchedulerBuilder creates a new scheduler builder
@@ -76,6 +81,12 @@ func (b *SchedulerBuilder) WithSecretsProvider(sp SecretsProviderFn) *SchedulerB
 	return b
 }
 
+// WithFlowLoader sets the flow loader
+func (b *SchedulerBuilder) WithFlowLoader(fl FlowLoaderFn) *SchedulerBuilder {
+	b.flowLoader = fl
+	return b
+}
+
 // WithLogManager sets the log manager
 func (b *SchedulerBuilder) WithLogManager(lm streamlogger.LogManager) *SchedulerBuilder {
 	b.logmanager = lm
@@ -84,6 +95,11 @@ func (b *SchedulerBuilder) WithLogManager(lm streamlogger.LogManager) *Scheduler
 
 func (b *SchedulerBuilder) WithWorkerCount(c int) *SchedulerBuilder {
 	b.workerCount = c
+	return b
+}
+
+func (b *SchedulerBuilder) WithCronSyncInterval(s time.Duration) *SchedulerBuilder {
+	b.cronSyncInterval = s
 	return b
 }
 
@@ -97,15 +113,22 @@ func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 		return nil, fmt.Errorf("logmanager cannot be nil")
 	}
 
+	if b.cronSyncInterval == 0 {
+		b.cronSyncInterval = 5 * time.Minute
+	}
+
 	return &Scheduler{
-		store:           b.store,
-		jobStore:        b.jobStore,
-		secretsProvider: b.secretsProvider,
-		logmanager:      b.logmanager,
-		workerCount:     b.workerCount,
-		logger:          b.logger,
-		cancelFuncs:     make(map[string]context.CancelFunc),
-		stopCh:          make(chan struct{}),
+		store:            b.store,
+		jobStore:         b.jobStore,
+		secretsProvider:  b.secretsProvider,
+		flowLoader:       b.flowLoader,
+		logmanager:       b.logmanager,
+		workerCount:      b.workerCount,
+		logger:           b.logger,
+		cronSyncInterval: b.cronSyncInterval,
+		cancelFuncs:      make(map[string]context.CancelFunc),
+		scheduledFlows:   make(map[string]repo.GetScheduledFlowsRow),
+		stopCh:           make(chan struct{}),
 	}, nil
 }
 
@@ -114,6 +137,13 @@ func (s *Scheduler) SetSecretsProvider(sp SecretsProviderFn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.secretsProvider = sp
+}
+
+// SetFlowLoader allows updating flow loader after build
+func (s *Scheduler) SetFlowLoader(fl FlowLoaderFn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.flowLoader = fl
 }
 
 // Start begins the scheduler's task processing loops
@@ -125,21 +155,23 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return nil
 	}
 
-	s.logger.Debug("starting scheduler task processing", "workers", s.workerCount)
+	s.logger.Debug("starting scheduler task processing", "workers", s.workerCount, "cronsyncinterval", s.cronSyncInterval)
 
-	// Initialize the job store
 	if err := s.jobStore.Initialize(ctx); err != nil {
 		return err
 	}
 
-	// Check for immediate tasks
 	s.taskTicker = time.NewTicker(2 * time.Second)
 
 	// Check periodic tasks every minute
 	s.periodicTicker = time.NewTicker(1 * time.Minute)
 
-	// Sync crons from DB every
-	s.cronSyncTicker = time.NewTicker(5 * time.Minute)
+	// Sync crons from DB every 5 minutes
+	s.cronSyncTicker = time.NewTicker(s.cronSyncInterval)
+
+	if err := s.syncScheduledFlows(ctx); err != nil {
+		s.logger.Error("failed to perform initial sync of scheduled flows", "error", err)
+	}
 
 	go s.processLoop(ctx)
 
@@ -164,8 +196,10 @@ func (s *Scheduler) Stop(ctx context.Context) error {
 	if s.periodicTicker != nil {
 		s.periodicTicker.Stop()
 	}
+	if s.cronSyncTicker != nil {
+		s.cronSyncTicker.Stop()
+	}
 
-	// Cancel all running executions
 	for _, cancel := range s.cancelFuncs {
 		cancel()
 	}
@@ -175,7 +209,6 @@ func (s *Scheduler) Stop(ctx context.Context) error {
 
 // QueueTask queues an immediate task for execution
 func (s *Scheduler) QueueTask(ctx context.Context, payload FlowExecutionPayload) (string, error) {
-	// Create job using the generic storage
 	job, err := storage.NewJob(payload.ExecID, payload)
 	if err != nil {
 		return "", err
@@ -197,8 +230,6 @@ func (s *Scheduler) CancelTask(ctx context.Context, execID string) error {
 		delete(s.cancelFuncs, execID)
 	}
 	s.mu.Unlock()
-
-	// remove pending queue items
 	return s.jobStore.CancelByExecID(ctx, execID)
 }
 
@@ -213,6 +244,10 @@ func (s *Scheduler) processLoop(ctx context.Context) {
 		case <-s.periodicTicker.C:
 			if err := s.checkPeriodicTasks(ctx); err != nil {
 				s.logger.Error("error checking periodic tasks", "error", err)
+			}
+		case <-s.cronSyncTicker.C:
+			if err := s.syncScheduledFlows(ctx); err != nil {
+				s.logger.Error("error syncing scheduled flows", "error", err)
 			}
 		case <-s.stopCh:
 			return

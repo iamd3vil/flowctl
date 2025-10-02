@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/env"
@@ -37,8 +38,9 @@ type RedisConfig struct {
 }
 
 type SchedulerConfig struct {
-	WorkerCount int    `koanf:"workers"`
-	Backend     string `koanf:"backend"`
+	WorkerCount      int           `koanf:"workers"`
+	Backend          string        `koanf:"backend"`
+	CronSyncInterval time.Duration `koanf:"cron_sync_interval"`
 }
 
 type Logger struct {
@@ -160,7 +162,8 @@ func getDefaultConfig() Config {
 				ClientSecret: "",
 			},
 			Scheduler: SchedulerConfig{
-				WorkerCount: runtime.NumCPU(),
+				WorkerCount:      runtime.NumCPU(),
+				CronSyncInterval: 5 * time.Minute,
 			},
 			Logger: Logger{
 				Backend:   "file",

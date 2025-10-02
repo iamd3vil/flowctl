@@ -153,6 +153,7 @@ func initializeSharedComponents() *SharedComponents {
 		WithJobStore(jobStore).
 		WithLogManager(fileLogManager).
 		WithWorkerCount(appConfig.App.Scheduler.WorkerCount).
+		WithCronSyncInterval(appConfig.App.Scheduler.CronSyncInterval).
 		Build()
 
 	if err != nil {
@@ -166,8 +167,9 @@ func initializeSharedComponents() *SharedComponents {
 
 	co.LogManager = fileLogManager
 
-	// Set secrets provider after core is created
+	// Set secrets provider and flow loader after core is created
 	sch.SetSecretsProvider(co.GetDecryptedFlowSecrets)
+	sch.SetFlowLoader(co.GetSchedulerFlow)
 
 	return &SharedComponents{
 		DB:          db,

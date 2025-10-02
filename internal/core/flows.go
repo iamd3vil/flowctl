@@ -834,3 +834,22 @@ func (c *Core) convertToSchedulerFlow(ctx context.Context, f models.Flow, namesp
 		Outputs: outputs,
 	}, nil
 }
+
+// GetSchedulerFlow loads a flow and converts it to scheduler.Flow format
+// This function can be used as a FlowLoaderFn for the scheduler
+func (c *Core) GetSchedulerFlow(ctx context.Context, flowSlug string, namespaceUUID string) (scheduler.Flow, error) {
+	// Load the flow from the in-memory cache
+	flow, err := c.GetFlowByID(flowSlug, namespaceUUID)
+	if err != nil {
+		return scheduler.Flow{}, fmt.Errorf("failed to get flow %s: %w", flowSlug, err)
+	}
+
+	// Parse namespace UUID
+	nsUUID, err := uuid.Parse(namespaceUUID)
+	if err != nil {
+		return scheduler.Flow{}, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	// Convert to scheduler format with nodes resolved
+	return c.convertToSchedulerFlow(ctx, flow, nsUUID)
+}

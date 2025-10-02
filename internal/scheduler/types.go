@@ -156,11 +156,13 @@ type FlowExecutionPayload struct {
 // Hook function types for flow execution
 type HookFn func(ctx context.Context, execID string, action Action, namespaceID string) error
 type SecretsProviderFn func(ctx context.Context, flowID string, namespaceID string) (map[string]string, error)
+type FlowLoaderFn func(ctx context.Context, flowSlug string, namespaceUUID string) (Flow, error)
 
 // SchedulerDependencies contains dependencies needed by the scheduler
 type SchedulerDependencies struct {
 	OnBeforeAction  HookFn
 	OnAfterAction   HookFn
 	SecretsProvider SecretsProviderFn
+	FlowLoader      FlowLoaderFn
 	LogManager      interface{} // streamlogger.LogManager
 }

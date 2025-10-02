@@ -6,7 +6,6 @@ import (
 	"slices"
 
 	"github.com/cvhariharan/flowctl/internal/scheduler"
-	"github.com/cvhariharan/flowctl/internal/tasks"
 	"github.com/expr-lang/expr"
 	"github.com/go-playground/validator/v10"
 )
@@ -44,30 +43,6 @@ type Action struct {
 	Artifacts []string       `yaml:"artifacts"`
 	Condition string         `yaml:"condition"`
 	On        []string       `yaml:"on"`
-}
-
-func TaskActionToAction(a tasks.Action) Action {
-	var variables []Variable
-	for _, v := range a.Variables {
-		variables = append(variables, Variable(v))
-	}
-
-	var nodeNames []string
-	for _, node := range a.On {
-		nodeNames = append(nodeNames, node.Name)
-	}
-
-	return Action{
-		ID:        a.ID,
-		Name:      a.Name,
-		With:      a.With,
-		On:        nodeNames,
-		Executor:  a.Executor,
-		Approval:  a.Approval,
-		Variables: variables,
-		Artifacts: a.Artifacts,
-		Condition: a.Condition,
-	}
 }
 
 func SchedulerActionToAction(a scheduler.Action) Action {
@@ -153,83 +128,6 @@ type Flow struct {
 	Outputs []Output `yaml:"outputs"`
 }
 
-func ToTaskFlowModel(f Flow, nodeLookupFunc func(nodeNames []string) ([]Node, error)) (tasks.Flow, error) {
-	var ti []tasks.Input
-	for _, v := range f.Inputs {
-		ti = append(ti, tasks.Input{
-			Name:        v.Name,
-			Type:        tasks.InputType(v.Type),
-			Label:       v.Label,
-			Description: v.Description,
-			Default:     v.Default,
-			Required:    v.Required,
-			Validation:  v.Validation,
-		})
-	}
-
-	var ta []tasks.Action
-	for _, v := range f.Actions {
-
-		var tvs []tasks.Variable
-		for _, val := range v.Variables {
-			tvs = append(tvs, tasks.Variable(val))
-		}
-
-		nodes, err := nodeLookupFunc(v.On)
-		if err != nil {
-			return tasks.Flow{}, fmt.Errorf("error looking up nodes for action %s: %w", v.ID, err)
-		}
-
-		ta = append(ta, tasks.Action{
-			ID:        v.ID,
-			Name:      v.Name,
-			With:      v.With,
-			On:        NodesToTaskNodesModel(nodes),
-			Executor:  v.Executor,
-			Approval:  v.Approval,
-			Variables: tvs,
-			Artifacts: v.Artifacts,
-			Condition: v.Condition,
-		})
-	}
-
-	var to []tasks.Output
-	for _, v := range f.Outputs {
-		to = append(to, tasks.Output(v))
-	}
-
-	tf := tasks.Flow{
-		Meta:    tasks.Metadata(f.Meta),
-		Inputs:  ti,
-		Actions: ta,
-		Outputs: to,
-	}
-
-	return tf, nil
-}
-
-func NodesToTaskNodesModel(nodes []Node) []tasks.Node {
-	var tn []tasks.Node
-	for _, n := range nodes {
-		tn = append(tn, tasks.Node{
-			ID:       n.ID,
-			Name:     n.Name,
-			Hostname: n.Hostname,
-			Port:     n.Port,
-			Username: n.Username,
-			OSFamily: n.OSFamily,
-			Tags:     n.Tags,
-			ConnectionType: n.ConnectionType,
-			Auth: tasks.NodeAuth{
-				CredentialID: n.Auth.CredentialID,
-				Method:       tasks.AuthMethod(n.Auth.Method),
-				Key:          n.Auth.Key,
-			},
-		})
-	}
-	return tn
-}
-
 func AlphanumericUnderscore(fl validator.FieldLevel) bool {
 	regex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	value := fl.Field().String()
@@ -309,7 +207,7 @@ func (f Flow) ValidateInput(inputs map[string]interface{}) *FlowValidationError 
 		}
 
 		// If this is a select type, check that the value is in the list
-		if input.Type == INPUT_TYPE_SELECT  {
+		if input.Type == INPUT_TYPE_SELECT {
 			if !slices.Contains(input.Options, value.(string)) {
 				return &FlowValidationError{FieldName: input.Name, Msg: "The selected value is not part of the list"}
 			}
