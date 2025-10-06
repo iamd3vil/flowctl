@@ -27,12 +27,6 @@ services:
         source: valkey-data
         target: /data
 
-  asynqmon:
-    image: docker.io/hibiken/asynqmon
-    ports:
-      - 8080:8080
-    command: --redis-url=redis://valkey:6379
-
 volumes:
   flowctl-db-data:
   valkey-data:

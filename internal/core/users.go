@@ -4,10 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/google/uuid"
+)
+
+const (
+	SystemUserUUID = "00000000-0000-0000-0000-000000000000"
 )
 
 func (c *Core) GetUserByUsername(ctx context.Context, username string) (models.User, error) {
@@ -119,6 +124,10 @@ func (c *Core) GetUserByUUID(ctx context.Context, userUUID string) (models.User,
 }
 
 func (c *Core) DeleteUserByUUID(ctx context.Context, userUUID string) error {
+	if c.isReservedUser(ctx, userUUID) {
+		return fmt.Errorf("cannot delete reserved user")
+	}
+
 	uid, err := uuid.Parse(userUUID)
 	if err != nil {
 		return fmt.Errorf("user ID should be a UUID: %w", err)
@@ -129,6 +138,25 @@ func (c *Core) DeleteUserByUUID(ctx context.Context, userUUID string) error {
 	}
 
 	return nil
+}
+
+func (c *Core) isReservedUser(ctx context.Context, userUUID string) bool {
+	if userUUID == SystemUserUUID {
+		return true
+	}
+
+	uid, err := uuid.Parse(userUUID)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	u, err := c.store.GetUserByUUID(ctx, uid)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+	return u.Role == repo.UserRoleTypeSuperuser
 }
 
 func (c *Core) CreateUser(ctx context.Context, name, username string, loginType models.UserLoginType, userRole models.UserRoleType, groups []string) (models.UserWithGroups, error) {
@@ -180,6 +208,10 @@ func (c *Core) CreateUser(ctx context.Context, name, username string, loginType 
 }
 
 func (c *Core) UpdateUser(ctx context.Context, userUUID string, name string, username string, groups []string) (models.UserWithGroups, error) {
+	if c.isReservedUser(ctx, userUUID) {
+		return models.UserWithGroups{}, fmt.Errorf("cannot update reserved user")
+	}
+
 	uid, err := uuid.Parse(userUUID)
 	if err != nil {
 		return models.UserWithGroups{}, fmt.Errorf("user ID should be a UUID: %w", err)

@@ -66,7 +66,7 @@ func (h *Handler) HandleUpdateUser(c echo.Context) error {
 
 	user, err := h.co.UpdateUser(c.Request().Context(), userID, req.Name, req.Username, req.Groups)
 	if err != nil {
-		return wrapError(ErrOperationFailed, "could not update user", err, nil)
+		return wrapError(ErrOperationFailed, err.Error(), err, nil)
 	}
 
 	return c.JSON(http.StatusOK, UserWithGroups{
@@ -120,19 +120,9 @@ func (h *Handler) HandleDeleteUser(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "user id cannot be empty", nil, nil)
 	}
 
-	u, err := h.co.GetUserByUUID(c.Request().Context(), userID)
+	err := h.co.DeleteUserByUUID(c.Request().Context(), userID)
 	if err != nil {
-		return wrapError(ErrResourceNotFound, "could not retrieve user", err, nil)
-	}
-
-	// Do not delete admin user
-	if u.Username == h.config.App.AdminUsername {
-		return wrapError(ErrForbidden, "cannot delete admin user", nil, nil)
-	}
-
-	err = h.co.DeleteUserByUUID(c.Request().Context(), userID)
-	if err != nil {
-		return wrapError(ErrOperationFailed, "could not delete user", err, nil)
+		return wrapError(ErrOperationFailed, err.Error(), err, nil)
 	}
 
 	return c.NoContent(http.StatusOK)

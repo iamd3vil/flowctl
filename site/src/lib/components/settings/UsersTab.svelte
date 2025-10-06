@@ -47,7 +47,7 @@
 				const colors = ['bg-danger-100 text-danger-600', 'bg-primary-100 text-primary-600', 'bg-success-100 text-success-600', 'bg-warning-100 text-warning-600', 'bg-primary-100 text-primary-600', 'bg-pink-100 text-pink-600', 'bg-indigo-100 text-indigo-600'];
 				const colorIndex = user.name.charCodeAt(0) % colors.length;
 				const colorClass = colors[colorIndex];
-				
+
 				return `
 					<div class="flex items-center">
 						<div class="w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${colorClass} font-medium text-sm">
@@ -69,37 +69,72 @@
 				if (userGroups.length === 0) {
 					return '<span class="text-gray-400 text-sm">No groups</span>';
 				}
-				
+
 				let html = '<div class="flex flex-wrap gap-1 items-center">';
-				
+
 				// Show first 3 groups
 				userGroups.slice(0, 3).forEach((group: any) => {
 					html += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">${group.name}</span>`;
 				});
-				
+
 				// Show +N more if there are more than 3
 				if (userGroups.length > 3) {
 					html += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">+${userGroups.length - 3}</span>`;
 				}
-				
+
 				html += '</div>';
 				return html;
+			}
+		},
+		{
+			key: 'actions',
+			header: 'Actions',
+			render: (_value: any, user: UserWithGroups) => {
+				// Don't show actions for superuser role (reserved users)
+				if (user.role === 'superuser') {
+					return '<span class="text-gray-400 text-sm">Reserved</span>';
+				}
+
+				return `
+					<div class="flex items-center gap-3">
+						<button
+							data-action="edit"
+							data-user-id="${user.id}"
+							class="text-primary-600 hover:text-primary-800 text-sm font-medium"
+						>
+							Edit
+						</button>
+						<button
+							data-action="delete"
+							data-user-id="${user.id}"
+							data-user-name="${user.name}"
+							class="text-danger-600 hover:text-danger-800 text-sm font-medium"
+						>
+							Delete
+						</button>
+					</div>
+				`;
 			}
 		}
 	];
 
-	let tableActions = [
-		{
-			label: 'Edit',
-			onClick: (user: User) => handleEdit(user.id),
-			className: 'text-primary-600 hover:text-primary-800'
-		},
-		{
-			label: 'Delete',
-			onClick: (user: User) => handleDelete(user.id, user.name),
-			className: 'text-danger-600 hover:text-danger-800'
+	// Event delegation for action buttons
+	function handleTableClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		const button = target.closest('button[data-action]');
+
+		if (!button) return;
+
+		const action = button.getAttribute('data-action');
+		const userId = button.getAttribute('data-user-id');
+
+		if (action === 'edit' && userId) {
+			handleEdit(userId);
+		} else if (action === 'delete' && userId) {
+			const userName = button.getAttribute('data-user-name') || '';
+			handleDelete(userId, userName);
 		}
-	];
+	}
 
 	// Functions
 	async function fetchUsers(filter: string = '', pageNumber: number = 1) {
@@ -224,11 +259,10 @@
 </div>
 
 <!-- Users Table -->
-<div class="mb-6">
+<div class="mb-6" onclick={handleTableClick}>
 	<Table
 		data={users}
 		columns={tableColumns}
-		actions={tableActions}
 		{loading}
 		emptyMessage="No users found. Get started by adding your first user."
 	/>
