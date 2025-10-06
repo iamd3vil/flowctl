@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
@@ -8,6 +9,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/expr-lang/expr"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type InputType string
@@ -70,13 +72,13 @@ func SchedulerActionToAction(a scheduler.Action) Action {
 }
 
 type Metadata struct {
-	ID          string `yaml:"id" validate:"required,alphanum_underscore"`
-	DBID        int32  `yaml:"-"`
-	Name        string `yaml:"name" validate:"required"`
-	Description string `yaml:"description"`
-	Schedule    string `yaml:"schedule" validate:"omitempty,cron"`
-	SrcDir      string `yaml:"-"`
-	Namespace   string `yaml:"namespace"`
+	ID          string   `yaml:"id" validate:"required,alphanum_underscore"`
+	DBID        int32    `yaml:"-"`
+	Name        string   `yaml:"name" validate:"required"`
+	Description string   `yaml:"description"`
+	Schedules   []string `yaml:"schedules" validate:"omitempty,dive,cron"`
+	SrcDir      string   `yaml:"-"`
+	Namespace   string   `yaml:"namespace"`
 }
 
 type Variable map[string]any
@@ -156,9 +158,9 @@ func (f Flow) Validate() error {
 		actionsIDs[action.ID] = 1
 	}
 
-	// Check if schedule is set on a non-schedulable flow
-	if f.Meta.Schedule != "" && !f.IsSchedulable() {
-		return fmt.Errorf("cannot set schedule on flow: flow has inputs without default values")
+	// Check if schedules are set on a non-schedulable flow
+	if len(f.Meta.Schedules) > 0 && !f.IsSchedulable() {
+		return fmt.Errorf("cannot set schedules on flow: flow has inputs without default values")
 	}
 
 	return validate.Struct(f)
@@ -276,4 +278,90 @@ type Execution struct {
 	Version     int64                  `json:"version"`
 	ErrorMsg    string                 `json:"error_msg"`
 	TriggeredBy string                 `json:"triggered_by"`
+}
+
+// convertToSchedulerFlow converts a Flow to scheduler.Flow
+func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID, getNodesByNames func(context.Context, []string, uuid.UUID) ([]Node, error)) (scheduler.Flow, error) {
+	// Convert inputs
+	var inputs []scheduler.Input
+	for _, inp := range f.Inputs {
+		inputs = append(inputs, scheduler.Input{
+			Name:        inp.Name,
+			Type:        scheduler.InputType(inp.Type),
+			Label:       inp.Label,
+			Description: inp.Description,
+			Validation:  inp.Validation,
+			Required:    inp.Required,
+			Default:     inp.Default,
+		})
+	}
+
+	// Convert actions
+	var actions []scheduler.Action
+	for _, act := range f.Actions {
+		// Get nodes for this action
+		nodes, err := getNodesByNames(ctx, act.On, namespaceUUID)
+		if err != nil && len(act.On) > 0 {
+			return scheduler.Flow{}, fmt.Errorf("failed to get nodes for action %s: %w", act.ID, err)
+		}
+
+		// Convert nodes to scheduler format
+		var schedulerNodes []scheduler.Node
+		for _, node := range nodes {
+			schedulerNodes = append(schedulerNodes, scheduler.Node{
+				ID:             node.ID,
+				Name:           node.Name,
+				Hostname:       node.Hostname,
+				Port:           node.Port,
+				Username:       node.Username,
+				OSFamily:       node.OSFamily,
+				ConnectionType: node.ConnectionType,
+				Tags:           node.Tags,
+				Auth: scheduler.NodeAuth{
+					CredentialID: node.Auth.CredentialID,
+					Method:       scheduler.AuthMethod(node.Auth.Method),
+					Key:          node.Auth.Key,
+				},
+			})
+		}
+
+		// Convert variables
+		var variables []scheduler.Variable
+		for _, v := range act.Variables {
+			variables = append(variables, scheduler.Variable(v))
+		}
+
+		actions = append(actions, scheduler.Action{
+			ID:        act.ID,
+			Name:      act.Name,
+			Executor:  act.Executor,
+			With:      act.With,
+			Approval:  act.Approval,
+			Variables: variables,
+			Artifacts: act.Artifacts,
+			Condition: act.Condition,
+			On:        schedulerNodes,
+		})
+	}
+
+	// Convert outputs
+	var outputs []scheduler.Output
+	for _, out := range f.Outputs {
+		outputs = append(outputs, scheduler.Output(out))
+	}
+
+	return scheduler.Flow{
+		Meta: scheduler.Metadata{
+			ID:          f.Meta.ID,
+			DBID:        f.Meta.DBID,
+			Name:        f.Meta.Name,
+			Description: f.Meta.Description,
+			Schedules:   f.Meta.Schedules,
+			SrcDir:      f.Meta.SrcDir,
+			Namespace:   f.Meta.Namespace,
+		},
+		Inputs:  inputs,
+		Actions: actions,
+		Outputs: outputs,
+	}, nil
 }

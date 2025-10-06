@@ -486,13 +486,12 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 			ID:          GenerateSlug(req.Meta.Name),
 			Name:        req.Meta.Name,
 			Description: req.Meta.Description,
-			Schedule:    req.Meta.Schedule,
+			Schedules:   req.Meta.Schedules,
 			Namespace:   namespace,
 		},
 		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
 		Actions: convertFlowActionsReqToActions(req.Actions),
 	}
-	h.logger.Debug("flow", flow)
 
 	if err := flow.Validate(); err != nil {
 		return wrapError(ErrValidationFailed, "flow validation error", err, nil)
@@ -524,9 +523,9 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
 	}
 
-	// Update the metadata schedule from request
+	// Update the metadata schedules from request
 	updatedMeta := f.Meta
-	updatedMeta.Schedule = req.Schedule
+	updatedMeta.Schedules = req.Schedules
 
 	flow := models.Flow{
 		Meta:    updatedMeta,
@@ -576,7 +575,7 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 		Meta: FlowMetaReq{
 			Name:        f.Meta.Name,
 			Description: f.Meta.Description,
-			Schedule:    f.Meta.Schedule,
+			Schedules:   f.Meta.Schedules,
 		},
 		Inputs:  convertFlowInputsToInputsReq(f.Inputs),
 		Actions: convertFlowActionsToActionsReq(f.Actions),

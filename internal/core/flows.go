@@ -243,7 +243,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	}
 
 	// Convert to scheduler flow format
-	schedulerFlow, err := c.convertToSchedulerFlow(ctx, f, namespaceUUID)
+	schedulerFlow, err := models.ConvertToSchedulerFlow(ctx, f, namespaceUUID, c.GetNodesByNames)
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to scheduler model: %w", err)
 	}
@@ -456,6 +456,9 @@ func (c *Core) CreateFlow(ctx context.Context, f models.Flow, namespaceID string
 	}
 	c.rwf.RUnlock()
 
+	// Remove duplicate schedules
+	f.Meta.Schedules = removeDuplicateStrings(f.Meta.Schedules)
+
 	n, err := c.GetNamespaceByID(ctx, namespaceID)
 	if err != nil {
 		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
@@ -502,6 +505,9 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("flow with id %s does not exist", f.Meta.ID)
 	}
 	c.rwf.RUnlock()
+
+	// Remove duplicate schedules
+	f.Meta.Schedules = removeDuplicateStrings(f.Meta.Schedules)
 
 	n, err := c.GetNamespaceByID(ctx, namespaceID)
 	if err != nil {
@@ -699,23 +705,23 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 	})
 	if err != nil {
 		fd, err = c.store.CreateFlow(context.Background(), repo.CreateFlowParams{
-			Slug:         f.Meta.ID,
-			Name:         f.Meta.Name,
-			Checksum:     checksum,
-			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
-			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
-			FilePath:     yamlFilePath,
-			Name_2:       f.Meta.Namespace,
+			Slug:          f.Meta.ID,
+			Name:          f.Meta.Name,
+			Checksum:      checksum,
+			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
+			CronSchedules: f.Meta.Schedules,
+			FilePath:      yamlFilePath,
+			Name_2:        f.Meta.Namespace,
 		})
 	} else if fd.Checksum != checksum {
 		fd, err = c.store.UpdateFlow(context.Background(), repo.UpdateFlowParams{
-			Name:         f.Meta.Name,
-			Description:  sql.NullString{String: f.Meta.Description, Valid: true},
-			Checksum:     checksum,
-			CronSchedule: sql.NullString{String: f.Meta.Schedule, Valid: f.Meta.Schedule != ""},
-			FilePath:     yamlFilePath,
-			Slug:         f.Meta.ID,
-			Name_2:       f.Meta.Namespace,
+			Name:          f.Meta.Name,
+			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
+			Checksum:      checksum,
+			CronSchedules: f.Meta.Schedules,
+			FilePath:      yamlFilePath,
+			Slug:          f.Meta.ID,
+			Name_2:        f.Meta.Namespace,
 		})
 	}
 	if err != nil {
@@ -749,92 +755,6 @@ func (c *Core) GetScheduledFlows() []models.Flow {
 	return scheduledFlows
 }
 
-// convertToSchedulerFlow converts a models.Flow to scheduler.Flow
-func (c *Core) convertToSchedulerFlow(ctx context.Context, f models.Flow, namespaceUUID uuid.UUID) (scheduler.Flow, error) {
-	// Convert inputs
-	var inputs []scheduler.Input
-	for _, inp := range f.Inputs {
-		inputs = append(inputs, scheduler.Input{
-			Name:        inp.Name,
-			Type:        scheduler.InputType(inp.Type),
-			Label:       inp.Label,
-			Description: inp.Description,
-			Validation:  inp.Validation,
-			Required:    inp.Required,
-			Default:     inp.Default,
-		})
-	}
-
-	// Convert actions
-	var actions []scheduler.Action
-	for _, act := range f.Actions {
-		// Get nodes for this action
-		nodes, err := c.GetNodesByNames(ctx, act.On, namespaceUUID)
-		if err != nil && len(act.On) > 0 {
-			return scheduler.Flow{}, fmt.Errorf("failed to get nodes for action %s: %w", act.ID, err)
-		}
-
-		// Convert nodes to scheduler format
-		var schedulerNodes []scheduler.Node
-		for _, node := range nodes {
-			schedulerNodes = append(schedulerNodes, scheduler.Node{
-				ID:             node.ID,
-				Name:           node.Name,
-				Hostname:       node.Hostname,
-				Port:           node.Port,
-				Username:       node.Username,
-				OSFamily:       node.OSFamily,
-				ConnectionType: node.ConnectionType,
-				Tags:           node.Tags,
-				Auth: scheduler.NodeAuth{
-					CredentialID: node.Auth.CredentialID,
-					Method:       scheduler.AuthMethod(node.Auth.Method),
-					Key:          node.Auth.Key,
-				},
-			})
-		}
-
-		// Convert variables
-		var variables []scheduler.Variable
-		for _, v := range act.Variables {
-			variables = append(variables, scheduler.Variable(v))
-		}
-
-		actions = append(actions, scheduler.Action{
-			ID:        act.ID,
-			Name:      act.Name,
-			Executor:  act.Executor,
-			With:      act.With,
-			Approval:  act.Approval,
-			Variables: variables,
-			Artifacts: act.Artifacts,
-			Condition: act.Condition,
-			On:        schedulerNodes,
-		})
-	}
-
-	// Convert outputs
-	var outputs []scheduler.Output
-	for _, out := range f.Outputs {
-		outputs = append(outputs, scheduler.Output(out))
-	}
-
-	return scheduler.Flow{
-		Meta: scheduler.Metadata{
-			ID:          f.Meta.ID,
-			DBID:        f.Meta.DBID,
-			Name:        f.Meta.Name,
-			Description: f.Meta.Description,
-			Schedule:    f.Meta.Schedule,
-			SrcDir:      f.Meta.SrcDir,
-			Namespace:   f.Meta.Namespace,
-		},
-		Inputs:  inputs,
-		Actions: actions,
-		Outputs: outputs,
-	}, nil
-}
-
 // GetSchedulerFlow loads a flow and converts it to scheduler.Flow format
 // This function can be used as a FlowLoaderFn for the scheduler
 func (c *Core) GetSchedulerFlow(ctx context.Context, flowSlug string, namespaceUUID string) (scheduler.Flow, error) {
@@ -851,5 +771,24 @@ func (c *Core) GetSchedulerFlow(ctx context.Context, flowSlug string, namespaceU
 	}
 
 	// Convert to scheduler format with nodes resolved
-	return c.convertToSchedulerFlow(ctx, flow, nsUUID)
+	return models.ConvertToSchedulerFlow(ctx, flow, nsUUID, c.GetNodesByNames)
+}
+
+// removeDuplicateStrings removes duplicate strings from a slice
+func removeDuplicateStrings(slice []string) []string {
+	if len(slice) == 0 {
+		return slice
+	}
+
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(slice))
+
+	for _, item := range slice {
+		if item != "" && !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
 }

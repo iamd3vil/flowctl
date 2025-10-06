@@ -308,12 +308,12 @@ func coreNamespaceArrayToNamespaceRespArray(namespaces []models.Namespace) []Nam
 
 // Flow list response type
 type FlowListItem struct {
-	ID          string `json:"id"`
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Schedule    string `json:"schedule"`
-	StepCount   int    `json:"step_count"`
+	ID          string   `json:"id"`
+	Slug        string   `json:"slug"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Schedules   []string `json:"schedules"`
+	StepCount   int      `json:"step_count"`
 }
 
 type FlowInput struct {
@@ -349,11 +349,11 @@ func coreFlowInputsToInputs(inputs []models.Input) []FlowInput {
 }
 
 type FlowMeta struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Schedule    string `json:"schedule"`
-	Namespace   string `json:"namespace"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Schedules   []string `json:"schedules"`
+	Namespace   string   `json:"namespace"`
 }
 
 func coreFlowMetatoFlowMeta(m models.Metadata) FlowMeta {
@@ -361,7 +361,7 @@ func coreFlowMetatoFlowMeta(m models.Metadata) FlowMeta {
 		ID:          m.ID,
 		Name:        m.Name,
 		Description: m.Description,
-		Schedule:    m.Schedule,
+		Schedules:   m.Schedules,
 		Namespace:   m.Namespace,
 	}
 }
@@ -419,7 +419,7 @@ func coreFlowToFlow(flow models.Flow) FlowListItem {
 		Slug:        flow.Meta.ID,
 		Name:        flow.Meta.Name,
 		Description: flow.Meta.Description,
-		Schedule:    flow.Meta.Schedule,
+		Schedules:   flow.Meta.Schedules,
 		StepCount:   len(flow.Actions),
 	}
 }
@@ -539,9 +539,9 @@ type FlowCreateReq struct {
 }
 
 type FlowMetaReq struct {
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"description"`
-	Schedule    string `json:"schedule"`
+	Name        string   `json:"name" validate:"required"`
+	Description string   `json:"description"`
+	Schedules   []string `json:"schedules"`
 }
 
 type FlowInputReq struct {
@@ -571,9 +571,9 @@ type FlowCreateResp struct {
 }
 
 type FlowUpdateReq struct {
-	Schedule string          `json:"schedule"`
-	Inputs   []FlowInputReq  `json:"inputs" validate:"required,dive"`
-	Actions  []FlowActionReq `json:"actions" validate:"required,dive"`
+	Schedules []string        `json:"schedules"`
+	Inputs    []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions   []FlowActionReq `json:"actions" validate:"required,dive"`
 }
 
 // Helper functions to convert request types to models

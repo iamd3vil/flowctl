@@ -12,7 +12,7 @@ INSERT INTO flows (
     name,
     description,
     checksum,
-    cron_schedule,
+    cron_schedules,
     file_path,
     namespace_id
 ) VALUES (
@@ -20,11 +20,11 @@ INSERT INTO flows (
 ) RETURNING *;
 
 -- name: UpdateFlow :one
-UPDATE flows SET 
+UPDATE flows SET
     name = $1,
     description = $2,
     checksum = $3,
-    cron_schedule = $4,
+    cron_schedules = $4,
     file_path = $5,
     updated_at = NOW()
 WHERE slug = $6 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $7)
@@ -56,7 +56,7 @@ paged AS (
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
-SELECT 
+SELECT
     p.*,
     pc.page_count,
     t.total_count
@@ -79,7 +79,7 @@ paged AS (
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
-SELECT 
+SELECT
     p.*,
     pc.page_count,
     t.total_count
@@ -104,7 +104,7 @@ paged AS (
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
 )
-SELECT 
+SELECT
     p.*,
     pc.page_count,
     t.total_count
@@ -114,4 +114,4 @@ FROM paged p, page_count pc, total t;
 SELECT f.*, n.uuid AS namespace_uuid
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
-WHERE f.cron_schedule IS NOT NULL AND f.cron_schedule != '';
+WHERE f.cron_schedules IS NOT NULL AND array_length(f.cron_schedules, 1) > 0;

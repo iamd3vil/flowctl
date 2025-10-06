@@ -47,7 +47,7 @@ export interface FlowListItem {
   slug: string;
   name: string;
   description: string;
-  schedule: string;
+  schedules: string[];
   step_count: number;
 }
 
@@ -56,7 +56,14 @@ export interface FlowInput {
   label: string;
   description: string;
   required: boolean;
-  type: 'string' | 'number' | 'password' | 'file' | 'datetime' | 'checkbox' | 'select';
+  type:
+    | "string"
+    | "number"
+    | "password"
+    | "file"
+    | "datetime"
+    | "checkbox"
+    | "select";
   options: string[];
 }
 
@@ -68,7 +75,7 @@ export interface FlowMeta {
   id: string;
   name: string;
   description: string;
-  schedule: string;
+  schedules: string[];
   namespace: string;
 }
 
@@ -95,14 +102,14 @@ export interface FlowTriggerResp {
 
 export interface FlowLogResp {
   action_id: string;
-  message_type: 'log' | 'error' | 'result' | 'approval';
+  message_type: "log" | "error" | "result" | "approval";
   value: string;
   results?: Record<string, string>;
 }
 
 // Node types
 export interface NodeAuth {
-  method: 'private_key' | 'password';
+  method: "private_key" | "password";
   credential_id: string;
 }
 
@@ -111,8 +118,8 @@ export interface NodeReq {
   hostname: string;
   port: number;
   username: string;
-  os_family: 'linux' | 'windows';
-  connection_type: 'ssh' | 'qssh';
+  os_family: "linux" | "windows";
+  connection_type: "ssh" | "qssh";
   tags: string[];
   auth: NodeAuth;
 }
@@ -138,7 +145,7 @@ export interface NodeStatsResp {
 // Credential types
 export interface CredentialReq {
   name: string;
-  key_type: 'private_key' | 'password';
+  key_type: "private_key" | "password";
   key_data: string;
 }
 
@@ -164,7 +171,8 @@ export interface NamespaceResp {
   name: string;
 }
 
-export interface NamespacesPaginateResponse extends PaginatedResponse<NamespaceResp> {
+export interface NamespacesPaginateResponse
+  extends PaginatedResponse<NamespaceResp> {
   namespaces: NamespaceResp[];
   page_count: number;
   total_count: number;
@@ -172,8 +180,8 @@ export interface NamespacesPaginateResponse extends PaginatedResponse<NamespaceR
 
 export interface NamespaceMemberReq {
   subject_id: string;
-  subject_type: 'user' | 'group';
-  role: 'user' | 'reviewer' | 'admin';
+  subject_type: "user" | "group";
+  role: "user" | "reviewer" | "admin";
 }
 
 export interface NamespaceMemberResp {
@@ -225,7 +233,13 @@ export interface ApprovalDetailsResp {
 }
 
 // Execution types
-export type ExecutionStatus = 'cancelled' | 'pending' | 'completed' | 'errored' | 'pending_approval' | 'running';
+export type ExecutionStatus =
+  | "cancelled"
+  | "pending"
+  | "completed"
+  | "errored"
+  | "pending_approval"
+  | "running";
 
 export interface ExecutionSummary {
   id: string;
@@ -249,7 +263,7 @@ export interface PaginateRequest {
 }
 
 export interface ApprovalPaginateRequest extends PaginateRequest {
-  status?: 'pending' | 'approved' | 'rejected' | '';
+  status?: "pending" | "approved" | "rejected" | "";
 }
 
 export interface PaginatedResponse<T> {
@@ -257,11 +271,13 @@ export interface PaginatedResponse<T> {
   total_count: number;
 }
 
-export interface UsersPaginateResponse extends PaginatedResponse<UserWithGroups> {
+export interface UsersPaginateResponse
+  extends PaginatedResponse<UserWithGroups> {
   users: UserWithGroups[];
 }
 
-export interface GroupsPaginateResponse extends PaginatedResponse<GroupWithUsers> {
+export interface GroupsPaginateResponse
+  extends PaginatedResponse<GroupWithUsers> {
   groups: GroupWithUsers[];
 }
 
@@ -273,7 +289,8 @@ export interface NodesPaginateResponse extends PaginatedResponse<NodeResp> {
   nodes: NodeResp[];
 }
 
-export interface CredentialsPaginateResponse extends PaginatedResponse<CredentialResp> {
+export interface CredentialsPaginateResponse
+  extends PaginatedResponse<CredentialResp> {
   credentials: CredentialResp[];
 }
 
@@ -292,12 +309,13 @@ export interface FlowSecretResp {
   updated_at: string;
 }
 
-
-export interface ApprovalsPaginateResponse extends PaginatedResponse<ApprovalResp> {
+export interface ApprovalsPaginateResponse
+  extends PaginatedResponse<ApprovalResp> {
   approvals: ApprovalResp[];
 }
 
-export interface ExecutionsPaginateResponse extends PaginatedResponse<ExecutionSummary> {
+export interface ExecutionsPaginateResponse
+  extends PaginatedResponse<ExecutionSummary> {
   executions: ExecutionSummary[];
 }
 
@@ -351,12 +369,19 @@ export interface FlowCreateReq {
 export interface FlowMetaReq {
   name: string;
   description?: string;
-  schedule?: string;
+  schedules?: string[];
 }
 
 export interface FlowInputReq {
   name: string;
-  type: 'string' | 'number' | 'password' | 'file' | 'datetime' | 'checkbox' | 'select';
+  type:
+    | "string"
+    | "number"
+    | "password"
+    | "file"
+    | "datetime"
+    | "checkbox"
+    | "select";
   label?: string;
   description?: string;
   validation?: string;
@@ -367,7 +392,7 @@ export interface FlowInputReq {
 
 export interface FlowActionReq {
   name: string;
-  executor: 'script' | 'docker';
+  executor: "script" | "docker";
   with: Record<string, any>;
   approval?: boolean;
   variables?: Record<string, any>[];
@@ -381,7 +406,7 @@ export interface FlowCreateResp {
 }
 
 export interface FlowUpdateReq {
-  schedule: string;
+  schedules: string[];
   inputs: FlowInputReq[];
   actions: FlowActionReq[];
   outputs?: Record<string, any>[];

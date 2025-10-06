@@ -24,7 +24,7 @@
       id: '',
       name: '',
       description: '',
-      schedule: '',
+      schedules: [] as string[],
       namespace: namespace
     },
     inputs: [] as any[],
@@ -92,7 +92,7 @@
         id: flowId,
         name: config.metadata.name,
         description: config.metadata.description || '',
-        schedule: config.metadata.schedule || '',
+        schedules: config.metadata.schedules || [],
         namespace: namespace
       };
       
@@ -165,7 +165,7 @@
     try {
       // Transform the flow data to match the API schema for update
       const flowData: FlowUpdateReq = {
-        schedule: flow.metadata.schedule,
+        schedules: flow.metadata.schedules?.filter(s => s.trim()) || [],
         inputs: flow.inputs
           .filter(i => i.name)
           .map((input): FlowInputReq => ({

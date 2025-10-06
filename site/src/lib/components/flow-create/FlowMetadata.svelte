@@ -10,7 +10,7 @@
       id: string;
       name: string;
       description: string;
-      schedule: string;
+      schedules: string[];
       namespace: string;
     };
     inputs?: any[];
@@ -22,7 +22,6 @@
     inputs.length === 0 || inputs.every(input => input.default && input.default.trim() !== '')
   );
 
-
   function updateName(value: string) {
     if (readonly) return;
     metadata.name = value;
@@ -32,15 +31,34 @@
 
   function updateDescription(value: string) {
     if (readonly) return;
-    metadata.description = value;  
+    metadata.description = value;
   }
 
-  function updateSchedule(value: string) {
-    metadata.schedule = value;
+  function addSchedule() {
+    if (!metadata.schedules) {
+      metadata.schedules = [];
+    }
+    metadata.schedules.push('');
   }
 
-  // Reactive validation for schedule using Svelte 5 syntax
-  let isValidSchedule = $derived(isValidCronExpression(metadata.schedule));
+  function removeSchedule(index: number) {
+    metadata.schedules.splice(index, 1);
+  }
+
+  function updateSchedule(index: number, value: string) {
+    if (!metadata.schedules) {
+      metadata.schedules = [];
+    }
+    metadata.schedules[index] = value;
+  }
+
+  // Reactive validation for schedules using Svelte 5 syntax
+  let scheduleValidations = $derived(
+    metadata.schedules?.map(schedule => ({
+      schedule,
+      isValid: schedule === '' || isValidCronExpression(schedule)
+    })) || []
+  );
 </script>
 
 <!-- Flow Metadata Section -->
@@ -48,9 +66,9 @@
   <div class="grid grid-cols-1 gap-6">
     <div>
       <label for="flow-name" class="block text-sm font-medium text-gray-700 mb-2">Flow Name *</label>
-      <input 
-        type="text" 
-        id="flow-name" 
+      <input
+        type="text"
+        id="flow-name"
         value={metadata.name}
         oninput={(e) => updateName(e.currentTarget.value)}
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent {readonly ? 'bg-gray-50 cursor-not-allowed' : ''}"
@@ -60,8 +78,8 @@
     </div>
     <div>
       <label for="flow-description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-      <textarea 
-        id="flow-description" 
+      <textarea
+        id="flow-description"
         value={metadata.description}
         oninput={(e) => updateDescription(e.currentTarget.value)}
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none h-20 {readonly ? 'bg-gray-50 cursor-not-allowed' : ''}"
@@ -71,30 +89,73 @@
     </div>
     {#if isSchedulable}
     <div>
-      <label for="flow-schedule" class="block text-sm font-medium text-gray-700 mb-2">
-        Cron Schedule
-        <span class="text-sm text-gray-500 font-normal">(optional)</span>
-      </label>
-      <input 
-        type="text" 
-        id="flow-schedule" 
-        value={metadata.schedule}
-        oninput={(e) => updateSchedule(e.currentTarget.value)}
-        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 {isValidSchedule ? 'border-gray-300 focus:ring-primary-500 focus:border-transparent' : 'border-danger-300 focus:ring-danger-500 focus:border-transparent'}"
-        placeholder="0 2 * * * (daily at 2:00 AM)"
-      />
-      {#if metadata.schedule && !isValidSchedule}
-        <p class="text-xs text-danger-600 mt-1">
-          Invalid cron expression. Use format: minute hour day month weekday (e.g., "0 2 * * *")
-        </p>
-      {:else}
-        <p class="text-xs text-gray-500 mt-1">
-          Use cron expression format. Leave empty for manual execution only.
-          <br>
-          Examples: <code class="bg-gray-100 px-1 rounded">0 2 * * *</code> (daily 2AM), 
-          <code class="bg-gray-100 px-1 rounded">0 */6 * * *</code> (every 6 hours)
-        </p>
-      {/if}
+      <div class="flex items-center justify-between mb-2">
+        <label class="block text-sm font-medium text-gray-700">
+          Cron Schedules
+          <span class="text-sm text-gray-500 font-normal">(optional)</span>
+        </label>
+        <button
+          type="button"
+          onclick={addSchedule}
+          class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+        >
+          + Add Schedule
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        {#each metadata.schedules || [] as schedule, index}
+          {@const validation = scheduleValidations[index]}
+          <div class="flex items-start gap-2">
+            <div class="flex-1">
+              <input
+                type="text"
+                value={schedule}
+                oninput={(e) => updateSchedule(index, e.currentTarget.value)}
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 {validation?.isValid ? 'border-gray-300 focus:ring-primary-500 focus:border-transparent' : 'border-danger-300 focus:ring-danger-500 focus:border-transparent'}"
+                placeholder="0 2 * * * (daily at 2:00 AM)"
+              />
+              {#if schedule && !validation?.isValid}
+                <p class="text-xs text-danger-600 mt-1">
+                  Invalid cron expression. Use format: minute hour day month weekday (e.g., "0 2 * * *")
+                </p>
+              {/if}
+            </div>
+            <button
+              type="button"
+              onclick={() => removeSchedule(index)}
+              class="mt-2 text-gray-400 hover:text-danger-600"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        {/each}
+
+        {#if !metadata.schedules || metadata.schedules.length === 0}
+          <div class="text-center py-6 border-2 border-dashed border-gray-300 rounded-md">
+            <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm text-gray-500 mb-2">No schedules defined</p>
+            <button
+              type="button"
+              onclick={addSchedule}
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Add your first schedule
+            </button>
+          </div>
+        {/if}
+      </div>
+
+      <p class="text-xs text-gray-500 mt-2">
+        Use cron expression format. You can add multiple schedules for different execution times.
+        <br>
+        Examples: <code class="bg-gray-100 px-1 rounded">0 2 * * *</code> (daily 2AM),
+        <code class="bg-gray-100 px-1 rounded">0 */6 * * *</code> (every 6 hours)
+      </p>
     </div>
     {:else}
     <div>

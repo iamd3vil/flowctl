@@ -22,7 +22,7 @@
       id: '',
       name: '',
       description: '',
-      schedule: '',
+      schedules: [] as string[],
       namespace: namespace
     },
     inputs: [] as any[],
@@ -98,7 +98,7 @@
         metadata: {
           name: flow.metadata.name,
           description: flow.metadata.description || undefined,
-          schedule: flow.metadata.schedule || undefined
+          schedules: flow.metadata.schedules?.filter(s => s.trim()) || undefined
         },
         inputs: flow.inputs
           .filter(i => i.name)

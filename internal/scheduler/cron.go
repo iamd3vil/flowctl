@@ -24,7 +24,7 @@ func (s *Scheduler) syncScheduledFlows(ctx context.Context) error {
 	// Clear and rebuild the map
 	s.scheduledFlows = make(map[string]repo.GetScheduledFlowsRow)
 	for _, flow := range scheduledFlows {
-		if flow.CronSchedule.Valid && flow.CronSchedule.String != "" {
+		if len(flow.CronSchedules) > 0 {
 			s.scheduledFlows[flow.Slug] = flow
 		}
 	}
@@ -45,9 +45,14 @@ func (s *Scheduler) checkPeriodicTasks(ctx context.Context) error {
 	now := time.Now()
 
 	for _, flow := range scheduledFlows {
-		if s.shouldRunNow(flow.CronSchedule.String, now) {
-			if err := s.createImmediateTaskFromFlow(ctx, flow); err != nil {
-				s.logger.Error("failed to create immediate task from scheduled flow", "flow", flow.Name, "error", err)
+		// Check each cron schedule in the array
+		for _, cronExpr := range flow.CronSchedules {
+			if cronExpr != "" && s.shouldRunNow(cronExpr, now) {
+				if err := s.createImmediateTaskFromFlow(ctx, flow); err != nil {
+					s.logger.Error("failed to create immediate task from scheduled flow", "flow", flow.Name, "error", err)
+				}
+				// Only create one task per flow per check, even if multiple schedules match
+				break
 			}
 		}
 	}
@@ -106,7 +111,7 @@ func (s *Scheduler) createImmediateTaskFromFlow(ctx context.Context, flow repo.G
 		return err
 	}
 
-	log.Printf("Created immediate task from scheduled flow %s (ID: %d) with schedule %s", flow.Slug, flow.ID, flow.CronSchedule.String)
+	s.logger.Info("created immediate task from scheduled flow", "flow", flow.Slug, "id", flow.ID, "schedules", flow.CronSchedules)
 	return nil
 }
 

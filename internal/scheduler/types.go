@@ -33,7 +33,6 @@ type Task struct {
 	CreatedAt time.Time
 }
 
-
 type InputType string
 
 const (
@@ -95,13 +94,13 @@ type Action struct {
 }
 
 type Metadata struct {
-	ID          string `yaml:"id" validate:"required,alphanum_underscore"`
-	DBID        int32  `yaml:"-"`
-	Name        string `yaml:"name" validate:"required"`
-	Description string `yaml:"description"`
-	Schedule    string `yaml:"schedule"`
-	SrcDir      string `yaml:"-"`
-	Namespace   string `yaml:"namespace"`
+	ID          string   `yaml:"id" validate:"required,alphanum_underscore"`
+	DBID        int32    `yaml:"-"`
+	Name        string   `yaml:"name" validate:"required"`
+	Description string   `yaml:"description"`
+	Schedules   []string `yaml:"schedules"`
+	SrcDir      string   `yaml:"-"`
+	Namespace   string   `yaml:"namespace"`
 }
 
 type Variable map[string]any

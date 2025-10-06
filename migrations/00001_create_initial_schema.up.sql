@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS flows (
     name VARCHAR(150) NOT NULL,
     checksum VARCHAR(128) NOT NULL,
     description TEXT,
-    cron_schedule VARCHAR(100),
+    cron_schedules TEXT[],
     file_path TEXT NOT NULL,
     namespace_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -243,13 +243,13 @@ CREATE TABLE namespace_members (
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'reviewer', 'admin')),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    
+
     -- Constraint to ensure only one of user_id or group_id is set
     CONSTRAINT check_single_subject CHECK (
-        (user_id IS NOT NULL AND group_id IS NULL) OR 
+        (user_id IS NOT NULL AND group_id IS NULL) OR
         (user_id IS NULL AND group_id IS NOT NULL)
     ),
-    
+
     CONSTRAINT unique_user_namespace UNIQUE(user_id, namespace_id),
     CONSTRAINT unique_group_namespace UNIQUE(group_id, namespace_id)
 );
