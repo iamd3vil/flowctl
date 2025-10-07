@@ -280,8 +280,9 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	// Namespace management - admins only
 	namespaceGroup.GET("/members", h.HandleGetNamespaceMembers, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionView))
-	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
-	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
+	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionCreate))
+	namespaceGroup.PUT("/members/:membershipID", h.HandleUpdateNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
+	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionDelete))
 
 	// admin := e.Group("/admin")
 	// admin.Use(h.AuthorizeForRole("superuser"))

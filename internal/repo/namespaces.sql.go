@@ -518,3 +518,33 @@ func (q *Queries) UpdateNamespace(ctx context.Context, arg UpdateNamespaceParams
 	)
 	return i, err
 }
+
+const updateNamespaceMember = `-- name: UpdateNamespaceMember :one
+UPDATE namespace_members
+SET role = $3, updated_at = NOW()
+WHERE namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $1)
+AND namespace_members.uuid = $2
+RETURNING id, uuid, user_id, group_id, namespace_id, role, created_at, updated_at
+`
+
+type UpdateNamespaceMemberParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+	Role   string    `db:"role" json:"role"`
+}
+
+func (q *Queries) UpdateNamespaceMember(ctx context.Context, arg UpdateNamespaceMemberParams) (NamespaceMember, error) {
+	row := q.db.QueryRowContext(ctx, updateNamespaceMember, arg.Uuid, arg.Uuid_2, arg.Role)
+	var i NamespaceMember
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.UserID,
+		&i.GroupID,
+		&i.NamespaceID,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

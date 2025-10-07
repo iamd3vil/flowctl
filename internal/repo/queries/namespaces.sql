@@ -136,3 +136,10 @@ JOIN namespaces n ON nm.namespace_id = n.id
 LEFT JOIN users u ON nm.user_id = u.id
 LEFT JOIN groups g ON nm.group_id = g.id
 ORDER BY n.name, nm.role;
+
+-- name: UpdateNamespaceMember :one
+UPDATE namespace_members
+SET role = $3, updated_at = NOW()
+WHERE namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $1)
+AND namespace_members.uuid = $2
+RETURNING *;

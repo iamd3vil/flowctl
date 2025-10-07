@@ -455,6 +455,10 @@ type NamespaceMemberReq struct {
 	Role        string `json:"role" validate:"required,oneof=user reviewer admin"`
 }
 
+type UpdateNamespaceMemberReq struct {
+	Role string `json:"role" validate:"required,oneof=user reviewer admin"`
+}
+
 type NamespaceMemberResp struct {
 	ID          string `json:"id"`
 	SubjectID   string `json:"subject_id"`

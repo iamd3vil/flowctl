@@ -158,6 +158,35 @@ func (h *Handler) HandleGetNamespaceMembers(c echo.Context) error {
 	return c.JSON(http.StatusOK, coreNamespaceMembersToResp(members))
 }
 
+func (h *Handler) HandleUpdateNamespaceMember(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	membershipID := c.Param("membershipID")
+	if membershipID == "" {
+		return wrapError(ErrRequiredFieldMissing, "membership ID cannot be empty", nil, nil)
+	}
+
+	var req UpdateNamespaceMemberReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(ErrInvalidInput, "could not decode request", err, nil)
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
+	}
+
+	role := models.NamespaceRole(req.Role)
+	err := h.co.UpdateNamespaceMember(c.Request().Context(), membershipID, namespace, role)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not update namespace member", err, nil)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
 func (h *Handler) HandleRemoveNamespaceMember(c echo.Context) error {
 	namespace, ok := c.Get("namespace").(string)
 	if !ok {

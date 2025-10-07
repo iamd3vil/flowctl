@@ -102,6 +102,7 @@ type Querier interface {
 	UpdateFlowSecret(ctx context.Context, arg UpdateFlowSecretParams) (FlowSecret, error)
 	UpdateGroupByUUID(ctx context.Context, arg UpdateGroupByUUIDParams) (Group, error)
 	UpdateNamespace(ctx context.Context, arg UpdateNamespaceParams) (Namespace, error)
+	UpdateNamespaceMember(ctx context.Context, arg UpdateNamespaceMemberParams) (NamespaceMember, error)
 	UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, error)
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error
 	UpdateUserByUUID(ctx context.Context, arg UpdateUserByUUIDParams) (User, error)

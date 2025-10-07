@@ -25,7 +25,9 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:user", "*", string(models.ResourceExecution), string(models.RBACActionView))
 
 	// Reviewer role policies (inherits from user) - for all namespaces
+	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceFlow), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceApproval), "*")
+	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceExecution), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceExecution), string(models.RBACActionView))
 
 	// Admin role policies - for all namespaces
@@ -73,7 +75,8 @@ func (c *Core) AssignNamespaceRole(ctx context.Context, subjectID string, subjec
 	subject := fmt.Sprintf("%s:%s", subjectType, subjectID)
 
 	// Add role assignment in database
-	if subjectType == "user" {
+	switch subjectType {
+	case "user":
 		userUUID, err := uuid.Parse(subjectID)
 		if err != nil {
 			return fmt.Errorf("invalid user UUID: %w", err)
@@ -86,7 +89,7 @@ func (c *Core) AssignNamespaceRole(ctx context.Context, subjectID string, subjec
 		if err != nil {
 			return err
 		}
-	} else if subjectType == "group" {
+	case "group":
 		groupUUID, err := uuid.Parse(subjectID)
 		if err != nil {
 			return fmt.Errorf("invalid group UUID: %w", err)
@@ -204,6 +207,50 @@ func (c *Core) GetUserNamespaces(ctx context.Context, userID string) ([]models.N
 		})
 	}
 	return result, nil
+}
+
+// UpdateNamespaceMember updates the role of a user or group in a namespace
+func (c *Core) UpdateNamespaceMember(ctx context.Context, membershipID, namespaceID string, role models.NamespaceRole) error {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	membershipUUID, err := uuid.Parse(membershipID)
+	if err != nil {
+		return fmt.Errorf("invalid membership UUID: %w", err)
+	}
+
+	// Update in database
+	m, err := c.store.UpdateNamespaceMember(ctx, repo.UpdateNamespaceMemberParams{
+		Uuid:   namespaceUUID,
+		Uuid_2: membershipUUID,
+		Role:   string(role),
+	})
+	if err != nil {
+		return err
+	}
+
+	// Update Casbin policies for the specific subject
+	var subjectID string
+	if m.UserID.Valid {
+		user, err := c.store.GetUserByID(ctx, m.UserID.Int32)
+		if err != nil {
+			return err
+		}
+		subjectID = fmt.Sprintf("user:%s", user.Uuid.String())
+	} else if m.GroupID.Valid {
+		group, err := c.store.GetGroupByID(ctx, m.GroupID.Int32)
+		if err != nil {
+			return err
+		}
+		subjectID = fmt.Sprintf("group:%s", group.Uuid.String())
+	}
+
+	// Update casbin policies
+	c.enforcer.RemoveFilteredGroupingPolicy(0, subjectID, "", namespaceID)
+	c.enforcer.AddGroupingPolicy(subjectID, fmt.Sprintf("role:%s", role), namespaceID)
+	return c.enforcer.SavePolicy()
 }
 
 // RemoveNamespaceMember removes a user or group from a namespace
