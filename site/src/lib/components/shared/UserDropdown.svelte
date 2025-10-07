@@ -42,11 +42,11 @@
   >
     <div class="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0">
       <span class="text-white font-semibold text-sm">
-        {$currentUser ? getUserInitials($currentUser.username) : 'U'}
+        {$currentUser ? getUserInitials($currentUser.name) : 'U'}
       </span>
     </div>
     <div class="ml-3 flex-1 text-left">
-      <div class="text-sm font-medium text-gray-900">{$currentUser?.username || 'Loading...'}</div>
+      <div class="text-sm font-medium text-gray-900">{$currentUser?.name || 'Loading...'}</div>
       <div class="text-xs text-gray-500 capitalize">{$currentUser?.role || ''}</div>
     </div>
     <IconChevronDown
