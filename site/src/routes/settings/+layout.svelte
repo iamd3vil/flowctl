@@ -1,9 +1,8 @@
 <script lang="ts">
     import Sidebar from '$lib/components/shared/Sidebar.svelte';
-    import { getContext } from 'svelte';
-    
+    import { selectedNamespace } from '$lib/stores/namespace';
+
     let { children, data } = $props();
-    let namespace = getContext('namespace') as string || 'default';
   </script>
   
   <svelte:head>
@@ -11,8 +10,8 @@
   </svelte:head>
   
   <div class="flex h-screen bg-gray-50">
-    <Sidebar namespace={namespace} />
-    
+    <Sidebar namespace={$selectedNamespace} />
+
     <div class="flex-1 flex flex-col overflow-hidden">
       <main class="flex-1 overflow-y-auto">
         {@render children()}

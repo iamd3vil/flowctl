@@ -4,6 +4,7 @@
   import { apiClient } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import { currentUser } from '$lib/stores/auth';
+  import { selectedNamespace } from '$lib/stores/namespace';
   import type { Namespace } from '$lib/types';
   import { DEFAULT_PAGE_SIZE } from '$lib/constants';
   import { setContext } from 'svelte';
@@ -149,17 +150,20 @@
     }
   };
 
-  const selectNamespace = (selectedNamespace: Namespace) => {
+  const selectNamespace = (ns: Namespace) => {
     namespaceDropdownOpen = false;
     searchQuery = '';
-    
+
     // Don't navigate if already on the same namespace
-    if (selectedNamespace.name === namespace) {
+    if (ns.name === namespace) {
       return;
     }
-    
+
+    // Save selected namespace to store
+    selectedNamespace.set(ns.name);
+
     // Force a full page reload by using window.location
-    window.location.href = `/view/${selectedNamespace.name}/flows`;
+    window.location.href = `/view/${ns.name}/flows`;
   };
 
   // Handle escape key and outside clicks
@@ -183,6 +187,10 @@
   // Update currentNamespace when namespace prop changes
   $effect(() => {
     currentNamespace = page.params.namespace || namespace;
+    // Also save to store whenever namespace changes
+    if (currentNamespace) {
+      selectedNamespace.set(currentNamespace);
+    }
   });
 
   // Re-check permissions when currentUser or namespace changes
