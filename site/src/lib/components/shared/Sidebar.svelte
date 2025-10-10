@@ -17,7 +17,9 @@
     IconUsers,
     IconCircleCheck,
     IconClock,
-    IconSettings
+    IconSettings,
+    IconChevronsLeft,
+    IconChevronsRight
   } from '@tabler/icons-svelte';
   import UserDropdown from './UserDropdown.svelte';
 
@@ -30,6 +32,7 @@
   let currentNamespace = $state(page.params.namespace || namespace);
   let currentNamespaceId = $state<string>('');
   let searchLoading = $state(false);
+  let isCollapsed = $state(false);
   let permissions = $state<{
     flows: ResourcePermissions;
     nodes: ResourcePermissions;
@@ -166,6 +169,14 @@
     window.location.href = `/view/${ns.name}/flows`;
   };
 
+  const toggleCollapse = () => {
+    isCollapsed = !isCollapsed;
+    if (isCollapsed) {
+      namespaceDropdownOpen = false;
+      searchQuery = '';
+    }
+  };
+
   // Handle escape key and outside clicks
   function handleOutsideClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -204,79 +215,83 @@
 <svelte:window on:click={handleOutsideClick} />
 
 <!-- Sidebar Navigation -->
-<nav class="w-60 bg-white border-r border-gray-200 flex flex-col" aria-label="Main navigation">
+<nav class="relative bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out {isCollapsed ? 'w-20' : 'w-60'}" aria-label="Main navigation">
   <!-- Logo -->
-  <div class="flex items-center px-6 py-6">
+  <div class="flex items-center px-6 py-6 {isCollapsed ? 'justify-center' : ''}">
     <div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center" aria-hidden="true">
       <span class="text-white font-bold text-lg">F</span>
     </div>
-    <span class="ml-3 text-gray-900 font-semibold text-xl">Flowctl</span>
+    {#if !isCollapsed}
+      <span class="ml-3 text-gray-900 font-semibold text-xl">Flowctl</span>
+    {/if}
   </div>
 
   <!-- Namespace Dropdown -->
-  <div class="px-4 mb-4 namespace-dropdown">
-    <div class="relative">
-      <label for="namespace-search" class="block text-xs font-medium text-gray-500 mb-1 uppercase">Namespace</label>
+  {#if !isCollapsed}
+    <div class="px-4 mb-4 namespace-dropdown">
       <div class="relative">
-        <input
-          type="text"
-          id="namespace-search"
-          bind:value={searchQuery}
-          oninput={handleSearchInput}
-          onfocus={handleSearchFocus}
-          placeholder={currentNamespace || 'Search namespaces...'}
-          class="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors outline-none pr-8"
-          autocomplete="off"
-        />
-        
-        {#if searchLoading}
-          <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <svg class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+        <label for="namespace-search" class="block text-xs font-medium text-gray-500 mb-1 uppercase">Namespace</label>
+        <div class="relative">
+          <input
+            type="text"
+            id="namespace-search"
+            bind:value={searchQuery}
+            oninput={handleSearchInput}
+            onfocus={handleSearchFocus}
+            placeholder={currentNamespace || 'Search namespaces...'}
+            class="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors outline-none pr-8"
+            autocomplete="off"
+          />
+
+          {#if searchLoading}
+            <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <svg class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          {:else}
+            <IconChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 transition-transform {namespaceDropdownOpen ? 'rotate-180' : ''}" size={16} />
+          {/if}
+        </div>
+
+        <!-- Dropdown Menu -->
+        {#if namespaceDropdownOpen}
+          <div
+            class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto"
+            role="listbox"
+            aria-label="Namespace selection"
+          >
+            <div class="py-1">
+              {#each searchResults as ns (ns.id)}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={ns.name === namespace}
+                  onclick={() => selectNamespace(ns)}
+                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  class:bg-primary-50={ns.name === namespace}
+                  class:text-primary-600={ns.name === namespace}
+                >
+                  {ns.name}
+                </button>
+              {/each}
+              {#if searchResults.length === 0 && !searchLoading}
+                <div class="px-3 py-2 text-sm text-gray-500 text-center">
+                  {searchQuery ? 'No namespaces found' : 'No namespaces available'}
+                </div>
+              {/if}
+              {#if searchLoading}
+                <div class="px-3 py-2 text-sm text-gray-500 text-center">
+                  Searching...
+                </div>
+              {/if}
+            </div>
           </div>
-        {:else}
-          <IconChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 transition-transform {namespaceDropdownOpen ? 'rotate-180' : ''}" size={16} />
         {/if}
       </div>
-
-      <!-- Dropdown Menu -->
-      {#if namespaceDropdownOpen}
-        <div
-          class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto"
-          role="listbox"
-          aria-label="Namespace selection"
-        >
-          <div class="py-1">
-            {#each searchResults as ns (ns.id)}
-              <button
-                type="button"
-                role="option"
-                aria-selected={ns.name === namespace}
-                onclick={() => selectNamespace(ns)}
-                class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                class:bg-primary-50={ns.name === namespace}
-                class:text-primary-600={ns.name === namespace}
-              >
-                {ns.name}
-              </button>
-            {/each}
-            {#if searchResults.length === 0 && !searchLoading}
-              <div class="px-3 py-2 text-sm text-gray-500 text-center">
-                {searchQuery ? 'No namespaces found' : 'No namespaces available'}
-              </div>
-            {/if}
-            {#if searchLoading}
-              <div class="px-3 py-2 text-sm text-gray-500 text-center">
-                Searching...
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/if}
     </div>
-  </div>
+  {/if}
 
   <!-- Navigation -->
   <ul class="flex-1 px-4 space-y-1" role="list">
@@ -284,15 +299,18 @@
       <li>
         <a
           href="/view/{namespace}/flows"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('flows')}
           class:text-primary-600={isActiveLink('flows')}
           class:text-gray-700={!isActiveLink('flows')}
           class:hover:bg-gray-100={!isActiveLink('flows')}
           aria-current={isActiveLink('flows') ? 'page' : undefined}
+          title={isCollapsed ? 'Flows' : ''}
         >
-          <IconGridDots class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Flows
+          <IconGridDots class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Flows
+          {/if}
         </a>
       </li>
     {/if}
@@ -300,15 +318,18 @@
       <li>
         <a
           href="/view/{namespace}/nodes"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('nodes')}
           class:text-primary-600={isActiveLink('nodes')}
           class:text-gray-700={!isActiveLink('nodes')}
           class:hover:bg-gray-100={!isActiveLink('nodes')}
           aria-current={isActiveLink('nodes') ? 'page' : undefined}
+          title={isCollapsed ? 'Nodes' : ''}
         >
-          <IconServer class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Nodes
+          <IconServer class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Nodes
+          {/if}
         </a>
       </li>
     {/if}
@@ -316,15 +337,18 @@
       <li>
         <a
           href="/view/{namespace}/credentials"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('credentials')}
           class:text-primary-600={isActiveLink('credentials')}
           class:text-gray-700={!isActiveLink('credentials')}
           class:hover:bg-gray-100={!isActiveLink('credentials')}
           aria-current={isActiveLink('credentials') ? 'page' : undefined}
+          title={isCollapsed ? 'Credentials' : ''}
         >
-          <IconKey class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Credentials
+          <IconKey class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Credentials
+          {/if}
         </a>
       </li>
     {/if}
@@ -332,15 +356,18 @@
       <li>
         <a
           href="/view/{namespace}/members"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('members')}
           class:text-primary-600={isActiveLink('members')}
           class:text-gray-700={!isActiveLink('members')}
           class:hover:bg-gray-100={!isActiveLink('members')}
           aria-current={isActiveLink('members') ? 'page' : undefined}
+          title={isCollapsed ? 'Members' : ''}
         >
-          <IconUsers class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Members
+          <IconUsers class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Members
+          {/if}
         </a>
       </li>
     {/if}
@@ -348,15 +375,18 @@
       <li>
         <a
           href="/view/{namespace}/approvals"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('approvals')}
           class:text-primary-600={isActiveLink('approvals')}
           class:text-gray-700={!isActiveLink('approvals')}
           class:hover:bg-gray-100={!isActiveLink('approvals')}
           aria-current={isActiveLink('approvals') ? 'page' : undefined}
+          title={isCollapsed ? 'Approvals' : ''}
         >
-          <IconCircleCheck class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Approvals
+          <IconCircleCheck class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Approvals
+          {/if}
         </a>
       </li>
     {/if}
@@ -364,15 +394,18 @@
       <li>
         <a
           href="/view/{namespace}/history"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('history')}
           class:text-primary-600={isActiveLink('history')}
           class:text-gray-700={!isActiveLink('history')}
           class:hover:bg-gray-100={!isActiveLink('history')}
           aria-current={isActiveLink('history') ? 'page' : undefined}
+          title={isCollapsed ? 'History' : ''}
         >
-          <IconClock class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          History
+          <IconClock class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            History
+          {/if}
         </a>
       </li>
     {/if}
@@ -381,24 +414,44 @@
       <li>
         <a
           href="/settings"
-          class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors"
+          class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed ? 'justify-center px-4 py-3' : 'px-4 py-3'}"
           class:bg-primary-50={isActiveLink('settings')}
           class:text-primary-600={isActiveLink('settings')}
           class:text-gray-700={!isActiveLink('settings')}
           class:hover:bg-gray-100={!isActiveLink('settings')}
           aria-current={isActiveLink('settings') ? 'page' : undefined}
+          title={isCollapsed ? 'Settings' : ''}
         >
-          <IconSettings class="text-xl mr-3 flex-shrink-0" size={20} aria-hidden="true" />
-          Settings
+          <IconSettings class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}" size={20} aria-hidden="true" />
+          {#if !isCollapsed}
+            Settings
+          {/if}
         </a>
       </li>
     {/if}
   </ul>
 
+  <!-- Collapse Toggle Button -->
+  <div class="px-4 pb-2">
+    <button
+      type="button"
+      onclick={toggleCollapse}
+      class="w-full flex items-center justify-center p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+      aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    >
+      {#if isCollapsed}
+        <IconChevronsRight size={20} aria-hidden="true" />
+      {:else}
+        <IconChevronsLeft size={20} aria-hidden="true" />
+      {/if}
+    </button>
+  </div>
+
   <!-- User Profile Section -->
   {#if $currentUser}
     <div class="px-4 py-4 border-t border-gray-200">
-      <UserDropdown />
+      <UserDropdown {isCollapsed} />
     </div>
   {/if}
 </nav>
