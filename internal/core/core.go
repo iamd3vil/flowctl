@@ -9,7 +9,6 @@ import (
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/cvhariharan/flowctl/internal/streamlogger"
-	"github.com/redis/go-redis/v9"
 	"gocloud.dev/secrets"
 )
 
@@ -18,7 +17,6 @@ const (
 )
 
 type Core struct {
-	redisClient redis.UniversalClient
 	store       repo.Store
 	scheduler   scheduler.TaskScheduler
 	rwf         sync.RWMutex
@@ -33,10 +31,9 @@ type Core struct {
 	flowDirectory string
 }
 
-func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, redisClient redis.UniversalClient, keeper *secrets.Keeper, enforcer *casbin.Enforcer) (*Core, error) {
+func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, keeper *secrets.Keeper, enforcer *casbin.Enforcer) (*Core, error) {
 	c := &Core{
 		store:         s,
-		redisClient:   redisClient,
 		scheduler:     sch,
 		flowDirectory: flowsDirectory,
 		flows:         make(map[string]models.Flow),

@@ -13,7 +13,7 @@ import (
 // InitializeRBACPolicies sets up the base policies for each role
 // These policies apply to all namespaces using wildcard "*"
 func (c *Core) InitializeRBACPolicies() error {
-	// Clear all policies from both memory and Redis
+	// Clear all policies from memory
 	c.enforcer.ClearPolicy()
 	c.enforcer.SavePolicy()
 

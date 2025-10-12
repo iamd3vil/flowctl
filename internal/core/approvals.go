@@ -10,9 +10,7 @@ import (
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
-	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -20,36 +18,9 @@ var (
 	ErrNil               = errors.New("not found")
 )
 
-const (
-	ApprovalIDPrefix     = "approval:execid:%d"
-	ApprovalUUIDPrefix   = "approval:uuid:%s"
-	ApprovalCacheTimeout = 1 * time.Hour
-)
-
-// Helper function to cache approval in both locations
-func (c *Core) cacheApproval(ctx context.Context, execID int32, approval models.ApprovalRequest) error {
-	// Cache by execID
-	if err := c.redisClient.Set(ctx,
-		fmt.Sprintf(ApprovalIDPrefix, execID),
-		approval,
-		ApprovalCacheTimeout).Err(); err != nil {
-		return fmt.Errorf("failed to cache approval by execID: %w", err)
-	}
-
-	// Cache by UUID
-	if err := c.redisClient.Set(ctx,
-		fmt.Sprintf(ApprovalUUIDPrefix, approval.UUID),
-		approval,
-		ApprovalCacheTimeout).Err(); err != nil {
-		return fmt.Errorf("failed to cache approval by UUID: %w", err)
-	}
-
-	return nil
-}
-
 // ApproveOrRejectAction handles approval or rejection of an action request by a user.
 // It takes the approval UUID, the ID of the user making the decision, and the approval status.
-// The function updates both the database and Redis cache with the decision.
+// The function updates the database with the decision.
 // Once approved, the task is moved to a resume queue for further processing.
 func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedBy string, status models.ApprovalType, namespaceID string) error {
 	var err error
@@ -107,11 +78,6 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 		RequestedBy: result.RequestedBy,
 	}
 
-	// Update the cache using approval UUID
-	if err := c.cacheApproval(ctx, result.ExecLogID, approval); err != nil {
-		return err
-	}
-
 	// If approved, move to resume queue
 	if status == models.ApprovalStatusApproved {
 		if err := c.ResumeFlowExecution(ctx, result.ExecID, approval.ActionID, decidedBy, namespaceID); err != nil {
@@ -127,38 +93,22 @@ func (c *Core) RequestApproval(ctx context.Context, execID string, action models
 	if err != nil {
 		return "", fmt.Errorf("invalid namespace UUID: %w", err)
 	}
-	exec, err := c.store.GetExecutionByExecID(ctx, repo.GetExecutionByExecIDParams{
+
+	// Check if there's already a pending approval for this execution
+	existingReq, err := c.store.GetApprovalRequestForExec(ctx, repo.GetApprovalRequestForExecParams{
 		ExecID: execID,
 		Uuid:   namespaceUUID,
 	})
-	if err != nil {
-		return "", fmt.Errorf("error getting execution for exec ID %s: %w", execID, err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("error checking existing approval request: %w", err)
 	}
 
-	var approvalReq models.ApprovalRequest
-	err = c.redisClient.Get(ctx, fmt.Sprintf(ApprovalIDPrefix, exec.ID)).Scan(&approvalReq)
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return "", fmt.Errorf("error performing existing approval request check: %w", err)
-	}
-
-	if approvalReq.Status == models.ApprovalStatusPending {
-		return "", fmt.Errorf("pending approval request: %s", approvalReq.UUID)
+	if err == nil && existingReq.Status == repo.ApprovalStatusPending {
+		return "", fmt.Errorf("pending approval request: %s", existingReq.Uuid.String())
 	}
 
 	areq, err := c.store.RequestApprovalTx(ctx, execID, namespaceUUID, repo.RequestApprovalParam{ID: action.ID})
 	if err != nil {
-		return "", err
-	}
-
-	approvalReq = models.ApprovalRequest{
-		UUID:        areq.Uuid.String(),
-		Status:      models.ApprovalType(areq.Status),
-		ActionID:    action.ID,
-		ExecID:      execID,
-		RequestedBy: areq.RequestedBy,
-	}
-
-	if err := c.cacheApproval(ctx, exec.ID, approvalReq); err != nil {
 		return "", err
 	}
 
@@ -170,150 +120,67 @@ func (c *Core) GetApprovalsRequestsForExec(ctx context.Context, execID string, n
 	if err != nil {
 		return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
-	exec, err := c.store.GetExecutionByExecID(ctx, repo.GetExecutionByExecIDParams{
+
+	areq, err := c.store.GetApprovalRequestForExec(ctx, repo.GetApprovalRequestForExecParams{
 		ExecID: execID,
 		Uuid:   namespaceUUID,
 	})
-	if err != nil {
-		return models.ApprovalRequest{}, fmt.Errorf("error getting execution for exec ID %s: %w", execID, err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return models.ApprovalRequest{}, fmt.Errorf("could not get approval request from DB for exec %s: %w", execID, err)
 	}
 
-	var existingReq models.ApprovalRequest
-	err = c.redisClient.Get(ctx, fmt.Sprintf(ApprovalIDPrefix, exec.ID)).Scan(&existingReq)
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return models.ApprovalRequest{}, fmt.Errorf("error getting pending approval request for %s: %w", execID, err)
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.ApprovalRequest{}, ErrNil
 	}
 
-	// Get from DB
-	if errors.Is(err, redis.Nil) {
-		areq, err := c.store.GetApprovalRequestForExec(ctx, repo.GetApprovalRequestForExecParams{
-			ExecID: execID,
-			Uuid:   namespaceUUID,
-		})
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return models.ApprovalRequest{}, fmt.Errorf("could not get approval request from DB for exec %s: %w", execID, err)
-		}
-
-		if errors.Is(err, sql.ErrNoRows) {
-			return models.ApprovalRequest{}, ErrNil
-		}
-
-		existingReq = models.ApprovalRequest{
-			UUID:        areq.Uuid.String(),
-			Status:      models.ApprovalType(areq.Status),
-			ActionID:    areq.ActionID,
-			ExecID:      execID,
-			RequestedBy: areq.RequestedBy,
-		}
-
-		if err := c.cacheApproval(ctx, exec.ID, existingReq); err != nil {
-			return models.ApprovalRequest{}, err
-		}
+	existingReq := models.ApprovalRequest{
+		UUID:        areq.Uuid.String(),
+		Status:      models.ApprovalType(areq.Status),
+		ActionID:    areq.ActionID,
+		ExecID:      execID,
+		RequestedBy: areq.RequestedBy,
 	}
 
 	return existingReq, nil
 }
 
-func (c *Core) BeforeActionHook(ctx context.Context, execID string, action scheduler.Action, namespaceID string) error {
-	// use parent exec ID if available for approval requests
-	eID := execID
+
+func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string, namespaceID string) (models.ApprovalRequest, error) {
+	uid, err := uuid.Parse(approvalUUID)
+	if err != nil {
+		return models.ApprovalRequest{}, fmt.Errorf("invalid approval UUID: %w", err)
+	}
 
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
-		return fmt.Errorf("invalid namespace UUID: %w", err)
+		return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	// Set the current action ID
-	log.Println("current action ID: ", action.ID)
-	if _, err := c.store.UpdateExecutionActionID(ctx, repo.UpdateExecutionActionIDParams{
-		CurrentActionID: sql.NullString{String: action.ID, Valid: action.ID != ""},
-		ExecID:          execID,
-		Uuid:            namespaceUUID,
-	}); err != nil {
-		return fmt.Errorf("could not update current action ID in exec %s: %w", execID, err)
-	}
-
-	if !action.Approval {
-		return nil
-	}
-
-	// check if pending approval, exit if not approved
-	a, err := c.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
-		ExecID:   eID,
-		ActionID: action.ID,
-		Uuid:     namespaceUUID,
+	areq, err := c.store.GetApprovalByUUID(ctx, repo.GetApprovalByUUIDParams{
+		Uuid:   uid,
+		Uuid_2: namespaceUUID,
 	})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.ApprovalRequest{}, ErrNil
+		}
+		return models.ApprovalRequest{}, fmt.Errorf("error getting approval from store: %w", err)
 	}
 
-	// continue execution if approved
-	if a.Status == repo.ApprovalStatusApproved {
-		return nil
+	exec, err := c.store.GetExecutionByID(ctx, repo.GetExecutionByIDParams{
+		ID:   areq.ExecLogID,
+		Uuid: namespaceUUID,
+	})
+	if err != nil {
+		return models.ApprovalRequest{}, fmt.Errorf("error getting execution: %w", err)
 	}
 
-	if a.Status == repo.ApprovalStatusRejected {
-		return fmt.Errorf("request for running action %q is rejected", action.Name)
-	}
-
-	if a.Status == "" {
-		_, err = c.RequestApproval(ctx, eID, models.SchedulerActionToAction(action), namespaceID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return scheduler.ErrPendingApproval
-}
-
-func (c *Core) GetApprovalRequest(ctx context.Context, approvalUUID string, namespaceID string) (models.ApprovalRequest, error) {
-	var approval models.ApprovalRequest
-	err := c.redisClient.Get(ctx, fmt.Sprintf(ApprovalUUIDPrefix, approvalUUID)).Scan(&approval)
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return models.ApprovalRequest{}, fmt.Errorf("error getting approval request by UUID %s: %w", approvalUUID, err)
-	}
-
-	if errors.Is(err, redis.Nil) {
-		uid, err := uuid.Parse(approvalUUID)
-		if err != nil {
-			return models.ApprovalRequest{}, fmt.Errorf("invalid approval UUID: %w", err)
-		}
-
-		namespaceUUID, err := uuid.Parse(namespaceID)
-		if err != nil {
-			return models.ApprovalRequest{}, fmt.Errorf("invalid namespace UUID: %w", err)
-		}
-
-		areq, err := c.store.GetApprovalByUUID(ctx, repo.GetApprovalByUUIDParams{
-			Uuid:   uid,
-			Uuid_2: namespaceUUID,
-		})
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return models.ApprovalRequest{}, ErrNil
-			}
-			return models.ApprovalRequest{}, fmt.Errorf("error getting approval from store: %w", err)
-		}
-
-		exec, err := c.store.GetExecutionByID(ctx, repo.GetExecutionByIDParams{
-			ID:   areq.ExecLogID,
-			Uuid: namespaceUUID,
-		})
-		if err != nil {
-			return models.ApprovalRequest{}, fmt.Errorf("error getting execution: %w", err)
-		}
-
-		approval = models.ApprovalRequest{
-			UUID:        areq.Uuid.String(),
-			Status:      models.ApprovalType(areq.Status),
-			ActionID:    areq.ActionID,
-			ExecID:      exec.ExecID,
-			RequestedBy: areq.RequestedBy,
-		}
-
-		if err := c.cacheApproval(ctx, areq.ExecLogID, approval); err != nil {
-			return models.ApprovalRequest{}, fmt.Errorf("error caching approval: %w", err)
-		}
+	approval := models.ApprovalRequest{
+		UUID:        areq.Uuid.String(),
+		Status:      models.ApprovalType(areq.Status),
+		ActionID:    areq.ActionID,
+		ExecID:      exec.ExecID,
+		RequestedBy: areq.RequestedBy,
 	}
 
 	log.Printf("Approval request: %+v\n", approval)

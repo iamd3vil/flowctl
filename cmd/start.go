@@ -13,7 +13,7 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
-	redisadapter "github.com/casbin/redis-adapter/v3"
+	sqlxadapter "github.com/memwey/casbin-sqlx-adapter"
 	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/handlers"
@@ -23,7 +23,6 @@ import (
 	"github.com/cvhariharan/flowctl/internal/streamlogger"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
-	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"gocloud.dev/secrets"
 	_ "gocloud.dev/secrets/localsecrets"
@@ -62,21 +61,17 @@ func init() {
 
 // SharedComponents holds components that are shared between server and worker
 type SharedComponents struct {
-	DB          *sqlx.DB
-	Core        *core.Core
-	Scheduler   *scheduler.Scheduler
-	Logger      *slog.Logger
-	RedisClient redis.UniversalClient
-	Keeper      *secrets.Keeper
+	DB        *sqlx.DB
+	Core      *core.Core
+	Scheduler *scheduler.Scheduler
+	Logger    *slog.Logger
+	Keeper    *secrets.Keeper
 }
 
 // Cleanup cleans up all shared resources
 func (s *SharedComponents) Cleanup() {
 	if s.DB != nil {
 		s.DB.Close()
-	}
-	if s.RedisClient != nil {
-		s.RedisClient.Close()
 	}
 	if s.Keeper != nil {
 		s.Keeper.Close()
@@ -109,27 +104,14 @@ func initializeSharedComponents() *SharedComponents {
 		log.Fatalf("could not connect to database: %v", err)
 	}
 
-	// Initialize casbin
+	// Initialize casbin with sqlx adapter
 	m, _ := casbin_model.NewModelFromFile("configs/rbac_model.conf")
-	casbinAdapterConfig := &redisadapter.Config{
-		Network:  "tcp",
-		Address:  fmt.Sprintf("%s:%d", appConfig.Redis.Host, appConfig.Redis.Port),
-		Password: appConfig.Redis.Password,
-	}
-	a, err := redisadapter.NewAdapter(casbinAdapterConfig)
-	if err != nil {
-		log.Fatalf("error creating casbin adapter: %v", err)
-	}
+	a := sqlxadapter.NewAdapter("postgres", dbConnectionString)
 
 	enforcer, err := casbin.NewEnforcer(m, a)
 	if err != nil {
 		log.Fatalf("could not initialize casbin enforcer: %v", err)
 	}
-
-	redisClient := redis.NewUniversalClient(&redis.UniversalOptions{
-		Addrs:    []string{fmt.Sprintf("%s:%d", appConfig.Redis.Host, appConfig.Redis.Port)},
-		Password: appConfig.Redis.Password,
-	})
 
 	// Initialize secret keeper
 	keeperURL := appConfig.App.Keystore.KeeperURL
@@ -160,7 +142,7 @@ func initializeSharedComponents() *SharedComponents {
 		log.Fatal(err)
 	}
 
-	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, redisClient, keeper, enforcer)
+	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -172,12 +154,11 @@ func initializeSharedComponents() *SharedComponents {
 	sch.SetFlowLoader(co.GetSchedulerFlow)
 
 	return &SharedComponents{
-		DB:          db,
-		Core:        co,
-		Scheduler:   sch,
-		Logger:      logger,
-		RedisClient: redisClient,
-		Keeper:      keeper,
+		DB:        db,
+		Core:      co,
+		Scheduler: sch,
+		Logger:    logger,
+		Keeper:    keeper,
 	}
 }
 

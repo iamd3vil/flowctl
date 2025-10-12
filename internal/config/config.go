@@ -18,9 +18,8 @@ import (
 )
 
 type Config struct {
-	DB    DBConfig    `koanf:"db"`
-	Redis RedisConfig `koanf:"redis"`
-	App   AppConfig   `koanf:"app"`
+	DB  DBConfig  `koanf:"db"`
+	App AppConfig `koanf:"app"`
 }
 
 type DBConfig struct {
@@ -29,12 +28,6 @@ type DBConfig struct {
 	Password string `koanf:"password"`
 	Host     string `koanf:"host"`
 	Port     int    `koanf:"port"`
-}
-
-type RedisConfig struct {
-	Host     string `koanf:"host"`
-	Port     int    `koanf:"port"`
-	Password string `koanf:"password"`
 }
 
 type SchedulerConfig struct {
@@ -138,11 +131,6 @@ func getDefaultConfig() Config {
 			Password: "flowctl",
 			Host:     "127.0.0.1",
 			Port:     5432,
-		},
-		Redis: RedisConfig{
-			Host:     "localhost",
-			Port:     6379,
-			Password: "",
 		},
 		App: AppConfig{
 			AdminUsername:   "flowctl_admin",

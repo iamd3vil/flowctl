@@ -18,7 +18,7 @@ const (
 	ExecutionLogPendingTimeout = 30 * time.Second
 )
 
-// StreamLogs reads values from a redis stream from the beginning and returns a channel to which
+// StreamLogs reads values from a stream from the beginning and returns a channel to which
 // all the messages are sent. logID is the ID sent to the NewFlowExecution task
 func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
@@ -71,7 +71,7 @@ func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string)
 	return ch, nil
 }
 
-// streamLogs reads log messages and results from a redis stream and writes to a channel
+// streamLogs reads log messages and results from a stream and writes to a channel
 func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
@@ -193,10 +193,11 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespa
 					return
 				}
 
-				if a.Status == "pending" {
+				switch a.Status {
+				case "pending":
 					ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: []byte(a.UUID)}
 					return
-				} else if a.Status == "rejected" {
+				case "rejected":
 					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte("approval request has been rejected")}
 					return
 				}
