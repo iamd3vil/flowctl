@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -27,6 +30,9 @@ import (
 	"gocloud.dev/secrets"
 	_ "gocloud.dev/secrets/localsecrets"
 )
+
+// StaticFiles will be set from the main package
+var StaticFiles embed.FS
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
@@ -269,13 +275,23 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	// admin.Use(h.AuthorizeForRole("superuser"))
 	// admin.GET("/settings", h.HandleSettingsView)
 
-	// Serve static assets from SvelteKit build
-	e.Static("/_app", "site/build/_app")
-	e.File("/robots.txt", "site/build/robots.txt")
+	buildFS, err := fs.Sub(StaticFiles, "site/build")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Serve static assets from embedded FS
+	e.GET("/_app/*", echo.WrapHandler(http.FileServer(http.FS(buildFS))))
+	e.GET("/robots.txt", echo.WrapHandler(http.StripPrefix("/", http.FileServer(http.FS(buildFS)))))
 
 	// SPA fallback - serve index.html for all other routes
 	e.GET("/*", func(c echo.Context) error {
-		return c.File("site/build/index.html")
+		indexFile, err := buildFS.Open("index.html")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to open index.html")
+		}
+		defer indexFile.Close()
+		return c.Stream(http.StatusOK, "text/html; charset=utf-8", indexFile)
 	})
 
 	rootURL := appConfig.App.RootURL
