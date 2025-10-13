@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,6 +64,9 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 		flowSecrets = make(map[string]string)
 	}
 
+	// Initialize outputs map to accumulate results from all previous actions
+	outputs := make(map[string]interface{})
+
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		if ctx.Err() != nil {
 			// Send a cancelled message before returning
@@ -78,7 +82,7 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 			return err
 		}
 
-		res, err := s.runAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets)
+		res, err := s.runAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets, outputs)
 		if err != nil {
 			// Check if the error is due to context cancellation
 			if errors.Is(err, context.Canceled) {
@@ -94,13 +98,31 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 		if err := streamLogger.Checkpoint(action.ID, res, streamlogger.ResultMessageType); err != nil {
 			return err
 		}
+
+		actionOutputs := make(map[string]interface{})
+		for k, v := range res {
+			parts := strings.SplitN(k, ".", 2)
+			// node prefixed output
+			if len(parts) == 2 {
+				nodeName := parts[0]
+				keyName := parts[1]
+
+				if _, exists := actionOutputs[nodeName]; !exists {
+					actionOutputs[nodeName] = make(map[string]interface{})
+				}
+				actionOutputs[nodeName].(map[string]interface{})[keyName] = v
+			} else {
+				actionOutputs[k] = v
+			}
+		}
+		outputs[action.ID] = actionOutputs
 	}
 
 	return nil
 }
 
 // runAction executes a single action - adapted from FlowRunner.runAction
-func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string) (map[string]string, error) {
+func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string, input map[string]interface{}, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]interface{}) (map[string]string, error) {
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
@@ -117,6 +139,7 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 			env := map[string]interface{}{
 				"input":   input,
 				"secrets": secrets,
+				"outputs": outputs,
 			}
 
 			program, err := expr.Compile(inputExpr, expr.Env(env))
