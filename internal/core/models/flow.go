@@ -10,6 +10,8 @@ import (
 	"github.com/expr-lang/expr"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/huml-lang/go-huml"
+	"gopkg.in/yaml.v3"
 )
 
 type InputType string
@@ -25,26 +27,26 @@ const (
 )
 
 type Input struct {
-	Name        string    `yaml:"name" json:"name" validate:"required,alphanum_underscore"`
-	Type        InputType `yaml:"type" json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
-	Label       string    `yaml:"label" json:"label"`
-	Description string    `yaml:"description" json:"description"`
-	Validation  string    `yaml:"validation" json:"validation"`
-	Required    bool      `yaml:"required" json:"required"`
-	Default     string    `yaml:"default" json:"default"`
-	Options     []string  `yaml:"options" json:"options"`
+	Name        string    `yaml:"name" huml:"name" json:"name" validate:"required,alphanum_underscore"`
+	Type        InputType `yaml:"type" huml:"type" json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
+	Label       string    `yaml:"label" huml:"label" json:"label"`
+	Description string    `yaml:"description" huml:"description" json:"description"`
+	Validation  string    `yaml:"validation" huml:"validation" json:"validation"`
+	Required    bool      `yaml:"required" huml:"required" json:"required"`
+	Default     string    `yaml:"default" huml:"default" json:"default"`
+	Options     []string  `yaml:"options" huml:"options" json:"options"`
 }
 
 type Action struct {
-	ID        string         `yaml:"id" validate:"required,alphanum_underscore"`
-	Name      string         `yaml:"name" validate:"required"`
-	Executor  string         `yaml:"executor" validate:"required,oneof=script docker"`
-	With      map[string]any `yaml:"with" validate:"required"`
-	Approval  bool           `yaml:"approval"`
-	Variables []Variable     `yaml:"variables"`
-	Artifacts []string       `yaml:"artifacts"`
-	Condition string         `yaml:"condition"`
-	On        []string       `yaml:"on"`
+	ID        string         `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
+	Name      string         `yaml:"name" huml:"name" validate:"required"`
+	Executor  string         `yaml:"executor" huml:"executor" validate:"required,oneof=script docker"`
+	With      map[string]any `yaml:"with" huml:"with" validate:"required"`
+	Approval  bool           `yaml:"approval" huml:"approval"`
+	Variables []Variable     `yaml:"variables" huml:"variables"`
+	Artifacts []string       `yaml:"artifacts" huml:"artifacts"`
+	Condition string         `yaml:"condition" huml:"condition"`
+	On        []string       `yaml:"on" huml:"on"`
 }
 
 func SchedulerActionToAction(a scheduler.Action) Action {
@@ -72,13 +74,13 @@ func SchedulerActionToAction(a scheduler.Action) Action {
 }
 
 type Metadata struct {
-	ID          string   `yaml:"id" validate:"required,alphanum_underscore"`
-	DBID        int32    `yaml:"-"`
-	Name        string   `yaml:"name" validate:"required"`
-	Description string   `yaml:"description"`
-	Schedules   []string `yaml:"schedules" validate:"omitempty,dive,cron"`
-	SrcDir      string   `yaml:"-"`
-	Namespace   string   `yaml:"namespace"`
+	ID          string   `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
+	DBID        int32    `yaml:"-" huml:"-"`
+	Name        string   `yaml:"name" huml:"name" validate:"required"`
+	Description string   `yaml:"description" huml:"description"`
+	Schedules   []string `yaml:"schedules" huml:"schedules" validate:"omitempty,dive,cron"`
+	SrcDir      string   `yaml:"-" huml:"-"`
+	Namespace   string   `yaml:"namespace" huml:"namespace"`
 }
 
 type Variable map[string]any
@@ -124,10 +126,10 @@ func (f *FlowValidationError) Error() string {
 }
 
 type Flow struct {
-	Meta    Metadata `yaml:"metadata" validate:"required"`
-	Inputs  []Input  `yaml:"inputs" validate:"required,dive"`
-	Actions []Action `yaml:"actions" validate:"required,dive"`
-	Outputs []Output `yaml:"outputs"`
+	Meta    Metadata `yaml:"metadata" huml:"metadata" validate:"required"`
+	Inputs  []Input  `yaml:"inputs" huml:"inputs" validate:"required,dive"`
+	Actions []Action `yaml:"actions" huml:"actions" validate:"required,dive"`
+	Outputs []Output `yaml:"outputs" huml:"outputs"`
 }
 
 func AlphanumericUnderscore(fl validator.FieldLevel) bool {
@@ -278,6 +280,56 @@ type Execution struct {
 	Version     int64                  `json:"version"`
 	ErrorMsg    string                 `json:"error_msg"`
 	TriggeredBy string                 `json:"triggered_by"`
+}
+
+// FlowFormat represents the file format for flows
+type FlowFormat string
+
+const (
+	FlowFormatYAML FlowFormat = "yaml"
+	FlowFormatHUML FlowFormat = "huml"
+)
+
+// UnmarshalFlow unmarshals flow data from either YAML or HUML format
+func UnmarshalFlow(data []byte, format FlowFormat) (Flow, error) {
+	var f Flow
+	var err error
+
+	switch format {
+	case FlowFormatHUML:
+		err = huml.Unmarshal(data, &f)
+	case FlowFormatYAML:
+		err = yaml.Unmarshal(data, &f)
+	default:
+		return Flow{}, fmt.Errorf("unsupported flow format: %s", format)
+	}
+
+	if err != nil {
+		return Flow{}, fmt.Errorf("failed to unmarshal flow: %w", err)
+	}
+
+	return f, nil
+}
+
+// MarshalFlow marshals a flow to either YAML or HUML format
+func MarshalFlow(f Flow, format FlowFormat) ([]byte, error) {
+	var data []byte
+	var err error
+
+	switch format {
+	case FlowFormatHUML:
+		data, err = huml.Marshal(f)
+	case FlowFormatYAML:
+		data, err = yaml.Marshal(f)
+	default:
+		return nil, fmt.Errorf("unsupported flow format: %s", format)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal flow: %w", err)
+	}
+
+	return data, nil
 }
 
 // convertToSchedulerFlow converts a Flow to scheduler.Flow

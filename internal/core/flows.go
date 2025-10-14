@@ -18,12 +18,32 @@ import (
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v3"
 )
 
 var (
 	ErrFlowNotFound = errors.New("flow not found")
 )
+
+// detectFlowFormat determines the flow format based on file extension
+func detectFlowFormat(filePath string) models.FlowFormat {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".huml":
+		return models.FlowFormatHUML
+	case ".yaml", ".yml":
+		return models.FlowFormatYAML
+	default:
+		return models.FlowFormatYAML // Default to YAML for backwards compatibility
+	}
+}
+
+// isFlowFile checks if the file has a valid flow extension (.yaml, .yml, or .huml)
+func isFlowFile(filename string) bool {
+	lower := strings.ToLower(filename)
+	return strings.HasSuffix(lower, ".yml") ||
+		strings.HasSuffix(lower, ".yaml") ||
+		strings.HasSuffix(lower, ".huml")
+}
 
 func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 	c.rwf.RLock()
@@ -479,7 +499,7 @@ func (c *Core) CreateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("flow with this ID already exists: %w", err)
 	}
 
-	yamlData, err := yaml.Marshal(f)
+	yamlData, err := models.MarshalFlow(f, models.FlowFormatYAML)
 	if err != nil {
 		return fmt.Errorf("could not marshal flow to YAML: %w", err)
 	}
@@ -528,21 +548,22 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("could not get existing flow: %w", err)
 	}
 
-	yamlFilePath := existingFlow.FilePath
-	if _, err := os.Stat(yamlFilePath); err != nil {
-		return fmt.Errorf("flow file does not exist at %s: %w", yamlFilePath, err)
+	flowFilePath := existingFlow.FilePath
+	if _, err := os.Stat(flowFilePath); err != nil {
+		return fmt.Errorf("flow file does not exist at %s: %w", flowFilePath, err)
 	}
 
-	yamlData, err := yaml.Marshal(f)
+	// Always write as YAML for now (reading supports both YAML and HUML)
+	flowData, err := models.MarshalFlow(f, models.FlowFormatYAML)
 	if err != nil {
 		return fmt.Errorf("could not marshal flow to YAML: %w", err)
 	}
 
-	if err := os.WriteFile(yamlFilePath, yamlData, 0644); err != nil {
+	if err := os.WriteFile(flowFilePath, flowData, 0644); err != nil {
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(yamlFilePath, n.Name)
+	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(flowFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
@@ -634,7 +655,7 @@ func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flo
 			continue
 		}
 
-		// Find the YAML file in the flow directory
+		// Find the flow file (YAML or HUML) in the flow directory
 		flowDir := filepath.Join(namespaceDir, entry.Name())
 		flowFiles, err := os.ReadDir(flowDir)
 		if err != nil {
@@ -642,22 +663,22 @@ func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flo
 			continue
 		}
 
-		var yamlPath string
+		var flowPath string
 		for _, file := range flowFiles {
-			if !file.IsDir() && (strings.HasSuffix(strings.ToLower(file.Name()), ".yml") || strings.HasSuffix(strings.ToLower(file.Name()), ".yaml")) {
-				yamlPath = filepath.Join(flowDir, file.Name())
+			if !file.IsDir() && isFlowFile(file.Name()) {
+				flowPath = filepath.Join(flowDir, file.Name())
 				break
 			}
 		}
 
-		if yamlPath == "" {
-			log.Printf("no YAML file found in flow directory %s", flowDir)
+		if flowPath == "" {
+			log.Printf("no flow file (YAML or HUML) found in flow directory %s", flowDir)
 			continue
 		}
 
-		f, nsUUID, err := c.importFlowFromFile(yamlPath, namespaceName)
+		f, nsUUID, err := c.importFlowFromFile(flowPath, namespaceName)
 		if err != nil {
-			log.Printf("error importing flow from %s: %v", yamlPath, err)
+			log.Printf("error importing flow from %s: %v", flowPath, err)
 			continue
 		}
 
@@ -667,25 +688,28 @@ func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flo
 	return m, nil
 }
 
-func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Flow, string, error) {
-	data, err := os.ReadFile(yamlFilePath)
+func (c *Core) importFlowFromFile(flowFilePath, namespaceName string) (models.Flow, string, error) {
+	data, err := os.ReadFile(flowFilePath)
 	if err != nil {
-		return models.Flow{}, "", fmt.Errorf("error reading file %s: %w", yamlFilePath, err)
+		return models.Flow{}, "", fmt.Errorf("error reading file %s: %w", flowFilePath, err)
 	}
 
 	h := sha256.New()
 	h.Write(data)
 	checksum := hex.EncodeToString(h.Sum(nil))
-	var f models.Flow
-	if err := yaml.Unmarshal(data, &f); err != nil {
-		return models.Flow{}, "", fmt.Errorf("error parsing YAML in %s: %w", yamlFilePath, err)
+
+	// Detect format based on file extension and unmarshal accordingly
+	format := detectFlowFormat(flowFilePath)
+	f, err := models.UnmarshalFlow(data, format)
+	if err != nil {
+		return models.Flow{}, "", fmt.Errorf("error parsing flow file in %s: %w", flowFilePath, err)
 	}
 
 	if err := f.Validate(); err != nil {
-		return models.Flow{}, "", fmt.Errorf("validation error in %s: %w", yamlFilePath, err)
+		return models.Flow{}, "", fmt.Errorf("validation error in %s: %w", flowFilePath, err)
 	}
 
-	f.Meta.SrcDir = filepath.Base(filepath.Dir(yamlFilePath))
+	f.Meta.SrcDir = filepath.Base(filepath.Dir(flowFilePath))
 	if f.Meta.Namespace == "" {
 		f.Meta.Namespace = namespaceName
 	}
@@ -710,7 +734,7 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 			Checksum:      checksum,
 			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
 			CronSchedules: f.Meta.Schedules,
-			FilePath:      yamlFilePath,
+			FilePath:      flowFilePath,
 			Name_2:        f.Meta.Namespace,
 		})
 	} else if fd.Checksum != checksum {
@@ -719,7 +743,7 @@ func (c *Core) importFlowFromFile(yamlFilePath, namespaceName string) (models.Fl
 			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
 			Checksum:      checksum,
 			CronSchedules: f.Meta.Schedules,
-			FilePath:      yamlFilePath,
+			FilePath:      flowFilePath,
 			Slug:          f.Meta.ID,
 			Name_2:        f.Meta.Namespace,
 		})
