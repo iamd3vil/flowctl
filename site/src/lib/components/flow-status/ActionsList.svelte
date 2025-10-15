@@ -40,17 +40,17 @@
   const getStatusClasses = (status: StepStatus) => {
     switch (status) {
       case 'failed':
-        return 'bg-danger-50 text-danger-700 border-danger-200';
+        return 'bg-danger-50 text-danger-700';
       case 'completed':
-        return 'bg-success-50 text-success-700 border-success-200';
+        return 'bg-success-50 text-success-700';
       case 'running':
-        return 'bg-primary-50 text-primary-700 border-primary-200';
+        return 'bg-primary-50 text-primary-700';
       case 'awaiting_approval':
-        return 'bg-warning-50 text-warning-700 border-warning-200';
+        return 'bg-warning-50 text-warning-700';
       case 'cancelled':
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return 'bg-gray-100 text-gray-700';
       default:
-        return 'bg-gray-50 text-gray-600 border-gray-200';
+        return 'bg-gray-50 text-gray-600';
     }
   };
 
@@ -93,9 +93,9 @@
   };
 </script>
 
-<div class="flex flex-col h-full bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+<div class="flex flex-col h-full bg-white rounded-lg border border-gray-300 overflow-hidden">
   <!-- Header with Search -->
-  <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-5 space-y-4 z-10">
+  <div class="sticky top-0 bg-white border-b border-gray-300 px-6 py-5 space-y-4 z-10">
     <h2 class="text-base font-semibold text-gray-900">Actions</h2>
 
     <!-- Search Input -->
@@ -107,7 +107,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search actions..."
-        class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+        class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
       />
     </div>
   </div>
@@ -124,10 +124,9 @@
           <button
             type="button"
             onclick={() => handleActionClick(action.id)}
-            class="w-full text-left p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-md {getStatusClasses(action.status)}"
-            class:ring-2={selectedActionId === action.id}
-            class:ring-primary-500={selectedActionId === action.id}
-            class:shadow-md={selectedActionId === action.id}
+            class="w-full text-left p-4 rounded-lg border transition-all duration-200 {getStatusClasses(action.status)}"
+            class:border-gray-100={selectedActionId !== action.id}
+            class:border-2={selectedActionId !== action.id}
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex-1 min-w-0">

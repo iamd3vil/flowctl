@@ -437,8 +437,8 @@
 
           <!-- Right Panel: Terminal / Logs -->
           <div class="col-span-12 md:col-span-8 lg:col-span-9 h-full">
-            <div class="bg-white rounded-lg shadow border border-gray-200 h-full flex flex-col overflow-hidden">
-              <div class="px-6 py-5 border-b border-gray-200">
+            <div class="bg-white rounded-lg border border-gray-300 h-full flex flex-col overflow-hidden">
+              <div class="px-6 py-5 border-b border-gray-300">
                 <h2 class="text-base font-semibold text-gray-900">
                   {#if selectedActionId}
                     {actionsList.find(a => a.id === selectedActionId)?.name || 'Action Logs'}
@@ -467,8 +467,8 @@
 
         <!-- Execution Output -->
         {#if Object.keys(results).length > 0}
-          <div class="mb-6 bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-200">
+          <div class="mb-6 bg-white rounded-lg border border-gray-300 overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-300">
               <h2 class="text-base font-semibold text-gray-900">Execution Output</h2>
             </div>
             <div class="p-6">

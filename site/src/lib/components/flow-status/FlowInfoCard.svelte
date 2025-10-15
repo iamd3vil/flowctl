@@ -13,7 +13,7 @@
 </script>
 
 <!-- Flow Info Card -->
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+<div class="bg-white rounded-lg border border-gray-300 p-6 mb-6">
   <div class="flex justify-between items-start">
     <div>
       <h1 class="text-2xl font-semibold text-gray-900">{flowName}</h1>
