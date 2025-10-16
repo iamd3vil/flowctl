@@ -363,7 +363,7 @@ type FileLogger struct {
 	flushTicker   *time.Ticker
 	syncCh        chan struct{}
 	runOnce       sync.Once
-	writtenCount  int64
+	writtenCount  atomic.Int64
 	maxSize       int64
 	nextFileIndex atomic.Int32
 	currentFile   atomic.Pointer[os.File]
@@ -508,17 +508,17 @@ func (fl *FileLogger) sync() error {
 
 func (fl *FileLogger) filesync() error {
 	// Check if rotation is needed before acquiring any locks
-	if fl.maxSize > 0 && fl.writtenCount > fl.maxSize {
+	if fl.maxSize > 0 && fl.writtenCount.Load() > fl.maxSize {
 		if err := fl.rotateFile(); err != nil {
 			return err
 		}
-		fl.writtenCount = 0
+		fl.writtenCount.Store(0)
 	}
 
 	// Now copy buffer contents to file
 	fl.bufferMut.Lock()
 	n, err := io.Copy(fl.currentFile.Load(), fl.buffer)
-	fl.writtenCount += n
+	fl.writtenCount.Add(n)
 	fl.buffer.Reset()
 	if err != nil {
 		fl.bufferMut.Unlock()
