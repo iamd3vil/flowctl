@@ -103,6 +103,7 @@ type FlowInputValidationError struct {
 type FlowLogResp struct {
 	ActionID  string            `json:"action_id"`
 	MType     string            `json:"message_type"`
+	NodeID    string            `json:"node_id"`
 	Value     string            `json:"value"`
 	Timestamp string            `json:"timestamp"`
 	Results   map[string]string `json:"results,omitempty"`

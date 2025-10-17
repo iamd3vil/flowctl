@@ -29,6 +29,7 @@ const (
 type StreamMessage struct {
 	ActionID  string      `json:"action_id"`
 	MType     MessageType `json:"message_type"`
+	NodeID    string      `json:"node_id"`
 	Val       []byte      `json:"value"`
 	Timestamp string      `json:"timestamp"`
 }

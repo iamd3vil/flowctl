@@ -16,7 +16,7 @@ type Logger interface {
 	SetActionID(id string)
 	// Checkpoint is an underlying function to log different message types. Used by Write calls too. If the id is set, it will
 	// override the global action ID
-	Checkpoint(id string, val interface{}, mtype MessageType) error
+	Checkpoint(id string, nodeID string, val interface{}, mtype MessageType) error
 
 	Close() error
 }
@@ -42,6 +42,7 @@ const (
 type StreamMessage struct {
 	ActionID  string      `json:"action_id"`
 	MType     MessageType `json:"message_type"`
+	NodeID    string      `json:"node_id"`
 	Val       []byte      `json:"-"`
 	Timestamp string      `json:"timestamp"`
 }
@@ -75,4 +76,57 @@ func (s *StreamMessage) UnmarshalJSON(data []byte) error {
 	}
 	s.Val = val
 	return nil
+}
+
+// NodeContextLogger wraps a Logger to provide node-scoped context for concurrent execution.
+// It implements the decorator pattern, allowing any Logger implementation to be enhanced
+// with node context without modification to the underlying logger or handler code.
+type NodeContextLogger struct {
+	logger   Logger
+	actionID string
+	nodeID   string
+}
+
+// NewNodeContextLogger creates a new node-scoped logger wrapper.
+func NewNodeContextLogger(logger Logger, actionID, nodeID string) *NodeContextLogger {
+	return &NodeContextLogger{
+		logger:   logger,
+		actionID: actionID,
+		nodeID:   nodeID,
+	}
+}
+
+// Write implements io.Writer by delegating to Checkpoint with node context.
+func (n *NodeContextLogger) Write(p []byte) (int, error) {
+	if err := n.logger.Checkpoint(n.actionID, n.nodeID, p, LogMessageType); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// GetID delegates to the underlying logger.
+func (n *NodeContextLogger) GetID() string {
+	return n.logger.GetID()
+}
+
+// SetActionID updates the action ID for this node context.
+func (n *NodeContextLogger) SetActionID(id string) {
+	n.actionID = id
+}
+
+// Checkpoint delegates to the underlying logger with node context.
+// If id is empty, uses the stored actionID.
+func (n *NodeContextLogger) Checkpoint(id string, nodeID string, val interface{}, mtype MessageType) error {
+	if id == "" {
+		id = n.actionID
+	}
+	if nodeID == "" {
+		nodeID = n.nodeID
+	}
+	return n.logger.Checkpoint(id, nodeID, val, mtype)
+}
+
+// Close delegates to the underlying logger.
+func (n *NodeContextLogger) Close() error {
+	return n.logger.Close()
 }

@@ -430,15 +430,19 @@ func (fl *FileLogger) SetActionID(id string) {
 }
 
 func (fl *FileLogger) Write(p []byte) (int, error) {
-	if err := fl.Checkpoint(fl.ActionID, p, LogMessageType); err != nil {
+	if err := fl.Checkpoint(fl.ActionID, "", p, LogMessageType); err != nil {
 		return 0, err
 	}
 	return len(p), nil
 }
 
-func (fl *FileLogger) Checkpoint(id string, val interface{}, mtype MessageType) error {
+func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtype MessageType) error {
 	var sm StreamMessage
-	sm.ActionID = id
+	sm.ActionID = fl.ActionID
+	if id != "" {
+		sm.ActionID = id
+	}
+	sm.NodeID = nodeID
 	sm.Timestamp = time.Now().Format(time.RFC3339)
 	switch mtype {
 	case ErrMessageType:

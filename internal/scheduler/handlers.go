@@ -70,7 +70,7 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		if ctx.Err() != nil {
 			// Send a cancelled message before returning
-			if err := streamLogger.Checkpoint("", "execution cancelled", streamlogger.CancelledMessageType); err != nil {
+			if err := streamLogger.Checkpoint("", "", "execution cancelled", streamlogger.CancelledMessageType); err != nil {
 				s.logger.Error("failed to send cancellation message", "error", err)
 			}
 			return ErrExecutionCancelled
@@ -87,15 +87,15 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 			// Check if the error is due to context cancellation
 			if errors.Is(err, context.Canceled) {
 				// Send a cancelled message before returning
-				if streamErr := streamLogger.Checkpoint(action.ID, "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
+				if streamErr := streamLogger.Checkpoint(action.ID, "", "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
 					s.logger.Error("failed to send cancelled message", "execID", payload.ExecID, "actionID", action.ID, "error", streamErr)
 				}
 				return ErrExecutionCancelled
 			}
-			streamLogger.Checkpoint(action.ID, err.Error(), streamlogger.ErrMessageType)
+			streamLogger.Checkpoint(action.ID, "", err.Error(), streamlogger.ErrMessageType)
 			return err
 		}
-		if err := streamLogger.Checkpoint(action.ID, res, streamlogger.ResultMessageType); err != nil {
+		if err := streamLogger.Checkpoint(action.ID, "", res, streamlogger.ResultMessageType); err != nil {
 			return err
 		}
 
@@ -177,6 +177,7 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 	for _, node := range action.On {
 		wg.Add(1)
 		go func(node Node, resChan chan ExecResults) {
+			nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
 			defer wg.Done()
 
 			// Create a separate executor instance for each node
@@ -227,8 +228,8 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 				Inputs:     inputVars,
 				WithConfig: withConfig,
 				Artifacts:  action.Artifacts,
-				Stdout:     streamLogger,
-				Stderr:     streamLogger,
+				Stdout:     nodeLogger,
+				Stderr:     nodeLogger,
 			})
 
 			// Pull artifacts from this node after successful execution

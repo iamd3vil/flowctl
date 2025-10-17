@@ -32,7 +32,7 @@
   let completedActions = $state<number[]>([]);
   let failedActionIndex = $state(-1);
   let logOutput = $state('');
-  let logMessages = $state<Array<{action_id: string; message_type: string; value: string; timestamp: string}>>([]);
+  let logMessages = $state<Array<{action_id: string; message_type: string; node_id: string; value: string; timestamp: string}>>([]);
   let results = $state<Record<string, any>>({});
   let showApproval = $state(false);
   let approvalID = $state<string | null>(null);
@@ -210,6 +210,7 @@
         logMessages.push({
           action_id: msg.action_id || '',
           message_type: msg.message_type,
+          node_id: msg.node_id || '',
           value: msg.value || '',
           timestamp: msg.timestamp || ''
         });
@@ -247,6 +248,7 @@
         logMessages.push({
           action_id: msg.action_id || '',
           message_type: msg.message_type,
+          node_id: msg.node_id || '',
           value: msg.value || 'Flow execution was cancelled',
           timestamp: msg.timestamp || ''
         });
@@ -257,6 +259,7 @@
         logMessages.push({
           action_id: msg.action_id || '',
           message_type: msg.message_type,
+          node_id: msg.node_id || '',
           value: msg.value || '',
           timestamp: msg.timestamp || ''
         });

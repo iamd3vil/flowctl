@@ -229,6 +229,7 @@ func (h *Handler) handleLogStreaming(msg models.StreamMessage, ws *websocket.Con
 			ActionID:  msg.ActionID,
 			MType:     string(msg.MType),
 			Results:   res,
+			NodeID:    msg.NodeID,
 			Timestamp: msg.Timestamp,
 		}); err != nil {
 			return err
@@ -238,6 +239,7 @@ func (h *Handler) handleLogStreaming(msg models.StreamMessage, ws *websocket.Con
 		if err := json.NewEncoder(&buf).Encode(FlowLogResp{
 			ActionID:  msg.ActionID,
 			MType:     string(msg.MType),
+			NodeID:    msg.NodeID,
 			Value:     string(msg.Val),
 			Timestamp: msg.Timestamp,
 		}); err != nil {
