@@ -12,6 +12,7 @@ import (
 var appConfig config.Config
 
 // rootCmd represents the base command when called without any subcommands
+// If --new-config flag is added, a new config file (config.toml) will be created in the current directory
 var rootCmd = &cobra.Command{
 	Use:   "flowctl",
 	Short: "Self-service workflow execution engine",
@@ -33,6 +34,8 @@ func Execute() {
 	}
 }
 
+// LoadConfig loads the config file into the global appConfig variable
+// If the config path is empty, the current working directory will be used
 func LoadConfig(configPath string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {

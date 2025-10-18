@@ -16,7 +16,6 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
-	sqlxadapter "github.com/memwey/casbin-sqlx-adapter"
 	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/handlers"
@@ -26,6 +25,8 @@ import (
 	"github.com/cvhariharan/flowctl/internal/streamlogger"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	sqlxadapter "github.com/memwey/casbin-sqlx-adapter"
 	"github.com/spf13/cobra"
 	"gocloud.dev/secrets"
 	_ "gocloud.dev/secrets/localsecrets"
@@ -111,7 +112,16 @@ func initializeSharedComponents() *SharedComponents {
 	}
 
 	// Initialize casbin with sqlx adapter
-	m, _ := casbin_model.NewModelFromFile("configs/rbac_model.conf")
+	modelContent, err := StaticFiles.ReadFile("configs/rbac_model.conf")
+	if err != nil {
+		log.Fatalf("could not read rbac_model.conf from embedded FS: %v", err)
+	}
+
+	m, err := casbin_model.NewModelFromString(string(modelContent))
+	if err != nil {
+		log.Fatalf("could not create casbin model: %v", err)
+	}
+
 	a := sqlxadapter.NewAdapter("postgres", dbConnectionString)
 
 	enforcer, err := casbin.NewEnforcer(m, a)
@@ -175,9 +185,7 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	}
 
 	e := echo.New()
-	// e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-	//   Format: "method=${method}, uri=${uri}, status=${status}\n",
-	// }))
+	e.Use(middleware.Recover())
 
 	e.GET("/ping", h.HandlePing)
 	e.POST("/login", h.HandleLoginPage)
@@ -193,7 +201,6 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	api := e.Group("/api/v1", h.Authenticate)
 
-	// Global admin endpoints for users and groups
 	api.GET("/users", h.HandleUserPagination, h.AuthorizeForRole("superuser"))
 	api.GET("/users/profile", h.HandleGetUserProfile)
 	api.GET("/users/:userID", h.HandleGetUser, h.AuthorizeForRole("superuser"))
@@ -270,10 +277,6 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionCreate))
 	namespaceGroup.PUT("/members/:membershipID", h.HandleUpdateNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionDelete))
-
-	// admin := e.Group("/admin")
-	// admin.Use(h.AuthorizeForRole("superuser"))
-	// admin.GET("/settings", h.HandleSettingsView)
 
 	buildFS, err := fs.Sub(StaticFiles, "site/build")
 	if err != nil {

@@ -23,12 +23,6 @@ const (
 func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
-	// Remove because the log messages will already contain error messages
-	// errCh, err := c.checkErrors(ctx, logID, namespaceID)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error getting execution %s errors: %w", logID, err)
-	// }
-
 	logCh, err := c.streamLogs(ctx, logID, namespaceID)
 	if err != nil {
 		return nil, fmt.Errorf("error reading logs for execution %s: %w", logID, err)
@@ -46,12 +40,6 @@ func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string)
 			select {
 			case <-ctx.Done():
 				return
-			// case errMsg, ok := <-errCh:
-			// 	if !ok {
-			// 		errCh = nil
-			// 		continue
-			// 	}
-			// 	ch <- errMsg
 			case approvalReq, ok := <-approvalCh:
 				if !ok {
 					approvalCh = nil
@@ -80,8 +68,6 @@ func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string
 
 		// Wait until logger exists with timeout
 		timeout := time.After(ExecutionLogPendingTimeout)
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
 
 		exec, err := c.GetExecutionSummaryByExecID(ctx, execID, namespaceID)
 		if err == nil {
@@ -99,7 +85,7 @@ func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string
 			case <-timeout:
 				log.Printf("timeout waiting for logger %s to be created, attempting to read archived logs", execID)
 				return
-			case <-ticker.C:
+			default:
 				if c.LogManager.LoggerExists(execID) {
 					goto streamLoop
 				}

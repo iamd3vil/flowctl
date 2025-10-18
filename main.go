@@ -8,6 +8,8 @@ import (
 
 //go:embed site/build/*
 //go:embed site/build/_app
+//go:embed configs
+//go:embed migrations
 var staticFiles embed.FS
 
 func main() {

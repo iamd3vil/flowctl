@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
@@ -47,14 +48,24 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 }
 
-
+// initDB performs DB migrations and can be safely run multiple times
 func initDB(db *sqlx.DB) error {
 	driver, err := postgres.WithInstance(db.DB, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create postgres driver instance: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://migrations", "postgres", driver)
+	migrationsFS, err := fs.Sub(StaticFiles, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to get migrations sub-filesystem: %w", err)
+	}
+
+	sourceDriver, err := iofs.New(migrationsFS, ".")
+	if err != nil {
+		return fmt.Errorf("failed to create iofs source driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "postgres", driver)
 	if err != nil {
 		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
@@ -84,6 +95,8 @@ func initDB(db *sqlx.DB) error {
 	return nil
 }
 
+// initAdmin creates the admin user as defined in the config file
+// User will only be created if the user doesn't already exist
 func initAdmin(store repo.Store) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(appConfig.App.AdminPassword), bcrypt.DefaultCost)
 	if err != nil {

@@ -453,7 +453,6 @@ func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtyp
 		sm.MType = ErrMessageType
 		sm.Val = []byte(e)
 	case ResultMessageType:
-		log.Printf("DEBUG____LOG result %+v", val)
 		r, ok := val.(map[string]string)
 		if !ok {
 			return fmt.Errorf("expected map[string]string type got %T in stream checkpoint", val)

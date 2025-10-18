@@ -1,7 +1,7 @@
 package cmd
 
-// These are the default executors included in flowctl
-// Additional executors can be added here
+// These are the default executors and remote clients included in flowctl
+// Additional executors and remote clients can be added here
 import (
 	_ "github.com/cvhariharan/flowctl/executors/docker"
 	_ "github.com/cvhariharan/flowctl/executors/script"
