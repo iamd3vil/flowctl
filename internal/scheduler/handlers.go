@@ -98,8 +98,8 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 		if err := streamLogger.Checkpoint(action.ID, "", res, streamlogger.ResultMessageType); err != nil {
 			return err
 		}
+		s.logger.Debug("Action results", "results", res)
 
-		actionOutputs := make(map[string]interface{})
 		for k, v := range res {
 			parts := strings.SplitN(k, ".", 2)
 			// node prefixed output
@@ -107,15 +107,14 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 				nodeName := parts[0]
 				keyName := parts[1]
 
-				if _, exists := actionOutputs[nodeName]; !exists {
-					actionOutputs[nodeName] = make(map[string]interface{})
+				if _, exists := outputs[nodeName]; !exists {
+					outputs[nodeName] = make(map[string]interface{})
 				}
-				actionOutputs[nodeName].(map[string]interface{})[keyName] = v
+				outputs[nodeName].(map[string]interface{})[keyName] = v
 			} else {
-				actionOutputs[k] = v
+				outputs[k] = v
 			}
 		}
-		outputs[action.ID] = actionOutputs
 	}
 
 	return nil
