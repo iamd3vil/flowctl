@@ -24,6 +24,7 @@ import (
 
 var (
 	ErrExecutionCancelled = errors.New("execution cancelled")
+	RemoteArtifactsPath   = os.TempDir()
 )
 
 // executeFlow executes a flow - adapted from FlowRunner.HandleFlowExecution
@@ -287,7 +288,8 @@ func (s *Scheduler) pushArtifacts(ctx context.Context, exec executor.Executor, a
 			if err != nil {
 				return err
 			}
-			if err := exec.PushFile(ctx, path, rPath); err != nil {
+			remotePath := filepath.Join(RemoteArtifactsPath, rPath)
+			if err := exec.PushFile(ctx, path, remotePath); err != nil {
 				return fmt.Errorf("failed to push artifact %s: %w", path, err)
 			}
 		}

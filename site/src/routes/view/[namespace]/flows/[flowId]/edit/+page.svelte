@@ -150,7 +150,7 @@
       name: '',
       executor: '',
       with: {},
-      on: '',
+      selectedNodes: [],
       variables: [],
       approval: false,
       artifacts: [],

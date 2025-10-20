@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	WORKING_DIR = "/"
-	PUSH_DIR    = "/push"
-	PULL_DIR    = "/pull"
+	WORKING_DIR   = "/"
+	ARTIFACTS_DIR = "/tmp"
+	PUSH_DIR      = "/push"
+	PULL_DIR      = "/pull"
 )
 
 type DockerWithConfig struct {
@@ -107,7 +108,8 @@ func (d *DockerExecutor) withEnv(env []map[string]any) *DockerExecutor {
 	variables := make([]string, 0)
 	for _, v := range env {
 		if len(v) > 1 {
-			log.Fatal("variables should be defined as a key value pair")
+			log.Println("variables should be defined as a key value pair")
+			return nil
 		}
 		for k, v := range v {
 			variables = append(variables, fmt.Sprintf("%s=%s", k, fmt.Sprint(v)))
@@ -184,7 +186,8 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		vars = append(vars, map[string]any{k: v})
 	}
 	// Add output env variable
-	vars = append(vars, map[string]any{"OUTPUT": "/tmp/flow/output"})
+	vars = append(vars, map[string]any{"FC_OUTPUT": "/tmp/flow/output"})
+	vars = append(vars, map[string]any{"FC_ARTIFACTS_DIR": ARTIFACTS_DIR})
 
 	d.withImage(config.Image).
 		withCmd([]string{config.Script}).
@@ -327,11 +330,11 @@ func (d *DockerExecutor) copyArtifactsToContainer(ctx context.Context, container
 		if err != nil {
 			return err
 		}
-		return d.client.CopyToContainer(ctx, containerID, WORKING_DIR, tar, container.CopyToContainerOptions{})
+		return d.client.CopyToContainer(ctx, containerID, ARTIFACTS_DIR, tar, container.CopyToContainerOptions{})
 	}
 
 	// Remote execution: use docker cp command
-	dockerCpCmd := fmt.Sprintf("cd %s && tar -c . | docker cp - %s:%s", pushDir, containerID, WORKING_DIR)
+	dockerCpCmd := fmt.Sprintf("cd %s && tar -c . | docker cp - %s:%s", pushDir, containerID, ARTIFACTS_DIR)
 	if err := d.remoteClient.RunCommand(ctx, dockerCpCmd, io.Discard, io.Discard); err != nil {
 		return fmt.Errorf("failed to copy artifacts to container via docker cp: %w", err)
 	}
