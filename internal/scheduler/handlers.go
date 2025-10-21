@@ -102,11 +102,11 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 		s.logger.Debug("Action results", "results", res)
 
 		for k, v := range res {
-			parts := strings.SplitN(k, ".", 2)
-			// node prefixed output
+			parts := strings.SplitN(k, "@", 2)
+			// node suffixed output
 			if len(parts) == 2 {
-				nodeName := parts[0]
-				keyName := parts[1]
+				keyName := parts[0]
+				nodeName := parts[1]
 
 				if _, exists := outputs[nodeName]; !exists {
 					outputs[nodeName] = make(map[string]interface{})
@@ -116,6 +116,7 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 				outputs[k] = v
 			}
 		}
+		s.logger.Debug("outputs", "results", outputs)
 	}
 
 	return nil
@@ -239,12 +240,14 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 				}
 			}
 
-			// Add node.Name prefix to result keys
+			// Add node.Name suffix to result keys
 			prefixedRes := make(map[string]string)
 			for key, value := range res {
-				prefixedKey := key
+				// Format key as valid environment variable (replace special chars with _)
+				prefixedKey := regexp.MustCompile(`[^a-zA-Z0-9_]+`).ReplaceAllString(key, "_")
 				if node.Name != "" {
-					prefixedKey = node.Name + "." + key
+					// example key@hostname
+					prefixedKey = prefixedKey + "@" + node.Name
 				}
 				prefixedRes[prefixedKey] = value
 			}
