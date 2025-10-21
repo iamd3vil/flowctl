@@ -139,7 +139,7 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 		if len(matches) > 0 {
 			inputExpr := matches[0][1]
 			env := map[string]interface{}{
-				"input":   input,
+				"inputs":  input,
 				"secrets": secrets,
 				"outputs": outputs,
 			}
