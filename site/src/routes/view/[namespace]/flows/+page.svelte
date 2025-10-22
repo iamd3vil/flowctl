@@ -174,6 +174,13 @@
     const actions = $derived(() => {
         const actionsList: TableAction<FlowListItem>[] = [];
 
+        actionsList.push({
+            label: "Run",
+            onClick: (row: FlowListItem) => goToFlow(row.slug),
+            className:
+                "text-green-600 hover:text-green-700 transition-colors cursor-pointer",
+        });
+
         if (permissions.canUpdate) {
             actionsList.push({
                 label: "Edit",
@@ -249,7 +256,6 @@
             data={flows}
             actions={actions()}
             {loading}
-            onRowClick={(row) => goToFlow(row.slug)}
             emptyMessage={searchValue
                 ? "Try adjusting your search"
                 : "No flows are available in this namespace"}
