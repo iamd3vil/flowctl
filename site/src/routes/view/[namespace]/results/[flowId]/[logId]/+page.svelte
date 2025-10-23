@@ -172,6 +172,8 @@
                 return;
             }
 
+            eventSource?.close();
+
             // EventSource will automatically try to reconnect unless we close it
             // If connection is closed, fetch final status from API
             if (eventSource?.readyState === EventSource.CLOSED) {
@@ -280,12 +282,28 @@
                 if (currentActionIndex !== -1) {
                     failedActionIndex = currentActionIndex;
                 }
+                // Close SSE connection to prevent reconnection
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                stopStatusPolling();
                 break;
             case "approval":
                 approvalID = msg.value;
                 showApproval = true;
                 status = "awaiting_approval";
                 stopStatusPolling(); // Approval state is stable, no need to poll aggressively
+                break;
+            case "completed":
+                status = "completed";
+                // Close SSE connection to prevent reconnection
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                stopStatusPolling();
+                updateExecutionStatus(); // Fetch final status from API
                 break;
             case "cancelled":
                 status = "cancelled";
@@ -298,7 +316,12 @@
                     value: msg.value || "Flow execution was cancelled",
                     timestamp: msg.timestamp || "",
                 });
-                stopStatusPolling(); // Flow finished, no need to continue polling
+                // Close SSE connection to prevent reconnection
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                stopStatusPolling();
                 break;
             default:
                 logOutput += (msg.value || "") + "\n";
