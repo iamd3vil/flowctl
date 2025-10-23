@@ -187,6 +187,19 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 			if node.Name == "" {
 				nodeExecutorID = action.ID
 			}
+
+			// Check if node is accessible
+			// Ignore local node
+			if node.Name != "" {
+				if err := node.CheckConnectivity(); err != nil {
+					resChan <- ExecResults{
+						result: nil,
+						err:    fmt.Errorf("failed to connect to node %s", node.Name),
+					}
+					return
+				}
+			}
+
 			// Convert task node to executor node
 			execNode := executor.Node{
 				Hostname:       node.Hostname,
@@ -197,18 +210,6 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 					Method: string(node.Auth.Method),
 					Key:    node.Auth.Key,
 				},
-			}
-
-			// Check if node is accessible
-			// Ignore local node
-			if node.Name != "" {
-				if err := execNode.CheckConnectivity(); err != nil {
-					resChan <- ExecResults{
-						result: nil,
-						err:    fmt.Errorf("failed to connect to node %s", node.Name),
-					}
-					return
-				}
 			}
 
 			ef, err := executor.GetNewExecutorFunc(action.Executor)

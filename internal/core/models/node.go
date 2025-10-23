@@ -4,7 +4,7 @@ type AuthMethod string
 
 const (
 	AuthMethodPrivateKey AuthMethod = "private_key"
-	AuthMethodPassword AuthMethod = "password"
+	AuthMethodPassword   AuthMethod = "password"
 )
 
 type Node struct {

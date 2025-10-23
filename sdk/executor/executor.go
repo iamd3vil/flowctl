@@ -2,10 +2,7 @@ package executor
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"net"
-	"time"
 )
 
 type Node struct {
@@ -28,19 +25,6 @@ type ExecutionContext struct {
 	Inputs     map[string]any
 	Stdout     io.Writer
 	Stderr     io.Writer
-}
-
-// CheckConnectivity can be used to check if a remote node is accessible at the given IP:Port
-// The default connection timeout is 5 seconds
-// Non-nil error is returned if the node is not accessible
-func (n *Node) CheckConnectivity() error {
-	address := fmt.Sprintf("%s:%d", n.Hostname, n.Port)
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
-	if err != nil {
-		return fmt.Errorf("failed to connect to %s: %w", address, err)
-	}
-	defer conn.Close()
-	return nil
 }
 
 type Executor interface {

@@ -3,6 +3,8 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	"time"
 )
 
@@ -63,6 +65,19 @@ type Node struct {
 	ConnectionType string
 	Tags           []string
 	Auth           NodeAuth
+}
+
+// CheckConnectivity can be used to check if a remote node is accessible at the given IP:Port
+// The default connection timeout is 5 seconds
+// Non-nil error is returned if the node is not accessible
+func (n *Node) CheckConnectivity() error {
+	address := fmt.Sprintf("%s:%d", n.Hostname, n.Port)
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to connect to %s: %w", address, err)
+	}
+	defer conn.Close()
+	return nil
 }
 
 type NodeAuth struct {

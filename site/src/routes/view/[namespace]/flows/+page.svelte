@@ -175,7 +175,7 @@
         const actionsList: TableAction<FlowListItem>[] = [];
 
         actionsList.push({
-            label: "Run",
+            label: "View",
             onClick: (row: FlowListItem) => goToFlow(row.slug),
             className:
                 "text-green-600 hover:text-green-700 transition-colors cursor-pointer",
