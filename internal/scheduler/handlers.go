@@ -198,6 +198,16 @@ func (s *Scheduler) runAction(ctx context.Context, action Action, srcdir string,
 					Key:    node.Auth.Key,
 				},
 			}
+
+			// Check if node is accessible
+			if err := execNode.CheckConnectivity(); err != nil {
+				resChan <- ExecResults{
+					result: nil,
+					err:    fmt.Errorf("failed to connect to node %s", node.Name),
+				}
+				return
+			}
+
 			ef, err := executor.GetNewExecutorFunc(action.Executor)
 			if err != nil {
 				resChan <- ExecResults{
