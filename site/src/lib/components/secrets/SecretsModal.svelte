@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { handleInlineError } from '$lib/utils/errorHandling';
+	import { autofocus } from '$lib/utils/autofocus';
 	import type { FlowSecretReq, FlowSecretResp } from '$lib/types';
 
 	interface Props {
@@ -89,6 +90,7 @@
 						disabled={loading}
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						placeholder="SECRET_KEY"
+						use:autofocus
 					/>
 				</div>
 

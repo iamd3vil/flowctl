@@ -1,5 +1,6 @@
 <script lang="ts">
   import { handleInlineError } from '$lib/utils/errorHandling';
+  import { autofocus } from '$lib/utils/autofocus';
   import UserGroupSelector from '$lib/components/shared/UserGroupSelector.svelte';
   import type { NamespaceMemberReq, NamespaceMemberResp, User, Group } from '$lib/types';
   
@@ -123,6 +124,7 @@
               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
               required
               disabled={loading || isEditMode}
+              use:autofocus
             >
               <option value="user">User</option>
               <option value="group">Group</option>

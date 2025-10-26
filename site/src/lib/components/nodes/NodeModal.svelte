@@ -1,5 +1,6 @@
 <script lang="ts">
     import { handleInlineError } from "$lib/utils/errorHandling";
+    import { autofocus } from "$lib/utils/autofocus";
     import type { CredentialResp, NodeReq, NodeResp } from "$lib/types";
 
     interface Props {
@@ -159,6 +160,7 @@
                         bind:value={formData.name}
                         required
                         disabled={loading}
+                        use:autofocus
                     />
                 </div>
 

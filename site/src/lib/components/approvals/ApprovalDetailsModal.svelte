@@ -3,6 +3,7 @@
 	import type { ApprovalDetailsResp } from '$lib/types';
 	import JsonDisplay from '$lib/components/shared/JsonDisplay.svelte';
 	import { handleInlineError } from '$lib/utils/errorHandling';
+	import { autofocus } from '$lib/utils/autofocus';
 
 	let { 
 		open = $bindable(), 
@@ -130,6 +131,7 @@
 					onclick={closeModal}
 					class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
 					aria-label="Close modal"
+					use:autofocus
 				>
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

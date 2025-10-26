@@ -1,5 +1,6 @@
 <script lang="ts">
     import { handleInlineError } from "$lib/utils/errorHandling";
+    import { autofocus } from "$lib/utils/autofocus";
     import type { CredentialReq, CredentialResp } from "$lib/types";
 
     interface Props {
@@ -114,6 +115,7 @@
                         type="text"
                         class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.name}
+                        use:autofocus
                         placeholder="my-ssh-key"
                         required
                         disabled={loading}

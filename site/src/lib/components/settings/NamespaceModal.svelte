@@ -1,5 +1,6 @@
 <script lang="ts">
     import { handleInlineError } from "$lib/utils/errorHandling";
+    import { autofocus } from "$lib/utils/autofocus";
     import type { NamespaceResp } from "$lib/types";
 
     let {
@@ -87,6 +88,7 @@
                     maxlength="150"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder="Enter namespace name"
+                    use:autofocus
                 />
                 <p class="mt-1 text-xs text-gray-500">
                     Namespace names should be unique and descriptive.

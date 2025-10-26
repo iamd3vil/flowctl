@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { handleInlineError } from '$lib/utils/errorHandling';
+	import { autofocus } from '$lib/utils/autofocus';
 	import { IconAlertTriangle } from '@tabler/icons-svelte';
 
 	let {
@@ -82,6 +83,7 @@
 				onclick={handleClose}
 				disabled={deleting}
 				class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+				use:autofocus
 			>
 				Cancel
 			</button>
