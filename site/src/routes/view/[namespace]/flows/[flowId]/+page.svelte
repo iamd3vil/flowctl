@@ -18,7 +18,7 @@
   import { formatDateTime } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
-  
+
   let activeTab = $state<'run' | 'history'>('run');
   let historyLoading = $state(false);
   let flowExecutions = $state<any[]>([]);
@@ -153,21 +153,20 @@
   <title>Run Flow - {data.flowMeta?.meta?.name || 'Loading...'}</title>
 </svelte:head>
 
-<Header 
+<Header
   breadcrumbs={[
     { label: namespace!, url: `/view/${namespace}/flows` },
     { label: 'Flows', url: `/view/${namespace}/flows` },
     { label: data.flowMeta?.meta?.name || 'Loading...' }
-  ]} 
+  ]}
   actions={[
-    ...(canUpdateFlow ? [{ label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' as const }] : []),
-    { label: 'Back to Flows', onClick: () => goto(`/view/${namespace}/flows`), variant: 'secondary' as const }
+    ...(canUpdateFlow ? [{ label: 'Edit Flow', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' as const }] : [])
   ]}
 />
 
-<FlowHero 
-  name={data.flowMeta?.meta?.name || 'Loading...'} 
-  description={data.flowMeta?.meta?.description || ''} 
+<FlowHero
+  name={data.flowMeta?.meta?.name || 'Loading...'}
+  description={data.flowMeta?.meta?.description || ''}
 />
 
 <div class="bg-white border-b border-gray-200 px-6">
@@ -204,7 +203,7 @@
           <div class="text-sm text-gray-700">
             Showing {((historyCurrentPage - 1) * historyItemsPerPage) + 1} to {Math.min(historyCurrentPage * historyItemsPerPage, historyTotalCount)} of {historyTotalCount} results
           </div>
-          <Pagination 
+          <Pagination
             currentPage={historyCurrentPage}
             totalPages={historyPageCount}
             loading={historyLoading}

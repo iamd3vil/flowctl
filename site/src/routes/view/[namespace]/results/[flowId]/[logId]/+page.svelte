@@ -489,12 +489,7 @@
                               variant: "danger" as const,
                           },
                       ]
-                    : []),
-                {
-                    label: "Back to Flows",
-                    onClick: goBack,
-                    variant: "secondary" as const,
-                },
+                    : [])
             ]}
         >
             {#snippet children()}
