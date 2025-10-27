@@ -1,5 +1,10 @@
 build: build-site
-    go build -o flowctl
+    #!/bin/bash
+    set -euo pipefail
+    VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "dev")
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    go build -ldflags="-s -w -X 'github.com/cvhariharan/flowctl/cmd.version=${VERSION}' -X 'github.com/cvhariharan/flowctl/cmd.commit=${COMMIT}' -X 'github.com/cvhariharan/flowctl/cmd.date=${DATE}'" -o flowctl
 
 run:
     #!/bin/bash
