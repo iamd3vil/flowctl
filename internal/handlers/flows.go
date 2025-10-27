@@ -416,7 +416,7 @@ func (h *Handler) HandleAllExecutionsPagination(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	executions, pageCount, totalCount, err := h.co.GetAllExecutionSummaryPaginated(c.Request().Context(), namespace, req.Count, req.Count*req.Page)
+	executions, pageCount, totalCount, err := h.co.GetAllExecutionSummaryPaginated(c.Request().Context(), namespace, req.Filter, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not get all paginated executions", err, nil)
 	}

@@ -118,10 +118,15 @@
   // Table configuration
   const tableColumns: TableColumn<any>[] = [
     {
-      key: 'id',
-      header: 'Execution ID',
-      width: 'w-48',
-      component: ExecutionIdCell
+      key: 'started_at',
+      header: 'Started At',
+      width: 'w-40',
+      render: (value) => `<div class="text-sm text-gray-600">${formatDateTime(value)}</div>`
+    },
+    {
+      key: 'duration',
+      header: 'Duration',
+      render: (value, row) => `<div class="text-sm text-gray-600">${value || formatDuration(row.started_at, row.completed_at)}</div>`
     },
     {
       key: 'status',
@@ -132,18 +137,12 @@
       key: 'triggered_by',
       header: 'Triggered By',
       width: 'w-32',
-      render: (value) => value || 'System'
+      render: (value) => `<div class="text-sm text-gray-900">${value || 'System'}</div>`
     },
     {
-      key: 'started_at',
-      header: 'Started At',
-      width: 'w-40',
-      render: (value) => formatDateTime(value)
-    },
-    {
-      key: 'duration',
-      header: 'Duration',
-      render: (value, row) => value || formatDuration(row.started_at, row.completed_at)
+      key: 'id',
+      header: 'Exec ID',
+      render: (value) => `<div class="text-sm font-mono text-gray-600">${value.substring(0, 8)}</div>`
     }
   ];
 

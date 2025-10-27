@@ -739,6 +739,135 @@ func (q *Queries) GetInputForExecByUUID(ctx context.Context, arg GetInputForExec
 	return input, err
 }
 
+const searchExecutionsPaginated = `-- name: SearchExecutionsPaginated :many
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $1
+),
+latest_versions AS (
+    SELECT exec_id, MAX(version) as max_version
+    FROM execution_log el
+    INNER JOIN flows f ON el.flow_id = f.id
+    WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    GROUP BY exec_id
+),
+filtered AS (
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, u.name, u.username, u.uuid as triggered_by_uuid,
+           CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
+           f.name as flow_name,
+           f.slug as flow_slug
+    FROM execution_log el
+    INNER JOIN flows f ON el.flow_id = f.id
+    INNER JOIN users u ON el.triggered_by = u.id
+    INNER JOIN latest_versions lv ON el.exec_id = lv.exec_id AND el.version = lv.max_version
+    WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+      AND (
+        $2 = '' OR
+        f.name ILIKE '%' || $2 || '%' OR
+        f.slug ILIKE '%' || $2 || '%' OR
+        el.exec_id ILIKE '%' || $2 || '%' OR
+        u.name ILIKE '%' || $2 || '%' OR
+        u.username ILIKE '%' || $2 || '%'
+      )
+),
+total AS (
+    SELECT COUNT(*) AS total_count FROM filtered
+),
+paged AS (
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
+    ORDER BY created_at DESC
+    LIMIT $3 OFFSET $4
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
+)
+SELECT
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
+    pc.page_count,
+    t.total_count
+FROM paged p, page_count pc, total t
+`
+
+type SearchExecutionsPaginatedParams struct {
+	Uuid    uuid.UUID   `db:"uuid" json:"uuid"`
+	Column2 interface{} `db:"column_2" json:"column_2"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
+}
+
+type SearchExecutionsPaginatedRow struct {
+	ID              int32           `db:"id" json:"id"`
+	ExecID          string          `db:"exec_id" json:"exec_id"`
+	FlowID          int32           `db:"flow_id" json:"flow_id"`
+	Version         int32           `db:"version" json:"version"`
+	Input           json.RawMessage `db:"input" json:"input"`
+	Error           sql.NullString  `db:"error" json:"error"`
+	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus `db:"status" json:"status"`
+	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
+	Name            string          `db:"name" json:"name"`
+	Username        string          `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string          `db:"flow_name" json:"flow_name"`
+	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
+	PageCount       int64           `db:"page_count" json:"page_count"`
+	TotalCount      int64           `db:"total_count" json:"total_count"`
+}
+
+func (q *Queries) SearchExecutionsPaginated(ctx context.Context, arg SearchExecutionsPaginatedParams) ([]SearchExecutionsPaginatedRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchExecutionsPaginated,
+		arg.Uuid,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchExecutionsPaginatedRow
+	for rows.Next() {
+		var i SearchExecutionsPaginatedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExecID,
+			&i.FlowID,
+			&i.Version,
+			&i.Input,
+			&i.Error,
+			&i.CurrentActionID,
+			&i.Status,
+			&i.TriggerType,
+			&i.TriggeredBy,
+			&i.NamespaceID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Username,
+			&i.TriggeredByUuid,
+			&i.TriggeredByName,
+			&i.FlowName,
+			&i.FlowSlug,
+			&i.PageCount,
+			&i.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateExecutionActionID = `-- name: UpdateExecutionActionID :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $3

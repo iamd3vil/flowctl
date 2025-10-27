@@ -80,7 +80,7 @@
 
 	async function fetchApprovals(filter: string = '', status: string = '', pageNumber: number = 1) {
 		if (!browser) return;
-		
+
 		loading = true;
 		try {
 			const response = await apiClient.approvals.list(data.namespace, {
@@ -169,7 +169,7 @@
     />
     <SearchInput
       bind:value={searchQuery}
-      placeholder="Search by Action ID or Exec ID..."
+      placeholder="Search approval requests..."
       {loading}
       onSearch={handleSearch}
     />
@@ -178,7 +178,7 @@
 
 <div class="p-12">
 	<!-- Page Header -->
-	<PageHeader 
+	<PageHeader
 		title="Approvals"
 		subtitle="Manage workflow approvals and track their status"
 	/>

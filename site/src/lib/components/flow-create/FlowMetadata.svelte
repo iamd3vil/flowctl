@@ -87,6 +87,12 @@
         disabled={readonly}
       ></textarea>
     </div>
+  </div>
+
+  <!-- Scheduling Subsection -->
+  <div class="mt-8 pt-6 border-t border-gray-200">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Scheduling</h3>
+
     {#if isSchedulable}
     <div>
       <div class="flex items-center justify-between mb-2">

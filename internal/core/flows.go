@@ -350,16 +350,17 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 	return m, pageCount, totalCount, nil
 }
 
-func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
+func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID string, filter string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	execs, err := c.store.GetAllExecutionsPaginated(ctx, repo.GetAllExecutionsPaginatedParams{
-		Uuid:   namespaceUUID,
-		Limit:  int32(limit),
-		Offset: int32(offset),
+	execs, err := c.store.SearchExecutionsPaginated(ctx, repo.SearchExecutionsPaginatedParams{
+		Uuid:    namespaceUUID,
+		Column2: filter,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
 	})
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("could not get all paginated executions: %w", err)

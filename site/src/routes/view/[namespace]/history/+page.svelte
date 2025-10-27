@@ -27,16 +27,47 @@
 	// Table configuration
 	let tableColumns = [
 		{
-			key: 'id',
-			header: 'Execution ID',
-			component: ExecutionIdCell
-		},
-		{
 			key: 'flow_name',
 			header: 'Flow Name',
 			sortable: true,
 			render: (_value: any, execution: ExecutionSummary) => `
 				<div class="text-sm font-medium text-gray-900">${execution.flow_name}</div>
+			`
+		},
+		{
+			key: 'status',
+			header: 'Status',
+			sortable: true,
+			component: StatusBadge
+		},
+		{
+			key: 'started_at',
+			header: 'Started At',
+			sortable: true,
+			render: (_value: any, execution: ExecutionSummary) => `
+				<div class="text-sm text-gray-600">${formatDateTime(execution.started_at)}</div>
+			`
+		},
+		{
+			key: 'duration',
+			header: 'Duration',
+			render: (_value: any, execution: ExecutionSummary) => `
+				<div class="text-sm text-gray-600">${execution.duration || formatDuration(execution.started_at, execution.completed_at)}</div>
+			`
+		},
+		{
+			key: 'triggered_by',
+			header: 'Triggered By',
+			sortable: true,
+			render: (_value: any, execution: ExecutionSummary) => `
+				<div class="flex items-center">
+					<div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center mr-3">
+						<svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+						</svg>
+					</div>
+					<span class="text-sm text-gray-900">${execution.triggered_by || 'System'}</span>
+				</div>
 			`
 		},
 		{
@@ -54,39 +85,11 @@
 			`
 		},
 		{
-			key: 'status',
-			header: 'Status',
-			sortable: true,
-			component: StatusBadge
-		},
-		{
-			key: 'triggered_by',
-			header: 'Triggered By',
-			sortable: true,
+			key: 'id',
+			header: 'Exec ID',
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="flex items-center">
-					<div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center mr-3">
-						<svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-						</svg>
-					</div>
-					<span class="text-sm font-medium text-gray-900">${execution.triggered_by || 'System'}</span>
-				</div>
+				<div class="text-sm font-mono text-gray-600">${execution.id.substring(0, 8)}</div>
 			`
-		},
-		{
-			key: 'started_at',
-			header: 'Started At',
-			sortable: true,
-			render: (_value: any, execution: ExecutionSummary) => `
-				<div>${formatDateTime(execution.started_at)}</div>
-			`
-		},
-		{
-			key: 'duration',
-			header: 'Duration',
-			render: (_value: any, execution: ExecutionSummary) => 
-				execution.duration || formatDuration(execution.started_at, execution.completed_at)
 		}
 	];
 

@@ -91,6 +91,7 @@ type Querier interface {
 	RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error)
 	RemoveAllGroupsForUserByUUID(ctx context.Context, userUuid uuid.UUID) error
 	RemoveNamespaceMember(ctx context.Context, arg RemoveNamespaceMemberParams) (NamespaceMember, error)
+	SearchExecutionsPaginated(ctx context.Context, arg SearchExecutionsPaginatedParams) ([]SearchExecutionsPaginatedRow, error)
 	SearchFlowsPaginated(ctx context.Context, arg SearchFlowsPaginatedParams) ([]SearchFlowsPaginatedRow, error)
 	SearchGroup(ctx context.Context, arg SearchGroupParams) ([]SearchGroupRow, error)
 	SearchUsersWithGroups(ctx context.Context, arg SearchUsersWithGroupsParams) ([]SearchUsersWithGroupsRow, error)

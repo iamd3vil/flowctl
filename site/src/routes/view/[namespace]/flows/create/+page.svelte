@@ -51,7 +51,7 @@
     let activeTab = $state("metadata");
 
     const tabs = [
-        { id: "metadata", label: "Metadata" },
+        { id: "metadata", label: "General" },
         { id: "inputs", label: "Inputs" },
         { id: "actions", label: "Actions" },
     ];

@@ -256,3 +256,50 @@ SELECT
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t;
+
+-- name: SearchExecutionsPaginated :many
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $1
+),
+latest_versions AS (
+    SELECT exec_id, MAX(version) as max_version
+    FROM execution_log el
+    INNER JOIN flows f ON el.flow_id = f.id
+    WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+    GROUP BY exec_id
+),
+filtered AS (
+    SELECT el.*, u.name, u.username, u.uuid as triggered_by_uuid,
+           CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
+           f.name as flow_name,
+           f.slug as flow_slug
+    FROM execution_log el
+    INNER JOIN flows f ON el.flow_id = f.id
+    INNER JOIN users u ON el.triggered_by = u.id
+    INNER JOIN latest_versions lv ON el.exec_id = lv.exec_id AND el.version = lv.max_version
+    WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
+      AND (
+        $2 = '' OR
+        f.name ILIKE '%' || $2 || '%' OR
+        f.slug ILIKE '%' || $2 || '%' OR
+        el.exec_id ILIKE '%' || $2 || '%' OR
+        u.name ILIKE '%' || $2 || '%' OR
+        u.username ILIKE '%' || $2 || '%'
+      )
+),
+total AS (
+    SELECT COUNT(*) AS total_count FROM filtered
+),
+paged AS (
+    SELECT * FROM filtered
+    ORDER BY created_at DESC
+    LIMIT $3 OFFSET $4
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
+)
+SELECT
+    p.*,
+    pc.page_count,
+    t.total_count
+FROM paged p, page_count pc, total t;

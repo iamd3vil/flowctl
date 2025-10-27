@@ -149,7 +149,12 @@ filtered AS (
     JOIN users u ON el.triggered_by = u.id
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
       AND (CASE WHEN $2::text = '' THEN TRUE ELSE a.status = $2::approval_status END)
-      AND (CASE WHEN $3::text = '' THEN TRUE ELSE (lower(a.action_id) LIKE '%' || lower($3::text) || '%' OR lower(el.exec_id) LIKE '%' || lower($3::text) || '%') END)
+      AND (
+        $3 = '' OR
+        a.action_id ILIKE '%' || $3 || '%' OR
+        el.exec_id ILIKE '%' || $3 || '%' OR
+        u.name ILIKE '%' || $3 || '%'
+      )
 ),
 total AS (
     SELECT COUNT(*) AS total_count
