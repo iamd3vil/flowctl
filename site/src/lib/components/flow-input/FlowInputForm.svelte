@@ -12,10 +12,10 @@
     event.preventDefault();
     loading = true;
     errors = {};
-    
+
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
-    
+
     try {
       const response = await fetch(`/api/v1/${namespace}/trigger/${flowId}`, {
         method: 'POST',
@@ -24,11 +24,11 @@
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         // Handle validation errors with field details - show inline
         if (errorData.details && errorData.details.field && errorData.details.error) {
           errors[errorData.details.field] = errorData.details.error;
-        } 
+        }
         // For non-validation errors, use common error handling
         else {
           const apiError = new ApiError(response.status, response.statusText, errorData);
@@ -105,10 +105,30 @@
               <option value={option}>{option}</option>
             {/each}
           </select>
-          {:else if input.type === 'file'}
+          <!-- {:else if input.type === 'file'}
           <div class="flex items-center">
             <input
               type="file"
+              id={input.name}
+              name={input.name}
+              required={input.required}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+          </div> -->
+          {:else if input.type === 'datetime'}
+          <div class="flex items-center">
+            <input
+              type="datetime-local"
+              id={input.name}
+              name={input.name}
+              required={input.required}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            />
+          </div>
+          {:else if input.type === 'password'}
+          <div class="flex items-center">
+            <input
+              type="password"
               id={input.name}
               name={input.name}
               required={input.required}
