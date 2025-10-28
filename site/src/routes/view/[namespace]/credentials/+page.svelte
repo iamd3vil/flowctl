@@ -75,16 +75,16 @@
 			key: 'last_accessed',
 			header: 'Last Accessed',
 			sortable: true,
-			render: (_value: any, credential: CredentialResp) => {
-				if (!credential.last_accessed || credential.last_accessed === '0001-01-01T00:00:00Z') return 'Never';
-				return formatDateTime(credential.last_accessed);
-			}
+			render: (_value: any, credential: CredentialResp) => `
+			  <div class="text-sm text-gray-600">${formatDateTime(credential.last_accessed, "Never")}</div>
+			`
+
 		}
 	];
 
 	let tableActions = $derived(() => {
 		const actionsList = [];
-		
+
 		if (permissions.canUpdate) {
 			actionsList.push({
 				label: 'Edit',
@@ -92,7 +92,7 @@
 				className: 'text-primary-600 hover:text-primary-800'
 			});
 		}
-		
+
 		if (permissions.canDelete) {
 			actionsList.push({
 				label: 'Delete',
@@ -100,14 +100,14 @@
 				className: 'text-danger-600 hover:text-danger-800'
 			});
 		}
-		
+
 		return actionsList;
 	});
 
 	// Functions
 	async function fetchCredentials(filter: string = '', pageNumber: number = 1) {
 		if (!browser) return;
-		
+
 		loading = true;
 		try {
 			const response = await apiClient.credentials.list(data.namespace, {
@@ -147,7 +147,7 @@
 		try {
 			loading = true;
 			const credential = await apiClient.credentials.getById(data.namespace, credentialId);
-			
+
 			isEditMode = true;
 			editingCredentialId = credentialId;
 			editingCredentialData = credential;
@@ -234,7 +234,7 @@
 
 <div class="p-12">
 	<!-- Page Header -->
-	<PageHeader 
+	<PageHeader
 		title="Credentials"
 		subtitle="Manage SSH keys, passwords, and other authentication credentials"
 		actions={permissions.canCreate ? [
@@ -289,4 +289,3 @@
 		onClose={closeDeleteModal}
 	/>
 {/if}
-
