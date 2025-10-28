@@ -185,7 +185,7 @@ func (q *Queries) GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (G
 }
 
 const getNodeStats = `-- name: GetNodeStats :one
-SELECT 
+SELECT
     COUNT(*) AS total_hosts,
     COUNT(*) FILTER (WHERE connection_type = 'ssh') AS ssh_hosts,
     COUNT(*) FILTER (WHERE connection_type = 'qssh') AS qssh_hosts
@@ -209,22 +209,22 @@ func (q *Queries) GetNodeStats(ctx context.Context, argUuid uuid.UUID) (GetNodeS
 
 const getNodesByNames = `-- name: GetNodesByNames :many
 WITH updated_credentials AS (
-    UPDATE credentials 
-    SET last_accessed = NOW() 
+    UPDATE credentials
+    SET last_accessed = NOW()
     WHERE id IN (
-        SELECT DISTINCT n.credential_id 
-        FROM nodes n 
-        JOIN namespaces ns ON n.namespace_id = ns.id 
+        SELECT DISTINCT n.credential_id
+        FROM nodes n
+        JOIN namespaces ns ON n.namespace_id = ns.id
         WHERE n.name = ANY($1::text[]) AND ns.uuid = $2 AND n.credential_id IS NOT NULL
     )
     RETURNING id, uuid, name, key_type, key_data, namespace_id, last_accessed, created_at, updated_at
 )
-SELECT 
+SELECT
     n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at,
     ns.uuid AS namespace_uuid,
-    c.uuid AS credential_uuid, 
-    c.name AS credential_name, 
-    c.key_type AS credential_key_type, 
+    c.uuid AS credential_uuid,
+    c.name AS credential_name,
+    c.key_type AS credential_key_type,
     c.key_data AS credential_key_data
 FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
@@ -303,11 +303,15 @@ func (q *Queries) GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams
 	return items, nil
 }
 
-const listNodes = `-- name: ListNodes :many
+const searchNodes = `-- name: SearchNodes :many
 WITH filtered AS (
     SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
     JOIN namespaces ns ON n.namespace_id = ns.id
-    WHERE ns.uuid = $1
+    WHERE ns.uuid = $1 AND (
+        $4 = '' OR
+        n.name ILIKE '%' || $4::text || '%' OR
+        n.hostname ILIKE '%' || $4::text || '%'
+    )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -319,20 +323,21 @@ paged AS (
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
-SELECT 
+SELECT
     p.id, p.uuid, p.name, p.hostname, p.port, p.username, p.os_family, p.tags, p.auth_method, p.connection_type, p.credential_id, p.namespace_id, p.created_at, p.updated_at, p.namespace_uuid,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
 `
 
-type ListNodesParams struct {
-	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
-	Limit  int32     `db:"limit" json:"limit"`
-	Offset int32     `db:"offset" json:"offset"`
+type SearchNodesParams struct {
+	Uuid    uuid.UUID   `db:"uuid" json:"uuid"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
+	Column4 interface{} `db:"column_4" json:"column_4"`
 }
 
-type ListNodesRow struct {
+type SearchNodesRow struct {
 	ID             int32                `db:"id" json:"id"`
 	Uuid           uuid.UUID            `db:"uuid" json:"uuid"`
 	Name           string               `db:"name" json:"name"`
@@ -352,15 +357,20 @@ type ListNodesRow struct {
 	TotalCount     int64                `db:"total_count" json:"total_count"`
 }
 
-func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]ListNodesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listNodes, arg.Uuid, arg.Limit, arg.Offset)
+func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]SearchNodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchNodes,
+		arg.Uuid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListNodesRow
+	var items []SearchNodesRow
 	for rows.Next() {
-		var i ListNodesRow
+		var i SearchNodesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Uuid,

@@ -213,7 +213,7 @@ type NodeStatsResp struct {
 	QSSHHosts  int64 `json:"qssh_hosts"`
 }
 
-func coreNodeToNodeResp(n *models.Node) NodeResp {
+func coreNodeToNodeResp(n models.Node) NodeResp {
 	return NodeResp{
 		ID:             n.ID,
 		Name:           n.Name,
@@ -230,7 +230,7 @@ func coreNodeToNodeResp(n *models.Node) NodeResp {
 	}
 }
 
-func coreNodeArrayToNodeRespArray(nodes []*models.Node) []NodeResp {
+func coreNodeArrayToNodeRespArray(nodes []models.Node) []NodeResp {
 	resp := make([]NodeResp, len(nodes))
 	for i, n := range nodes {
 		resp[i] = coreNodeToNodeResp(n)
@@ -267,7 +267,7 @@ type CredentialsPaginateResponse struct {
 	TotalCount  int64            `json:"total_count"`
 }
 
-func coreCredentialToCredentialResp(c *models.Credential) CredentialResp {
+func coreCredentialToCredentialResp(c models.Credential) CredentialResp {
 	return CredentialResp{
 		ID:           c.ID,
 		Name:         c.Name,
@@ -276,7 +276,7 @@ func coreCredentialToCredentialResp(c *models.Credential) CredentialResp {
 	}
 }
 
-func coreCredentialArrayToCredentialRespArray(creds []*models.Credential) []CredentialResp {
+func coreCredentialArrayToCredentialRespArray(creds []models.Credential) []CredentialResp {
 	resp := make([]CredentialResp, len(creds))
 	for i, c := range creds {
 		resp[i] = coreCredentialToCredentialResp(c)

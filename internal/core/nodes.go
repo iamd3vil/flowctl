@@ -11,22 +11,22 @@ import (
 	"github.com/google/uuid"
 )
 
-func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID string) (*models.Node, error) {
+func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID string) (models.Node, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+		return models.Node{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
 	if node.Name == "" {
-		return nil, errors.New("node name is required")
+		return models.Node{}, errors.New("node name is required")
 	}
 	if node.Hostname == "" {
-		return nil, errors.New("hostname is required")
+		return models.Node{}, errors.New("hostname is required")
 	}
 
 	credID, err := uuid.Parse(node.Auth.CredentialID)
 	if err != nil {
-		return nil, errors.New("invalid credential ID format")
+		return models.Node{}, errors.New("invalid credential ID format")
 	}
 
 	credential, err := c.store.GetCredentialByUUID(ctx, repo.GetCredentialByUUIDParams{
@@ -34,7 +34,7 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID st
 		Uuid_2: namespaceUUID,
 	})
 	if err != nil {
-		return nil, errors.New("credential not found")
+		return models.Node{}, errors.New("credential not found")
 	}
 
 	created, err := c.store.CreateNode(ctx, repo.CreateNodeParams{
@@ -50,12 +50,12 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID st
 		Uuid:           namespaceUUID,
 	})
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	key := credential.KeyData
 
-	return &models.Node{
+	return models.Node{
 		ID:             created.Uuid.String(),
 		Name:           created.Name,
 		Hostname:       created.Hostname,
@@ -72,15 +72,15 @@ func (c *Core) CreateNode(ctx context.Context, node *models.Node, namespaceID st
 	}, nil
 }
 
-func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (*models.Node, error) {
+func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (models.Node, error) {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	node, err := c.store.GetNodeByUUID(ctx, repo.GetNodeByUUIDParams{
@@ -88,7 +88,7 @@ func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (
 		Uuid_2: namespaceUUID,
 	})
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	credential, err := c.store.GetCredentialByID(ctx, repo.GetCredentialByIDParams{
@@ -96,12 +96,12 @@ func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (
 		Uuid: namespaceUUID,
 	})
 	if err != nil {
-		return nil, errors.New("credential not found")
+		return models.Node{}, errors.New("credential not found")
 	}
 
 	key := credential.KeyData
 
-	return &models.Node{
+	return models.Node{
 		ID:             node.Uuid.String(),
 		Name:           node.Name,
 		Hostname:       node.Hostname,
@@ -118,53 +118,54 @@ func (c *Core) GetNodeByID(ctx context.Context, id string, namespaceID string) (
 	}, nil
 }
 
-func (c *Core) ListNodes(ctx context.Context, limit, offset int, namespaceID string) ([]*models.Node, int64, int64, error) {
+func (c *Core) SearchNodes(ctx context.Context, filter string, limit, offset int, namespaceID string) ([]models.Node, int64, int64, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, -1, -1, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	nodes, err := c.store.ListNodes(ctx, repo.ListNodesParams{
+	nodes, err := c.store.SearchNodes(ctx, repo.SearchNodesParams{
 		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
+		Column4: filter,
 	})
 	if err != nil {
 		return nil, -1, -1, err
 	}
 
-	results := make([]*models.Node, 0)
+	results := make([]models.Node, 0)
+	var pageCount, totalCount int64
 	for _, n := range nodes {
 		res, err := c.GetNodeByID(ctx, n.Uuid.String(), namespaceID)
 		if err != nil {
 			return nil, -1, -1, err
 		}
 		results = append(results, res)
+		pageCount = n.PageCount
+		totalCount = n.TotalCount
 	}
 
-	// Get pagination metadata
-	if len(nodes) > 0 {
-		return results, nodes[0].PageCount, nodes[0].TotalCount, nil
-	}
-	return results, 0, 0, nil
+
+	return results, pageCount, totalCount, nil
 }
 
-func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, namespaceID string) (*models.Node, error) {
+func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, namespaceID string) (models.Node, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+		return models.Node{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
 	if node.Name == "" {
-		return nil, errors.New("node name is required")
+		return models.Node{}, errors.New("node name is required")
 	}
 	if node.Hostname == "" {
-		return nil, errors.New("hostname is required")
+		return models.Node{}, errors.New("hostname is required")
 	}
 
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	credID, _ := uuid.Parse(node.Auth.CredentialID)
@@ -173,7 +174,7 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, nam
 		Uuid_2: namespaceUUID,
 	})
 	if err != nil {
-		return nil, errors.New("credential not found")
+		return models.Node{}, errors.New("credential not found")
 	}
 
 	updated, err := c.store.UpdateNode(ctx, repo.UpdateNodeParams{
@@ -190,12 +191,12 @@ func (c *Core) UpdateNode(ctx context.Context, id string, node *models.Node, nam
 		Uuid_2:         namespaceUUID,
 	})
 	if err != nil {
-		return nil, err
+		return models.Node{}, err
 	}
 
 	key := credential.KeyData
 
-	return &models.Node{
+	return models.Node{
 		ID:             updated.Uuid.String(),
 		Name:           updated.Name,
 		Hostname:       updated.Hostname,

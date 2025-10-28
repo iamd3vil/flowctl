@@ -175,11 +175,14 @@ func (q *Queries) GetCredentialByUUID(ctx context.Context, arg GetCredentialByUU
 	return i, err
 }
 
-const listCredentials = `-- name: ListCredentials :many
+const searchCredentials = `-- name: SearchCredentials :many
 WITH filtered AS (
     SELECT c.id, c.uuid, c.name, c.key_type, c.key_data, c.namespace_id, c.last_accessed, c.created_at, c.updated_at, ns.uuid AS namespace_uuid FROM credentials c
     JOIN namespaces ns ON c.namespace_id = ns.id
-    WHERE ns.uuid = $1
+    WHERE ns.uuid = $1 AND (
+        $4 = '' OR
+        c.name ILIKE '%' || $4::text || '%'
+    )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -199,13 +202,14 @@ SELECT
 FROM paged p, page_count pc, total t
 `
 
-type ListCredentialsParams struct {
-	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
-	Limit  int32     `db:"limit" json:"limit"`
-	Offset int32     `db:"offset" json:"offset"`
+type SearchCredentialsParams struct {
+	Uuid    uuid.UUID   `db:"uuid" json:"uuid"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
+	Column4 interface{} `db:"column_4" json:"column_4"`
 }
 
-type ListCredentialsRow struct {
+type SearchCredentialsRow struct {
 	ID            int32        `db:"id" json:"id"`
 	Uuid          uuid.UUID    `db:"uuid" json:"uuid"`
 	Name          string       `db:"name" json:"name"`
@@ -220,15 +224,20 @@ type ListCredentialsRow struct {
 	TotalCount    int64        `db:"total_count" json:"total_count"`
 }
 
-func (q *Queries) ListCredentials(ctx context.Context, arg ListCredentialsParams) ([]ListCredentialsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listCredentials, arg.Uuid, arg.Limit, arg.Offset)
+func (q *Queries) SearchCredentials(ctx context.Context, arg SearchCredentialsParams) ([]SearchCredentialsRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchCredentials,
+		arg.Uuid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListCredentialsRow
+	var items []SearchCredentialsRow
 	for rows.Next() {
-		var i ListCredentialsRow
+		var i SearchCredentialsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Uuid,

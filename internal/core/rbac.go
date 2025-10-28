@@ -312,8 +312,8 @@ func (c *Core) GetNamespaceMembers(ctx context.Context, namespaceID string) ([]m
 			ID:          row.Uuid.String(),
 			SubjectType: row.SubjectType,
 			Role:        models.NamespaceRole(row.Role),
-			CreatedAt:   row.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:   row.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:   row.CreatedAt.Format(TimeFormat),
+			UpdatedAt:   row.UpdatedAt.Format(TimeFormat),
 		}
 
 		// Set subject UUID and name directly

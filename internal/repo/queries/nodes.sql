@@ -8,11 +8,15 @@ SELECT n.*, ns.uuid AS namespace_uuid FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
 WHERE n.uuid = $1 AND ns.uuid = $2;
 
--- name: ListNodes :many
+-- name: SearchNodes :many
 WITH filtered AS (
     SELECT n.*, ns.uuid AS namespace_uuid FROM nodes n
     JOIN namespaces ns ON n.namespace_id = ns.id
-    WHERE ns.uuid = $1
+    WHERE ns.uuid = $1 AND (
+        $4 = '' OR
+        n.name ILIKE '%' || $4::text || '%' OR
+        n.hostname ILIKE '%' || $4::text || '%'
+    )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -24,7 +28,7 @@ paged AS (
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
-SELECT 
+SELECT
     p.*,
     pc.page_count,
     t.total_count
@@ -46,22 +50,22 @@ WHERE n.name = $1 AND ns.uuid = $2;
 
 -- name: GetNodesByNames :many
 WITH updated_credentials AS (
-    UPDATE credentials 
-    SET last_accessed = NOW() 
+    UPDATE credentials
+    SET last_accessed = NOW()
     WHERE id IN (
-        SELECT DISTINCT n.credential_id 
-        FROM nodes n 
-        JOIN namespaces ns ON n.namespace_id = ns.id 
+        SELECT DISTINCT n.credential_id
+        FROM nodes n
+        JOIN namespaces ns ON n.namespace_id = ns.id
         WHERE n.name = ANY($1::text[]) AND ns.uuid = $2 AND n.credential_id IS NOT NULL
     )
     RETURNING *
 )
-SELECT 
+SELECT
     n.*,
     ns.uuid AS namespace_uuid,
-    c.uuid AS credential_uuid, 
-    c.name AS credential_name, 
-    c.key_type AS credential_key_type, 
+    c.uuid AS credential_uuid,
+    c.name AS credential_name,
+    c.key_type AS credential_key_type,
     c.key_data AS credential_key_data
 FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
@@ -70,7 +74,7 @@ WHERE n.name = ANY($1::text[]) AND ns.uuid = $2
 ORDER BY n.name;
 
 -- name: GetNodeStats :one
-SELECT 
+SELECT
     COUNT(*) AS total_hosts,
     COUNT(*) FILTER (WHERE connection_type = 'ssh') AS ssh_hosts,
     COUNT(*) FILTER (WHERE connection_type = 'qssh') AS qssh_hosts

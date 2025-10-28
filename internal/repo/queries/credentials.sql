@@ -13,11 +13,14 @@ SELECT c.*, ns.uuid AS namespace_uuid FROM credentials c
 JOIN namespaces ns ON c.namespace_id = ns.id
 WHERE c.id = $1 AND ns.uuid = $2;
 
--- name: ListCredentials :many
+-- name: SearchCredentials :many
 WITH filtered AS (
     SELECT c.*, ns.uuid AS namespace_uuid FROM credentials c
     JOIN namespaces ns ON c.namespace_id = ns.id
-    WHERE ns.uuid = $1
+    WHERE ns.uuid = $1 AND (
+        $4 = '' OR
+        c.name ILIKE '%' || $4::text || '%'
+    )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered

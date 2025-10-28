@@ -23,7 +23,7 @@ func (h *Handler) HandleCreateCredential(c echo.Context) error {
 		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
 	}
 
-	cred := &models.Credential{
+	cred := models.Credential{
 		Name:    req.Name,
 		KeyType: req.KeyType,
 		KeyData: req.KeyData,
@@ -83,9 +83,9 @@ func (h *Handler) HandleListCredentials(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	creds, pageCount, totalCount, err := h.co.ListCredentials(c.Request().Context(), req.Count, req.Count*req.Page, namespace)
+	creds, pageCount, totalCount, err := h.co.SearchCredentials(c.Request().Context(), req.Filter, req.Count, req.Count*req.Page, namespace)
 	if err != nil {
-		return wrapError(ErrOperationFailed, "could not list credentials", err, nil)
+		return wrapError(ErrOperationFailed, "could not search credentials", err, nil)
 	}
 
 	return c.JSON(http.StatusOK, CredentialsPaginateResponse{

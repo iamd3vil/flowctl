@@ -88,7 +88,7 @@ func (h *Handler) HandleListNodes(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	nodes, pageCount, totalCount, err := h.co.ListNodes(c.Request().Context(), req.Count, req.Count*req.Page, namespace)
+	nodes, pageCount, totalCount, err := h.co.SearchNodes(c.Request().Context(), req.Filter, req.Count, req.Count*req.Page, namespace)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not list nodes", err, nil)
 	}
