@@ -733,4 +733,24 @@ h6 {
     .footer-right {
         justify-content: center;
     }
+
+    .modal {
+        padding-top: 80px;
+    }
+
+    .modal-content {
+        max-width: 85%;
+        max-height: 70vh;
+    }
+
+    .modal-close {
+        top: 15px;
+        right: 15px;
+        font-size: 32px;
+    }
+
+    .modal-caption {
+        font-size: 0.875rem;
+        width: 90%;
+    }
 }
