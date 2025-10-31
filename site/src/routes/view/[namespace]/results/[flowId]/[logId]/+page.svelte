@@ -234,15 +234,20 @@
                 (a) => a.id === msg.action_id,
             );
             if (actionIndex !== -1) {
-                if (
-                    currentActionIndex !== -1 &&
-                    currentActionIndex !== actionIndex
-                ) {
-                    if (!completedActions.includes(currentActionIndex)) {
+                // Only process action transitions when moving forward (ignores replayed old messages)
+                if (actionIndex > currentActionIndex) {
+                    // Mark previous action as completed when moving to next action
+                    if (
+                        currentActionIndex !== -1 &&
+                        !completedActions.includes(currentActionIndex)
+                    ) {
                         completedActions.push(currentActionIndex);
                     }
+                    currentActionIndex = actionIndex;
+                } else if (currentActionIndex === -1) {
+                    // Initialize currentActionIndex if not set
+                    currentActionIndex = actionIndex;
                 }
-                currentActionIndex = actionIndex;
             }
         }
 
@@ -259,12 +264,9 @@
                 break;
             case "result":
                 results = { ...results, ...(msg.results || {}) };
-                if (
-                    currentActionIndex !== -1 &&
-                    !completedActions.includes(currentActionIndex)
-                ) {
-                    completedActions.push(currentActionIndex);
-                }
+                // Don't mark action as completed here - async logs may still be streaming
+                // Actions are marked as completed when the next action starts (lines 237-244)
+                // or when the flow completes (via status polling)
                 break;
             case "error":
                 // Check if the error indicates cancellation
