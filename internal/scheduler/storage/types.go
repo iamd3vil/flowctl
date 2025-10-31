@@ -28,8 +28,9 @@ type Storage interface {
 	Put(ctx context.Context, job Job) error
 
 	// Get retrieves and locks a job from the queue for processing
+	// The job remains locked until the done channel is closed
 	// Returns ErrNoJobs if no jobs are available
-	Get(ctx context.Context) (Job, error)
+	Get(ctx context.Context, done chan struct{}) (Job, error)
 
 	// Delete removes a job from the queue
 	Delete(ctx context.Context, jobID int64) error

@@ -251,7 +251,8 @@ func (s *Scheduler) processLoop(ctx context.Context) {
 // processPendingTasks gets pending tasks and executes them
 func (s *Scheduler) processPendingTasks(ctx context.Context) error {
 	for i := 0; i < s.workerCount; i++ {
-		job, err := s.jobStore.Get(ctx)
+		done := make(chan struct{})
+		job, err := s.jobStore.Get(ctx, done)
 		if err != nil {
 			if errors.Is(err, storage.ErrNoJobs) {
 				break
@@ -259,13 +260,14 @@ func (s *Scheduler) processPendingTasks(ctx context.Context) error {
 			return err
 		}
 
-		go func() {
+		go func(done chan struct{}) {
+			defer close(done)
 			s.logger.Debug("starting job execution", "execID", job.ExecID, "jobID", job.ID)
 			if err := s.executeJob(ctx, job); err != nil {
 				s.logger.Error("error executing flow", "execID", job.ExecID, "error", err)
 			}
 			s.logger.Debug("completed job execution", "execID", job.ExecID, "jobID", job.ID)
-		}()
+		}(done)
 	}
 
 	return nil
@@ -289,10 +291,6 @@ func (s *Scheduler) executeJob(ctx context.Context, job storage.Job) error {
 		s.cancelMu.Lock()
 		delete(s.cancelFuncs, job.ExecID)
 		s.cancelMu.Unlock()
-		// Remove job from queue when done
-		if err := s.jobStore.Delete(ctx, job.ID); err != nil {
-			s.logger.Error("failed to delete job", "jobID", job.ID, "error", err)
-		}
 	}()
 
 	// Create execution log for scheduled executions only (manual ones are created in core)

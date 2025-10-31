@@ -24,12 +24,11 @@ func (p *PostgresStorage) Initialize(ctx context.Context) error {
 			id SERIAL PRIMARY KEY,
 			exec_id TEXT NOT NULL,
 			payload JSONB NOT NULL,
-			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-			is_locked BOOLEAN NOT NULL DEFAULT FALSE
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 
 		-- Index for efficient queue operations
-		CREATE INDEX IF NOT EXISTS idx_job_queue_pending ON job_queue(created_at) WHERE is_locked = false;
+		CREATE INDEX IF NOT EXISTS idx_job_queue_pending ON job_queue(created_at);
 		CREATE INDEX IF NOT EXISTS idx_job_queue_exec_id ON job_queue(exec_id);
 	`
 
@@ -50,39 +49,40 @@ func (p *PostgresStorage) Put(ctx context.Context, job Job) error {
 }
 
 // Get retrieves and locks a job from the queue for processing
-func (p *PostgresStorage) Get(ctx context.Context) (Job, error) {
+// When the done channel is closed, the job is removed from the queue
+func (p *PostgresStorage) Get(ctx context.Context, done chan struct{}) (Job, error) {
 	tx, err := p.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return Job{}, err
 	}
-	defer tx.Rollback()
 
-	// Lock and get the oldest pending job
-	query := `
-		UPDATE job_queue 
-		SET is_locked = TRUE
-		WHERE id = (
-			SELECT id FROM job_queue 
-			WHERE is_locked = FALSE
-			ORDER BY created_at ASC 
-			LIMIT 1
-			FOR UPDATE SKIP LOCKED
-		)
-		RETURNING id, exec_id, payload, created_at
+	// Select and lock the oldest pending job
+	selectQuery := `
+		SELECT id, exec_id, payload, created_at
+		FROM job_queue
+		ORDER BY created_at ASC
+		LIMIT 1
+		FOR UPDATE SKIP LOCKED
 	`
 
 	var job Job
-	err = tx.GetContext(ctx, &job, query)
+	err = tx.GetContext(ctx, &job, selectQuery)
 	if err != nil {
+		tx.Rollback()
 		if err == sql.ErrNoRows {
 			return Job{}, ErrNoJobs
 		}
 		return Job{}, err
 	}
 
-	if err = tx.Commit(); err != nil {
-		return Job{}, err
-	}
+	// Wait for job completion in background, then delete and commit
+	go func() {
+		<-done
+
+		deleteQuery := `DELETE FROM job_queue WHERE id = $1`
+		_, _ = tx.ExecContext(context.Background(), deleteQuery, job.ID)
+		_ = tx.Commit()
+	}()
 
 	return job, nil
 }
