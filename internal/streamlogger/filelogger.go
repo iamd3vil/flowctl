@@ -484,7 +484,7 @@ func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtyp
 			return fmt.Errorf("expected string type for error got %T in stream checkpoint", val)
 		}
 		sm.MType = ErrMessageType
-		sm.Val = []byte(e)
+		sm.Val = e
 	case ResultMessageType:
 		r, ok := val.(map[string]string)
 		if !ok {
@@ -495,7 +495,7 @@ func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtyp
 			return fmt.Errorf("could not marshal result for result message type in stream message %s: %w", id, err)
 		}
 		sm.MType = ResultMessageType
-		sm.Val = data
+		sm.Val = string(data)
 	case LogMessageType:
 		sm.MType = LogMessageType
 		d, ok := val.([]byte)
@@ -503,14 +503,14 @@ func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtyp
 			return fmt.Errorf("expected []byte type for log got %T in stream checkpoint", val)
 		}
 		sm.MType = LogMessageType
-		sm.Val = d
+		sm.Val = string(d)
 	case CancelledMessageType:
 		e, ok := val.(string)
 		if !ok {
 			return fmt.Errorf("expected string type for cancelled got %T in stream checkpoint", val)
 		}
 		sm.MType = CancelledMessageType
-		sm.Val = []byte(e)
+		sm.Val = e
 	}
 
 	msgBytes, err := json.Marshal(sm)

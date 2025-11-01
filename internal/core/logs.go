@@ -126,7 +126,7 @@ func (c *Core) checkErrors(ctx context.Context, execID string, namespaceID strin
 			default:
 				namespaceUUID, err := uuid.Parse(namespaceID)
 				if err != nil {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(fmt.Errorf("invalid namespace UUID: %w", err).Error())}
+					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: fmt.Errorf("invalid namespace UUID: %w", err).Error()}
 					return
 				}
 				exec, err := c.store.GetExecutionByExecID(ctx, repo.GetExecutionByExecIDParams{
@@ -134,12 +134,12 @@ func (c *Core) checkErrors(ctx context.Context, execID string, namespaceID strin
 					Uuid:   namespaceUUID,
 				})
 				if err != nil {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(fmt.Errorf("error reading task status: %w", err).Error())}
+					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: fmt.Errorf("error reading task status: %w", err).Error()}
 					return
 				}
 
 				if exec.Error.Valid {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(exec.Error.String)}
+					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: exec.Error.String}
 				}
 
 				if exec.Status == "completed" || exec.Status == "errored" {
@@ -174,16 +174,16 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespa
 			a, err := c.GetApprovalsRequestsForExec(ctx, execID, namespaceID)
 			if err != nil && !errors.Is(err, ErrNil) {
 				log.Println(err)
-				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte(err.Error())}
+				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: err.Error()}
 				return
 			}
 
 			switch a.Status {
 			case "pending":
-				ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: []byte(a.UUID)}
+				ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: a.UUID}
 				return
 			case "rejected":
-				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: []byte("approval request has been rejected")}
+				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: "approval request has been rejected"}
 				return
 			}
 

@@ -216,7 +216,7 @@ func (h *Handler) handleLogStreaming(msg models.StreamMessage, w http.ResponseWr
 	switch msg.MType {
 	case models.ResultMessageType:
 		var res map[string]string
-		if err := json.Unmarshal(msg.Val, &res); err != nil {
+		if err := json.Unmarshal([]byte(msg.Val), &res); err != nil {
 			return fmt.Errorf("could not decode results: %w", err)
 		}
 
@@ -228,12 +228,12 @@ func (h *Handler) handleLogStreaming(msg models.StreamMessage, w http.ResponseWr
 			Timestamp: msg.Timestamp,
 		}
 	default:
-		h.logger.Debug("Default message", "type", msg.MType, "value", string(msg.Val))
+		h.logger.Debug("Default message", "type", msg.MType, "value", msg.Val)
 		response = FlowLogResp{
 			ActionID:  msg.ActionID,
 			MType:     string(msg.MType),
 			NodeID:    msg.NodeID,
-			Value:     string(msg.Val),
+			Value:     msg.Val,
 			Timestamp: msg.Timestamp,
 		}
 	}

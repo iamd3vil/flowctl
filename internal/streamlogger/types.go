@@ -2,8 +2,6 @@ package streamlogger
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"io"
 	"log/slog"
 )
@@ -43,39 +41,8 @@ type StreamMessage struct {
 	ActionID  string      `json:"action_id"`
 	MType     MessageType `json:"message_type"`
 	NodeID    string      `json:"node_id"`
-	Val       []byte      `json:"-"`
+	Val       string      `json:"value"`
 	Timestamp string      `json:"timestamp"`
-}
-
-func (s StreamMessage) MarshalJSON() ([]byte, error) {
-	type Alias StreamMessage
-	aux := struct {
-		*Alias
-		Value string `json:"value"`
-	}{
-		Alias: (*Alias)(&s),
-		Value: base64.StdEncoding.EncodeToString(s.Val),
-	}
-	return json.Marshal(aux)
-}
-
-func (s *StreamMessage) UnmarshalJSON(data []byte) error {
-	type Alias StreamMessage
-	aux := &struct {
-		*Alias
-		Value string `json:"value"`
-	}{
-		Alias: (*Alias)(s),
-	}
-	if err := json.Unmarshal(data, aux); err != nil {
-		return err
-	}
-	val, err := base64.StdEncoding.DecodeString(aux.Value)
-	if err != nil {
-		return err
-	}
-	s.Val = val
-	return nil
 }
 
 // NodeContextLogger wraps a Logger to provide node context for concurrent execution

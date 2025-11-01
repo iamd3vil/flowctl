@@ -31,8 +31,8 @@ func TestFileLogger_BasicOperations(t *testing.T) {
 	if fl.ActionID != actionID {
 		t.Errorf("ActionID = %s, want %s", fl.ActionID, actionID)
 	}
-	testData := []byte("test log data\n")
-	n, err := logger.Write(testData)
+	testData := "test log data\n"
+	n, err := logger.Write([]byte(testData))
 	if err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -46,7 +46,7 @@ func TestFileLogger_BasicOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	
+
 	// Parse the JSON stream message
 	var sm StreamMessage
 	lines := strings.Split(strings.TrimSpace(string(fileData)), "\n")
@@ -56,8 +56,8 @@ func TestFileLogger_BasicOperations(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &sm); err != nil {
 		t.Fatalf("Failed to unmarshal stream message: %v", err)
 	}
-	if string(sm.Val) != string(testData) {
-		t.Errorf("stream message value = %q, want %q", string(sm.Val), string(testData))
+	if sm.Val != testData {
+		t.Errorf("stream message value = %q, want %q", sm.Val, testData)
 	}
 	if sm.MType != LogMessageType {
 		t.Errorf("stream message type = %v, want %v", sm.MType, LogMessageType)
@@ -93,14 +93,14 @@ func TestFileLogger_MultipleWrites(t *testing.T) {
 	if len(lines) != len(chunks) {
 		t.Fatalf("Expected %d lines in file, got %d", len(chunks), len(lines))
 	}
-	
+
 	for i, line := range lines {
 		var sm StreamMessage
 		if err := json.Unmarshal([]byte(line), &sm); err != nil {
 			t.Fatalf("Failed to unmarshal stream message %d: %v", i, err)
 		}
-		if string(sm.Val) != chunks[i] {
-			t.Errorf("stream message %d value = %q, want %q", i, string(sm.Val), chunks[i])
+		if sm.Val != chunks[i] {
+			t.Errorf("stream message %d value = %q, want %q", i, sm.Val, chunks[i])
 		}
 		if sm.MType != LogMessageType {
 			t.Errorf("stream message %d type = %v, want %v", i, sm.MType, LogMessageType)
@@ -117,12 +117,11 @@ func TestFileLogger_LargeData(t *testing.T) {
 	}
 	defer logger.Close()
 
-	largeData := make([]byte, 1024*1024)
-	for i := range largeData {
-		largeData[i] = byte(i % 256)
-	}
+	pattern := "This is a test log line with some content to make it reasonably sized.\n"
+	repetitions := 1024 * 16
+	largeData := strings.Repeat(pattern, repetitions)
 
-	n, err := logger.Write(largeData)
+	n, err := logger.Write([]byte(largeData))
 	if err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -136,7 +135,7 @@ func TestFileLogger_LargeData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	
+
 	// Parse the JSON stream message and verify the large data
 	lines := strings.Split(strings.TrimSpace(string(fileData)), "\n")
 	if len(lines) != 1 {
@@ -149,11 +148,8 @@ func TestFileLogger_LargeData(t *testing.T) {
 	if len(sm.Val) != len(largeData) {
 		t.Errorf("stream message value length = %d, want %d", len(sm.Val), len(largeData))
 	}
-	for i, b := range sm.Val {
-		if b != largeData[i] {
-			t.Errorf("stream message value byte %d = %d, want %d", i, b, largeData[i])
-			break
-		}
+	if sm.Val != largeData {
+		t.Errorf("stream message value does not match expected large data")
 	}
 }
 
@@ -237,8 +233,8 @@ func TestFileLogger_FileRotation(t *testing.T) {
 	}
 	defer logger.Close()
 
-	data1 := []byte("12345678901")
-	_, err = logger.Write(data1)
+	data1 := "12345678901"
+	_, err = logger.Write([]byte(data1))
 	if err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -249,7 +245,7 @@ func TestFileLogger_FileRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() file0 error = %v", err)
 	}
-	
+
 	// Parse the first file's JSON stream message
 	lines := strings.Split(strings.TrimSpace(string(fileData)), "\n")
 	if len(lines) != 1 {
@@ -259,12 +255,12 @@ func TestFileLogger_FileRotation(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &sm1); err != nil {
 		t.Fatalf("Failed to unmarshal stream message from file0: %v", err)
 	}
-	if string(sm1.Val) != string(data1) {
-		t.Errorf("file0 stream message value = %q, want %q", string(sm1.Val), string(data1))
+	if sm1.Val != data1 {
+		t.Errorf("file0 stream message value = %q, want %q", sm1.Val, data1)
 	}
 
-	data2 := []byte("ABCDEFGHIJK")
-	_, err = logger.Write(data2)
+	data2 := "ABCDEFGHIJK"
+	_, err = logger.Write([]byte(data2))
 	if err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -275,7 +271,7 @@ func TestFileLogger_FileRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() file1 error = %v", err)
 	}
-	
+
 	// Parse the second file's JSON stream message
 	lines = strings.Split(strings.TrimSpace(string(fileData)), "\n")
 	if len(lines) != 1 {
@@ -285,8 +281,8 @@ func TestFileLogger_FileRotation(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &sm2); err != nil {
 		t.Fatalf("Failed to unmarshal stream message from file1: %v", err)
 	}
-	if string(sm2.Val) != string(data2) {
-		t.Errorf("file1 stream message value = %q, want %q", string(sm2.Val), string(data2))
+	if sm2.Val != data2 {
+		t.Errorf("file1 stream message value = %q, want %q", sm2.Val, data2)
 	}
 }
 
@@ -486,8 +482,8 @@ func TestFileLogManager_StreamLogs_ArchivedOnly(t *testing.T) {
 			t.Fatalf("Failed to unmarshal JSON message %d: %v", i, err)
 		}
 		expectedData := []string{data1, data2}
-		if string(sm.Val) != expectedData[i] {
-			t.Errorf("JSON message %d: got %q, want %q", i, string(sm.Val), expectedData[i])
+		if sm.Val != expectedData[i] {
+			t.Errorf("JSON message %d: got %q, want %q", i, sm.Val, expectedData[i])
 		}
 		if sm.MType != LogMessageType {
 			t.Errorf("JSON message %d type: got %v, want %v", i, sm.MType, LogMessageType)
@@ -534,8 +530,8 @@ func TestFileLogManager_StreamLogs_ActiveLogger(t *testing.T) {
 	if err := json.Unmarshal([]byte(jsonMsg), &sm); err != nil {
 		t.Fatalf("Failed to unmarshal initial stream message: %v", err)
 	}
-	if string(sm.Val) != initialData {
-		t.Errorf("Expected %q, got %q", initialData, string(sm.Val))
+	if sm.Val != initialData {
+		t.Errorf("Expected %q, got %q", initialData, sm.Val)
 	}
 
 	// Write more data while streaming
@@ -550,8 +546,8 @@ func TestFileLogManager_StreamLogs_ActiveLogger(t *testing.T) {
 	if err := json.Unmarshal([]byte(jsonMsg), &sm); err != nil {
 		t.Fatalf("Failed to unmarshal new stream message: %v", err)
 	}
-	if string(sm.Val) != "new line\n" {
-		t.Errorf("Expected %q, got %q", "new line\n", string(sm.Val))
+	if sm.Val != "new line\n" {
+		t.Errorf("Expected %q, got %q", "new line\n", sm.Val)
 	}
 }
 
@@ -604,8 +600,8 @@ func TestFileLogManager_StreamLogs_MultipleRotatedFiles(t *testing.T) {
 		if err := json.Unmarshal([]byte(jsonMsg), &sm); err != nil {
 			t.Fatalf("Failed to unmarshal JSON message %d: %v", i, err)
 		}
-		if string(sm.Val) != expected[i] {
-			t.Errorf("JSON message %d: got %q, want %q", i, string(sm.Val), expected[i])
+		if sm.Val != expected[i] {
+			t.Errorf("JSON message %d: got %q, want %q", i, sm.Val, expected[i])
 		}
 		if sm.MType != LogMessageType {
 			t.Errorf("JSON message %d type: got %v, want %v", i, sm.MType, LogMessageType)
@@ -648,8 +644,8 @@ func TestFileLogManager_StreamLogs_ContextCancellation(t *testing.T) {
 	if err := json.Unmarshal([]byte(jsonMsg), &sm); err != nil {
 		t.Fatalf("Failed to unmarshal stream message: %v", err)
 	}
-	if string(sm.Val) != "test line\n" {
-		t.Errorf("Expected %q, got %q", "test line\n", string(sm.Val))
+	if sm.Val != "test line\n" {
+		t.Errorf("Expected %q, got %q", "test line\n", sm.Val)
 	}
 
 	// Cancel context
