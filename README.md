@@ -1,6 +1,16 @@
-# flowctl
+<a href="https://zerodha.tech">
+  <img src="https://zerodha.tech/static/images/github-badge.svg" align="right" />
+</a>
 
-An open-source self-service workflow execution platform for running automated tasks.
+<br clear="all" />
+
+<div align="center">
+    <picture>
+        <source srcset="./docs/site/static/images/full-logo.svg" media="(prefers-color-scheme: light)">
+        <img src="./docs/site/static/images/full-logo-light.svg">
+    </picture>
+</div>
+<h3 align="center">An open-source self-service workflow execution platform</h3>
 
 ## Features
 
@@ -18,9 +28,17 @@ An open-source self-service workflow execution platform for running automated ta
 ### Prerequisites
 
 - PostgreSQL database
-- Docker (optional, for Docker executor)
+- Docker
 
 ### Installation
+
+#### Docker
+
+Use the provided [docker-compose.yml](./docker-compose.yml) file.
+
+---
+
+#### Binary
 
 1. Download the latest binary from [releases](https://github.com/cvhariharan/flowctl/releases)
 
@@ -41,8 +59,6 @@ An open-source self-service workflow execution platform for running automated ta
    ```bash
    flowctl --new-config
    ```
-
-   Create the default `flows_directory` directory as specified in the `config.toml` file. This is where the flow files will be saved.
 
 4. Start flowctl:
 
@@ -71,7 +87,7 @@ actions:
     name: Greet User
     executor: docker
     variables:
-      - username: "{{ input.username }}"
+      - username: "{{ inputs.username }}"
     with:
       image: docker.io/alpine
       script: |
@@ -82,29 +98,10 @@ actions:
 
 Full documentation is available at [flowctl.net](https://flowctl.net)
 
-## Configuration
-
-flowctl is configured via `config.toml`:
-
-```toml
-[app]
-  admin_username = "flowctl_admin"
-  admin_password = "your_secure_password"
-  flows_directory = "flows"
-  root_url = "http://localhost:7000"
-
-[db]
-  host = "127.0.0.1"
-  port = 5432
-  dbname = "flowctl"
-  user = "flowctl"
-  password = "flowctl"
-
-[app.scheduler]
-  workers = 20
-  cron_sync_interval = "5m0s"
-```
-
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
+
+## License
+
+flowctl is licensed under the Apache 2.0 license.
