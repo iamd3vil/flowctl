@@ -38,11 +38,23 @@ func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
 		return fmt.Errorf("failed to create redirect URL: %w", err)
 	}
 
+	if h.config.App.OIDC.RedirectURL != "" {
+		redirectURL = h.config.App.OIDC.RedirectURL
+	}
+
+	endpoint := provider.Endpoint()
+	if h.config.App.OIDC.AuthURL != "" {
+		endpoint.AuthURL = h.config.App.OIDC.AuthURL
+	}
+	if h.config.App.OIDC.TokenURL != "" {
+		endpoint.TokenURL = h.config.App.OIDC.TokenURL
+	}
+
 	oauth2Config := &oauth2.Config{
 		ClientID:     authconfig.ClientID,
 		ClientSecret: authconfig.ClientSecret,
 		RedirectURL:  redirectURL,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     endpoint,
 		Scopes:       authconfig.Scopes,
 	}
 

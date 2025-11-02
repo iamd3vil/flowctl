@@ -7,12 +7,15 @@ LDFLAGS := -s -w -X 'github.com/cvhariharan/flowctl/cmd.version=$(VERSION)' -X '
 GO_FILES := $(shell find . -name '*.go' -type f)
 SITE_SRC := $(shell find site/src site/static -type f 2>/dev/null) site/package.json site/svelte.config.js site/vite.config.ts site/tsconfig.json
 
-.PHONY: build clean build-site
+.PHONY: build clean build-site dev-docker
 
 build: $(BINARY_NAME)
 
 $(BINARY_NAME): $(GO_FILES) go.mod go.sum site/build
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY_NAME)
+
+dev-docker: dev/docker-compose.yaml
+	cd dev && docker compose up -d --build
 
 build-site: site/build
 

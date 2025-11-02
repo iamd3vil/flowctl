@@ -1,0 +1,39 @@
+[app]
+admin_password = "flowctl_password"
+admin_username = "flowctl_admin"
+flows_directory = "flows"
+http_tls_cert = "server_cert.pem"
+http_tls_key = "server_key.pem"
+root_url = "http://localhost:7000"
+secure_cookie_key = "tf0Hd_W6Hu5oHExXv8zZ6Q=="
+use_tls = false
+
+[app.keystore]
+  keeper_url = "base64key://2M-MkchieLohxn0jlmSfbuh4KE4EZz9tWrhcY9DZ8bE="
+
+[app.logger]
+  backend = "file"
+  log_directory = "/var/log/flowctl"
+  max_size_bytes = 0
+  retention_time = "0s"
+  scan_interval = "1h0m0s"
+
+[app.oidc]
+  client_id = "flowctl"
+  client_secret = "secret"
+  issuer = "http://dex:5556/dex"
+  auth_url = "http://localhost:5556/dex/auth"
+  token_url = "http://dex:5556/dex/token"
+  redirect_url = "http://localhost:5555/auth/callback"
+
+[app.scheduler]
+  backend = ""
+  cron_sync_interval = "5m0s"
+  workers = 20
+
+[db]
+  dbname = "flowctl"
+  host = "postgres"
+  password = "flowctl"
+  port = 5432
+  user = "flowctl"

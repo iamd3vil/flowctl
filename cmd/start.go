@@ -94,7 +94,10 @@ func initializeSharedComponents() *SharedComponents {
 	}))
 	slog.SetDefault(logger)
 
-	// Create shared FileLogManager instance
+	// Create the log directory and instantiate log manager
+	if err := os.MkdirAll(appConfig.App.Logger.Directory, 0644); err != nil {
+		log.Fatalf("could not create log directory: %v", err)
+	}
 	fileLogManager := streamlogger.NewFileLogManager(streamlogger.FileLogManagerCfg{
 		RetentionTime: appConfig.App.Logger.RetentionTime,
 		MaxSizeBytes:  appConfig.App.Logger.MaxSizeBytes * 1024 * 1024,

@@ -1,0 +1,29 @@
+issuer: http://dex:5556/dex
+issuerRotation:
+  - issuer: http://localhost:5556/dex
+
+storage:
+  type: sqlite3
+  config:
+    file: /var/dex/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+staticClients:
+  - id: flowctl
+    redirectURIs:
+      - "http://localhost:5555/auth/callback"
+    name: flowctl
+    secret: secret
+
+oauth2:
+  skipApprovalScreen: true
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: "user@flowctl.internal"
+    hash: "$2y$10$76VGxsIYbm7U2WRLkCsqVeBeMKdH3F6qLH88cmqDE6r9c17ZQEVEC"
+    username: "user"
+    userID: "4ec61291-40f3-4b0e-8090-99c67190758d"

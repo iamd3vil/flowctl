@@ -66,6 +66,9 @@ type KeystoreConfig struct {
 
 type OIDCConfig struct {
 	Issuer       string `koanf:"issuer"`
+	AuthURL      string `koanf:"auth_url"`
+	TokenURL     string `koanf:"token_url"`
+	RedirectURL  string `koanf:"redirect_url"`
 	ClientID     string `koanf:"client_id"`
 	ClientSecret string `koanf:"client_secret"`
 }
