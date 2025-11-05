@@ -27,6 +27,7 @@ metadata:
   id: hello_world
   name: Hello World
   description: A simple greeting flow
+  allow_overlap: true
 
 inputs:
   - name: username
@@ -59,10 +60,15 @@ metadata:
   name: My Flow # Human-readable name
   description: Flow description
   namespace: default # Namespace for organization
+  allow_overlap: true # Allow executions to overlap
   schedules: # Optional: cron schedules
     - "0 0 * * *" # Daily at midnight
     - "*/5 * * * *" # Every 5 minutes
 ```
+
+### Execution Overlap
+
+If `allow_overlap` is set to true in a flow, executions for that flow can overlap. This is `false` by default which prevents executions from running if there is already an execution in running / pending state.
 
 ### Scheduling Flows
 
@@ -346,9 +352,16 @@ Preserve files generated during action execution:
       echo "Report content" > $FC_ARTIFACTS/report.txt
 ```
 
-Any files copied to the `$FC_ARTIFACTS` directory will be available as artifacts in subsequent actions under the same directory.
+<Aside type="note">
+  Only top level files in the `$FC_ARTIFACTS` directory will be transferred
+  between jobs. Any directories added here will be ignored. Files produced on
+  the local node (default, when no nodes are selected), will be available under
+  the `local` directory under `$FC_ARTIFACTS`
+</Aside>
+Any files copied to the `$FC_ARTIFACTS` directory will be available as artifacts
+in subsequent actions under the same directory.
 
-Artifacts from remote nodes are automatically transferred and made available to subsequent actions at `$FC_ARTIFACTS/<NodeName>/path/to/artifact`. If the execution was local, the `<NodeName>` is empty.
+Artifacts from remote nodes are automatically transferred and made available to subsequent actions at `$FC_ARTIFACTS/<NodeName>/path/to/artifact`. If the execution was local, the `<NodeName>` is `local`.
 
 **Example: Using artifacts across nodes**
 
