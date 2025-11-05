@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -18,8 +17,12 @@ import (
 )
 
 type Config struct {
-	DB  DBConfig  `koanf:"db"`
-	App AppConfig `koanf:"app"`
+	DB        DBConfig        `koanf:"db"`
+	App       AppConfig       `koanf:"app"`
+	Keystore  KeystoreConfig  `koanf:"keystore"`
+	OIDC      OIDCConfig      `koanf:"oidc"`
+	Scheduler SchedulerConfig `koanf:"scheduler"`
+	Logger    Logger          `koanf:"logger"`
 }
 
 type DBConfig struct {
@@ -45,19 +48,15 @@ type Logger struct {
 }
 
 type AppConfig struct {
-	AdminUsername   string          `koanf:"admin_username"`
-	AdminPassword   string          `koanf:"admin_password"`
-	RootURL         string          `koanf:"root_url"`
-	Address         string          `koanf:"address"`
-	UseTLS          bool            `koanf:"use_tls"`
-	HTTPTLSCert     string          `koanf:"http_tls_cert"`
-	HTTPTLSKey      string          `koanf:"http_tls_key"`
-	FlowsDirectory  string          `koanf:"flows_directory"`
-	SecureCookieKey string          `koanf:"secure_cookie_key"`
-	Keystore        KeystoreConfig  `koanf:"keystore"`
-	OIDC            OIDCConfig      `koanf:"oidc"`
-	Scheduler       SchedulerConfig `koanf:"scheduler"`
-	Logger          Logger          `koanf:"logger"`
+	AdminUsername   string `koanf:"admin_username"`
+	AdminPassword   string `koanf:"admin_password"`
+	RootURL         string `koanf:"root_url"`
+	Address         string `koanf:"address"`
+	UseTLS          bool   `koanf:"use_tls"`
+	HTTPTLSCert     string `koanf:"http_tls_cert"`
+	HTTPTLSKey      string `koanf:"http_tls_key"`
+	FlowsDirectory  string `koanf:"flows_directory"`
+	SecureCookieKey string `koanf:"secure_cookie_key"`
 }
 
 type KeystoreConfig struct {
@@ -76,7 +75,7 @@ type OIDCConfig struct {
 func Load(configPath string) (Config, error) {
 	k := koanf.New(".")
 
-	defaultConfig := getDefaultConfig()
+	defaultConfig := GetDefaultConfig()
 	if err := k.Load(structs.Provider(defaultConfig, "koanf"), nil); err != nil {
 		return Config{}, fmt.Errorf("error loading default config: %w", err)
 	}
@@ -106,28 +105,28 @@ func Load(configPath string) (Config, error) {
 }
 
 // WriteConfigFile writes the current configuration to a TOML file
-func WriteConfigFile(filename string) error {
-	k := koanf.New(".")
+// func WriteConfigFile(filename string) error {
+// 	k := koanf.New(".")
 
-	defaultConfig := getDefaultConfig()
-	if err := k.Load(structs.Provider(defaultConfig, "koanf"), nil); err != nil {
-		return fmt.Errorf("error loading default config: %w", err)
-	}
+// 	defaultConfig := getDefaultConfig()
+// 	if err := k.Load(structs.Provider(defaultConfig, "koanf"), nil); err != nil {
+// 		return fmt.Errorf("error loading default config: %w", err)
+// 	}
 
-	data, err := k.Marshal(toml.Parser())
-	if err != nil {
-		return fmt.Errorf("error marshaling config: %w", err)
-	}
+// 	data, err := k.Marshal(toml.Parser())
+// 	if err != nil {
+// 		return fmt.Errorf("error marshaling config: %w", err)
+// 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("error writing config file: %w", err)
-	}
+// 	if err := os.WriteFile(filename, data, 0644); err != nil {
+// 		return fmt.Errorf("error writing config file: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// getDefaultConfig returns the default configuration values
-func getDefaultConfig() Config {
+// GetDefaultConfig returns the default configuration values
+func GetDefaultConfig() Config {
 	return Config{
 		DB: DBConfig{
 			DBName:   "flowctl",
@@ -146,24 +145,24 @@ func getDefaultConfig() Config {
 			HTTPTLSKey:      "server_key.pem",
 			FlowsDirectory:  "flows",
 			SecureCookieKey: genKey(16),
-			Keystore: KeystoreConfig{
-				KeeperURL: fmt.Sprintf("base64key://%s", genKey(32)),
-			},
-			OIDC: OIDCConfig{
-				Issuer:       "",
-				ClientID:     "",
-				ClientSecret: "",
-			},
-			Scheduler: SchedulerConfig{
-				WorkerCount:      runtime.NumCPU(),
-				CronSyncInterval: 5 * time.Minute,
-			},
-			Logger: Logger{
-				Backend:       "file",
-				Directory:     "/var/log/flowctl",
-				RetentionTime: 0,
-				ScanInterval:  1 * time.Hour,
-			},
+		},
+		Keystore: KeystoreConfig{
+			KeeperURL: fmt.Sprintf("base64key://%s", genKey(32)),
+		},
+		OIDC: OIDCConfig{
+			Issuer:       "",
+			ClientID:     "",
+			ClientSecret: "",
+		},
+		Scheduler: SchedulerConfig{
+			WorkerCount:      runtime.NumCPU(),
+			CronSyncInterval: 5 * time.Minute,
+		},
+		Logger: Logger{
+			Backend:       "file",
+			Directory:     "/var/log/flowctl",
+			RetentionTime: 0,
+			ScanInterval:  1 * time.Hour,
 		},
 	}
 }

@@ -95,14 +95,14 @@ func initializeSharedComponents() *SharedComponents {
 	slog.SetDefault(logger)
 
 	// Create the log directory and instantiate log manager
-	if err := os.MkdirAll(appConfig.App.Logger.Directory, 0644); err != nil {
+	if err := os.MkdirAll(appConfig.Logger.Directory, 0644); err != nil {
 		log.Fatalf("could not create log directory: %v", err)
 	}
 	fileLogManager := streamlogger.NewFileLogManager(streamlogger.FileLogManagerCfg{
-		RetentionTime: appConfig.App.Logger.RetentionTime,
-		MaxSizeBytes:  appConfig.App.Logger.MaxSizeBytes * 1024 * 1024,
-		LogDir:        appConfig.App.Logger.Directory,
-		ScanInterval:  appConfig.App.Logger.ScanInterval,
+		RetentionTime: appConfig.Logger.RetentionTime,
+		MaxSizeBytes:  appConfig.Logger.MaxSizeBytes * 1024 * 1024,
+		LogDir:        appConfig.Logger.Directory,
+		ScanInterval:  appConfig.Logger.ScanInterval,
 	})
 	go fileLogManager.Run(context.Background(), logger.WithGroup("file_log_manager"))
 
@@ -129,7 +129,7 @@ func initializeSharedComponents() *SharedComponents {
 		log.Fatalf("could not initialize casbin enforcer: %v", err)
 	}
 
-	keeperURL := appConfig.App.Keystore.KeeperURL
+	keeperURL := appConfig.Keystore.KeeperURL
 	if keeperURL == "" {
 		log.Fatal("app.keystore.keeper_url is not set")
 	}
@@ -148,8 +148,8 @@ func initializeSharedComponents() *SharedComponents {
 		WithStore(s).
 		WithJobStore(jobStore).
 		WithLogManager(fileLogManager).
-		WithWorkerCount(appConfig.App.Scheduler.WorkerCount).
-		WithCronSyncInterval(appConfig.App.Scheduler.CronSyncInterval).
+		WithWorkerCount(appConfig.Scheduler.WorkerCount).
+		WithCronSyncInterval(appConfig.Scheduler.CronSyncInterval).
 		Build()
 
 	if err != nil {

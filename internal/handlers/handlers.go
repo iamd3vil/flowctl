@@ -88,9 +88,9 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 
 	h := &Handler{co: co, validate: validate, logger: logger, sessMgr: sessMgr, config: cfg}
 	if err := h.initOIDC(OIDCAuthConfig{
-		Issuer:       cfg.App.OIDC.Issuer,
-		ClientID:     cfg.App.OIDC.ClientID,
-		ClientSecret: cfg.App.OIDC.ClientSecret,
+		Issuer:       cfg.OIDC.Issuer,
+		ClientID:     cfg.OIDC.ClientID,
+		ClientSecret: cfg.OIDC.ClientSecret,
 	}); err != nil {
 		return nil, fmt.Errorf("error initializing oidc config: %w", err)
 	}

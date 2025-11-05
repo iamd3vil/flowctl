@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"text/template"
 
 	"github.com/cvhariharan/flowctl/internal/config"
 	"github.com/spf13/cobra"
@@ -18,7 +19,15 @@ var rootCmd = &cobra.Command{
 	Short: "Self-service workflow execution engine",
 	Run: func(cmd *cobra.Command, args []string) {
 		if ok, _ := cmd.Flags().GetBool("new-config"); ok {
-			if err := config.WriteConfigFile("config.toml"); err != nil {
+			cfg, err := template.ParseFS(StaticFiles, "configs/*.toml")
+			if err != nil {
+				log.Fatal(err)
+			}
+			cfgFile, err := os.Create("config.toml")
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := cfg.ExecuteTemplate(cfgFile, "config.sample.toml", config.GetDefaultConfig()); err != nil {
 				log.Fatal(err)
 			}
 		}
