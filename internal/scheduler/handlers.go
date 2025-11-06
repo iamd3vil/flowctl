@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"os"
@@ -41,6 +42,13 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 		return fmt.Errorf("failed to create artifact directory: %w", err)
 	}
 	s.logger.Debug("artifact directory creation", "dir", artifactDir)
+
+	// Copy files from flow directory to artifacts if flow directory is specified
+	if payload.FlowDirectory != "" {
+		if err := s.copyFlowFilesToArtifacts(payload.FlowDirectory, artifactDir); err != nil {
+			return fmt.Errorf("failed to copy flow files to artifacts: %w", err)
+		}
+	}
 
 	streamID := payload.ExecID
 
@@ -88,6 +96,49 @@ func (s *Scheduler) getFlowSecrets(ctx context.Context, flowID string, namespace
 	}
 
 	return secrets
+}
+
+// copyFlowFilesToArtifacts copies top-level files from the flow directory to the artifacts directory
+func (s *Scheduler) copyFlowFilesToArtifacts(flowDir string, artifactDir string) error {
+	localArtifactDir := filepath.Join(artifactDir, "local")
+	if err := os.MkdirAll(localArtifactDir, 0755); err != nil {
+		return fmt.Errorf("failed to create local artifact directory: %w", err)
+	}
+
+	entries, err := os.ReadDir(flowDir)
+	if err != nil {
+		return fmt.Errorf("failed to read flow directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		// Skip directories, only copy top-level files
+		if entry.IsDir() {
+			continue
+		}
+
+		srcPath := filepath.Join(flowDir, entry.Name())
+		destPath := filepath.Join(localArtifactDir, entry.Name())
+
+		srcFile, err := os.Open(srcPath)
+		if err != nil {
+			return fmt.Errorf("failed to open source file %s: %w", srcPath, err)
+		}
+		defer srcFile.Close()
+
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			return fmt.Errorf("failed to create destination file %s: %w", destPath, err)
+		}
+		defer destFile.Close()
+
+		if _, err := io.Copy(destFile, srcFile); err != nil {
+			return fmt.Errorf("failed to copy file %s to %s: %w", srcPath, destPath, err)
+		}
+
+		s.logger.Debug("copied flow file to artifacts", "src", srcPath, "dest", destPath)
+	}
+
+	return nil
 }
 
 // executeSingleAction executes a single action within a flow, handling approval and error checkpointing

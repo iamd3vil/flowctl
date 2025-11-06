@@ -190,6 +190,7 @@ type FlowExecutionPayload struct {
 	NamespaceID       string
 	TriggerType       TriggerType
 	UserUUID          string
+	FlowDirectory     string
 }
 
 // Hook function types for flow execution

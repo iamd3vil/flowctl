@@ -278,6 +278,14 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		return "", fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
+	fl, err := c.store.GetFlowBySlug(ctx, repo.GetFlowBySlugParams{
+		Slug: f.Meta.ID,
+		Uuid: namespaceUUID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("error getting flow details for %s from DB: %w", f.Meta.ID, err)
+	}
+
 	// Convert to scheduler flow format
 	schedulerFlow, err := models.ConvertToSchedulerFlow(ctx, f, namespaceUUID, c.GetNodesByNames)
 	if err != nil {
@@ -293,6 +301,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		NamespaceID:       namespaceID,
 		TriggerType:       scheduler.TriggerTypeManual,
 		UserUUID:          userUUID,
+		FlowDirectory: 	   filepath.Dir(fl.FilePath),
 	}
 
 	// Create execution log for manual flows before queuing (needed for immediate API calls)
