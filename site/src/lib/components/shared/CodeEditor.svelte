@@ -8,10 +8,12 @@
   import { shell } from '@codemirror/legacy-modes/mode/shell';
   import { StreamLanguage } from '@codemirror/language';
   import { oneDark } from '@codemirror/theme-one-dark';
+  import { keymap } from '@codemirror/view';
+  import { indentWithTab } from '@codemirror/commands';
 
   let {
     value = $bindable(''),
-    language = 'python',
+    language = 'shell',
     theme = 'light',
     height = '300px',
     readonly = false,
@@ -27,11 +29,17 @@
 
   let editorContainer: HTMLDivElement;
   let editor: EditorView | null = null;
+  let currentHeight = $state(height);
+  let isDragging = $state(false);
+  let startY = 0;
+  let startHeight = 0;
+
+  const minHeight = 150;
 
   // Language options for the dropdown
   const languageOptions = [
-    { value: 'python', label: 'Python' },
     { value: 'shell', label: 'Shell/Bash' },
+    { value: 'python', label: 'Python' },
     { value: 'yaml', label: 'YAML' },
     { value: 'json', label: 'JSON' },
     { value: 'toml', label: 'TOML' }
@@ -60,6 +68,7 @@
 
     const extensions = [
       basicSetup,
+      keymap.of([indentWithTab]),
       getLanguageExtension(language),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !readonly) {
@@ -112,6 +121,7 @@
     if (editor) {
       const newExtensions = [
         basicSetup,
+        keymap.of([indentWithTab]),
         getLanguageExtension(language),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !readonly) {
@@ -132,7 +142,7 @@
       // Recreate editor with new language
       const currentValue = editor.state.doc.toString();
       editor.destroy();
-      
+
       const newState = EditorState.create({
         doc: currentValue,
         extensions: newExtensions
@@ -149,6 +159,34 @@
     const target = event.target as HTMLSelectElement;
     language = target.value;
   }
+
+  function handleMouseDown(event: MouseEvent) {
+    isDragging = true;
+    startY = event.clientY;
+    startHeight = parseInt(currentHeight);
+    event.preventDefault();
+  }
+
+  function handleMouseMove(event: MouseEvent) {
+    if (!isDragging) return;
+    const delta = event.clientY - startY;
+    const newHeight = Math.max(minHeight, startHeight + delta);
+    currentHeight = `${newHeight}px`;
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+  }
+
+  $effect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+  });
 </script>
 
 <div class="code-editor-wrapper">
@@ -169,23 +207,73 @@
         {/each}
       </select>
     </div>
-    
+
     <div class="flex items-center gap-2 text-xs text-gray-500">
       <span>Ctrl+Space for suggestions</span>
     </div>
   </div>
 
   <!-- Editor container -->
-  <div
-    bind:this={editorContainer}
-    class="border border-gray-300 rounded-md overflow-auto"
-    style="height: {height}"
-    onwheel={(e) => e.stopPropagation()}
-  ></div>
+  <div class="editor-container-wrapper">
+    <div
+      bind:this={editorContainer}
+      class="border border-gray-300 rounded-t-md overflow-auto"
+      style="height: {currentHeight}"
+      onwheel={(e) => e.stopPropagation()}
+    ></div>
+
+    <!-- Resize handle -->
+    <div
+      class="resize-handle"
+      onmousedown={handleMouseDown}
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize editor"
+    >
+      <div class="resize-handle-line"></div>
+    </div>
+  </div>
 </div>
 
 <style>
   .code-editor-wrapper {
     width: 100%;
+  }
+
+  .editor-container-wrapper {
+    position: relative;
+  }
+
+  .resize-handle {
+    height: 12px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: background-color 0.2s;
+  }
+
+  .resize-handle:hover {
+    background: #e5e7eb;
+  }
+
+  .resize-handle:active {
+    background: #d1d5db;
+  }
+
+  .resize-handle-line {
+    width: 40px;
+    height: 3px;
+    background: #9ca3af;
+    border-radius: 2px;
+  }
+
+  .resize-handle:hover .resize-handle-line {
+    background: #6b7280;
   }
 </style>

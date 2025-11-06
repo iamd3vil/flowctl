@@ -530,8 +530,6 @@
                                                             value={action.with[
                                                                 key
                                                             ] || ""}
-                                                            language={property.language ||
-                                                                "python"}
                                                             height="200px"
                                                             onchange={(val) =>
                                                                 updateConfigValue(
