@@ -124,3 +124,4 @@ changelog:
       - '^test:'
       - '^ci:'
       - '^chore:'
+      - '^wip:'
