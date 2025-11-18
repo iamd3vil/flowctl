@@ -84,7 +84,7 @@ func (s *SharedComponents) Cleanup() {
 
 // initializeSharedComponents sets up all shared components (DB, scheduler, core, etc.)
 func initializeSharedComponents() *SharedComponents {
-	loglevel := slog.LevelError
+	loglevel := slog.LevelInfo
 	if os.Getenv("DEBUG_LOG") == "true" {
 		loglevel = slog.LevelDebug
 	}
