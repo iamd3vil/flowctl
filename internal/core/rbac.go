@@ -27,6 +27,7 @@ func (c *Core) InitializeRBACPolicies() error {
 	// Reviewer role policies (inherits from user) - for all namespaces
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceFlow), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceApproval), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceMember), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceApproval), string(models.RBACActionApprove))
 	c.enforcer.AddPolicy("role:reviewer", "*", string(models.ResourceExecution), string(models.RBACActionView))
 
@@ -49,6 +50,7 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMember), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMember), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMember), string(models.RBACActionDelete))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceMember), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlowSecret), string(models.RBACActionUpdate))
