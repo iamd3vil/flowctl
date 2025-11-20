@@ -34,6 +34,8 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionDelete))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceFlow), string(models.RBACActionExecute))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "*", string(models.ResourceNode), string(models.RBACActionUpdate))
