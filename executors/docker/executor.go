@@ -152,16 +152,6 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
-	if err := d.driver.CreateDir(ctx, d.workingDirectory); err != nil {
-		return nil, fmt.Errorf("failed to create working directory: %w", err)
-	}
-
-	d.mounts = append(d.mounts, mount.Mount{
-		Type:   mount.TypeBind,
-		Source: d.workingDirectory,
-		Target: WORKING_DIR,
-	})
-
 	d.mounts = append(d.mounts, mount.Mount{
 		Type:   mount.TypeBind,
 		Source: tempFile,

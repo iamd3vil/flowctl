@@ -89,6 +89,10 @@ services:
     command: ["start"]
     volumes:
       - flowctl-flows:/app/flows
+      # This is required for docker executor
+      - /var/run/docker.sock:/var/run/docker.sock
+      # This is a workaround to get tmp mounts in executors working
+      - /tmp:/tmp
     depends_on:
       flowctl-migrate:
         condition: service_completed_successfully
