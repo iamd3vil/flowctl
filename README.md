@@ -57,7 +57,7 @@ Use the provided [docker-compose.yml](https://raw.githubusercontent.com/cvhariha
 3. Start the server and visit `http://localhost:7000`:
 
    ```bash
-   ./flowctl install
+   ./flowctl start
    ```
 
 ## Example Workflow
