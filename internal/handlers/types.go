@@ -18,6 +18,11 @@ func GenerateSlug(input string) string {
 	return strings.ReplaceAll(slug.Make(input), "-", "_")
 }
 
+type SSOProvider struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 type AuthReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`

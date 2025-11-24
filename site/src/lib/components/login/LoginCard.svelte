@@ -1,5 +1,8 @@
 <script lang="ts">
   import { IconKey } from '@tabler/icons-svelte';
+  import { onMount } from 'svelte';
+  import { apiClient } from '$lib/apiClient';
+  import type { SSOProvider } from '$lib/types';
 
   let {
     onSubmit,
@@ -14,6 +17,16 @@
     username: string,
     password: string
   } = $props();
+
+  let ssoProviders: SSOProvider[] = $state([]);
+
+  onMount(async () => {
+    try {
+      ssoProviders = await apiClient.auth.getSSOProviders();
+    } catch (err) {
+      console.error('Failed to fetch SSO providers:', err);
+    }
+  });
 </script>
 
 <!-- Login Card -->
@@ -77,16 +90,17 @@
       {/if}
     </button>
 
-    <!-- OIDC Button -->
-    <a
-      href="/login/oidc"
-      class="block w-full px-4 py-2 text-sm font-medium text-center rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
-      aria-label="Sign in with OIDC"
-    >
-      <div class="flex items-center justify-center">
-        <IconKey class="w-4 h-4 mr-2" aria-hidden="true" />
-        Sign in with OIDC
-      </div>
-    </a>
+    {#each ssoProviders as provider}
+      <a
+        href="/login/oidc"
+        class="block w-full px-4 py-2 text-sm font-medium text-center rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+        aria-label={provider.label}
+      >
+        <div class="flex items-center justify-center">
+          <IconKey class="w-4 h-4 mr-2" aria-hidden="true" />
+          {provider.label}
+        </div>
+      </a>
+    {/each}
   </form>
 </article>

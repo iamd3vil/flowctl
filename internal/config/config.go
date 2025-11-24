@@ -70,6 +70,7 @@ type OIDCConfig struct {
 	RedirectURL  string `koanf:"redirect_url"`
 	ClientID     string `koanf:"client_id"`
 	ClientSecret string `koanf:"client_secret"`
+	Label        string `koanf:"label"`
 }
 
 func Load(configPath string) (Config, error) {

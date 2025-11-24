@@ -24,6 +24,11 @@ export interface AuthReq {
   password: string;
 }
 
+export interface SSOProvider {
+  id: string;
+  label: string;
+}
+
 // Group types
 export interface Group {
   id: string;

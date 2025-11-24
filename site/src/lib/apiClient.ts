@@ -3,6 +3,7 @@ import type {
   UserWithGroups,
   UserProfileResponse,
   AuthReq,
+  SSOProvider,
   Group,
   GroupWithUsers,
   FlowListResponse,
@@ -113,6 +114,7 @@ export const apiClient = {
       baseFetch<void>('/logout', {
         method: 'POST',
       }),
+    getSSOProviders: () => baseFetch<SSOProvider[]>('/sso-providers'),
   },
 
   // Users

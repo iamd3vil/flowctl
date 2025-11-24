@@ -188,8 +188,8 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	e.GET("/ping", h.HandlePing)
 	e.POST("/login", h.HandleLoginPage)
 	e.POST("/logout", h.HandleLogout)
+	e.GET("/sso-providers", h.HandleGetSSOProviders)
 
-	// oidc
 	e.GET("/login/oidc", h.HandleOIDCLogin)
 	e.GET("/auth/callback", h.HandleAuthCallback)
 

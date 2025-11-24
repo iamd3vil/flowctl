@@ -272,3 +272,20 @@ func (h *Handler) HandleGetCasbinPermissions(c echo.Context) error {
 		Data: p,
 	})
 }
+
+func (h *Handler) HandleGetSSOProviders(c echo.Context) error {
+	var providers []SSOProvider
+
+	if h.config.OIDC.Issuer != "" {
+		label := h.config.OIDC.Label
+		if label == "" {
+			label = "Sign in with OIDC"
+		}
+		providers = append(providers, SSOProvider{
+			ID:    "oidc",
+			Label: label,
+		})
+	}
+
+	return c.JSON(http.StatusOK, providers)
+}
