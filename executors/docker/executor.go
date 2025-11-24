@@ -31,16 +31,19 @@ const (
 )
 
 type DockerWithConfig struct {
-	Image  string `yaml:"image" json:"image" jsonschema:"title=image,description=Docker Image" jsonschema_extras:"placeholder=docker.io/alpine:latest"`
-	Script string `yaml:"script" json:"script" jsonschema:"title=script" jsonschema_extras:"widget=codeeditor"`
+	Image       string `yaml:"image" json:"image" jsonschema:"title=image,description=Docker Image" jsonschema_extras:"placeholder=docker.io/alpine:latest"`
+	Script      string `yaml:"script" json:"script" jsonschema:"title=script" jsonschema_extras:"widget=codeeditor"`
+	Interpreter string `yaml:"interpreter,omitempty" json:"interpreter,omitempty" jsonschema:"title=interpreter,description=Shell interpreter to use (default: /bin/sh)" jsonschema_extras:"placeholder=/bin/sh"`
+	Extension   string `yaml:"extension,omitempty" json:"extension,omitempty" jsonschema:"title=extension,description=File extension for the script (default: .sh)" jsonschema_extras:"placeholder=.sh"`
 }
 
 type DockerExecutor struct {
 	name             string
 	image            string
 	env              []string
-	cmd              []string
+	script           string
 	entrypoint       []string
+	interpreter      string
 	containerID      string
 	mounts           []mount.Mount
 	dockerOptions    DockerRunnerOptions
@@ -99,8 +102,8 @@ func (d *DockerExecutor) withEnv(env []map[string]any) *DockerExecutor {
 	return d
 }
 
-func (d *DockerExecutor) withCmd(cmd []string) *DockerExecutor {
-	d.cmd = cmd
+func (d *DockerExecutor) withScript(scriptPath string) *DockerExecutor {
+	d.script = scriptPath
 	return d
 }
 
@@ -129,6 +132,20 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		return nil, fmt.Errorf("could not read config for docker executor %s: %w", d.name, err)
 	}
 
+	// Set default interpreter
+	if config.Interpreter == "" {
+		config.Interpreter = "/bin/sh"
+	}
+
+	// Normalize extension (add dot if not present)
+	if config.Extension == "" {
+		config.Extension = ".sh"
+	}
+	ext := config.Extension
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -152,6 +169,24 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
+	// Write script to local temp file
+	localScriptFile := fmt.Sprintf("/tmp/docker-script-%s%s", xid.New().String(), ext)
+	if err := os.WriteFile(localScriptFile, []byte(config.Script), 0755); err != nil {
+		return nil, fmt.Errorf("failed to write local script file: %w", err)
+	}
+	defer os.Remove(localScriptFile)
+
+	// Upload script to remote location
+	remoteScriptFile := d.driver.Join(d.driver.TempDir(), fmt.Sprintf("docker-script-%s%s", xid.New().String(), ext))
+	if err := d.driver.Upload(ctx, localScriptFile, remoteScriptFile); err != nil {
+		return nil, fmt.Errorf("failed to upload script: %w", err)
+	}
+	defer d.driver.Remove(ctx, remoteScriptFile)
+
+	if err := d.driver.SetPermissions(ctx, remoteScriptFile, 0755); err != nil {
+		return nil, fmt.Errorf("failed to set executable permissions: %w", err)
+	}
+
 	d.mounts = append(d.mounts, mount.Mount{
 		Type:   mount.TypeBind,
 		Source: tempFile,
@@ -164,6 +199,14 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		Target: "/tmp/flow/artifacts",
 	})
 
+	// Mount the script file
+	containerScriptPath := fmt.Sprintf("/tmp/flow/script%s", ext)
+	d.mounts = append(d.mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: remoteScriptFile,
+		Target: containerScriptPath,
+	})
+
 	vars := make([]map[string]any, 0)
 	for k, v := range execCtx.Inputs {
 		vars = append(vars, map[string]any{k: v})
@@ -174,8 +217,9 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	vars = append(vars, map[string]any{"FC_ARTIFACTS": "/tmp/flow/artifacts"})
 
 	d.withImage(config.Image).
-		withCmd([]string{config.Script}).
+		withScript(containerScriptPath).
 		withEnv(vars)
+	d.interpreter = config.Interpreter
 	d.stdout = execCtx.Stdout
 	d.stderr = execCtx.Stderr
 
@@ -306,11 +350,14 @@ func (d *DockerExecutor) pullImage(ctx context.Context, cli *client.Client) erro
 }
 
 func (d *DockerExecutor) createContainer(ctx context.Context, cli *client.Client) (container.CreateResponse, error) {
-	commandScript := strings.Join(d.cmd, "\n")
-	cmd := []string{"/bin/sh", "-c", commandScript}
-	if len(d.entrypoint) > 0 {
-		cmd = []string{commandScript}
+	interpreter := d.interpreter
+	if interpreter == "" {
+		interpreter = "/bin/sh"
 	}
+
+	// Split interpreter by spaces
+	interpreterParts := strings.Fields(interpreter)
+	cmd := append(interpreterParts, d.script)
 
 	if d.dockerOptions.MountDockerSocket {
 		d.mounts = append(d.mounts, mount.Mount{
