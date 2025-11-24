@@ -38,6 +38,11 @@ type Input struct {
 	Options     []string  `yaml:"options" huml:"options" json:"options"`
 }
 
+type Schedule struct {
+	Cron     string `yaml:"cron" huml:"cron" json:"cron" validate:"required,cron"`
+	Timezone string `yaml:"timezone" huml:"timezone" json:"timezone" validate:"required,timezone"`
+}
+
 type Action struct {
 	ID        string         `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
 	Name      string         `yaml:"name" huml:"name" validate:"required"`
@@ -71,14 +76,13 @@ func SchedulerActionToAction(a scheduler.Action) Action {
 }
 
 type Metadata struct {
-	ID           string   `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
-	DBID         int32    `yaml:"-" huml:"-"`
-	Name         string   `yaml:"name" huml:"name" validate:"required"`
-	Description  string   `yaml:"description" huml:"description"`
-	Schedules    []string `yaml:"schedules" huml:"schedules" validate:"omitempty,dive,cron"`
-	SrcDir       string   `yaml:"-" huml:"-"`
-	Namespace    string   `yaml:"namespace" huml:"namespace"`
-	AllowOverlap bool     `yaml:"allow_overlap" huml:"allow_overlap"`
+	ID           string `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
+	DBID         int32  `yaml:"-" huml:"-"`
+	Name         string `yaml:"name" huml:"name" validate:"required"`
+	Description  string `yaml:"description" huml:"description"`
+	SrcDir       string `yaml:"-" huml:"-"`
+	Namespace    string `yaml:"namespace" huml:"namespace"`
+	AllowOverlap bool   `yaml:"allow_overlap" huml:"allow_overlap"`
 }
 
 type Variable map[string]any
@@ -124,10 +128,11 @@ func (f *FlowValidationError) Error() string {
 }
 
 type Flow struct {
-	Meta    Metadata `yaml:"metadata" huml:"metadata" validate:"required"`
-	Inputs  []Input  `yaml:"inputs" huml:"inputs" validate:"required,dive"`
-	Actions []Action `yaml:"actions" huml:"actions" validate:"required,dive"`
-	Outputs []Output `yaml:"outputs" huml:"outputs"`
+	Meta      Metadata   `yaml:"metadata" huml:"metadata" validate:"required"`
+	Inputs    []Input    `yaml:"inputs" huml:"inputs" validate:"required,dive"`
+	Actions   []Action   `yaml:"actions" huml:"actions" validate:"required,dive"`
+	Outputs   []Output   `yaml:"outputs" huml:"outputs"`
+	Schedules []Schedule `yaml:"schedules" huml:"schedules" validate:"omitempty,dive"`
 }
 
 func AlphanumericUnderscore(fl validator.FieldLevel) bool {
@@ -166,7 +171,7 @@ func (f Flow) Validate() error {
 	}
 
 	// Check if schedules are set on a non-schedulable flow
-	if len(f.Meta.Schedules) > 0 && !f.IsSchedulable() {
+	if len(f.Schedules) > 0 && !f.IsSchedulable() {
 		return fmt.Errorf("cannot set schedules on flow: flow has inputs without default values")
 	}
 
@@ -360,7 +365,7 @@ func MarshalFlow(f Flow, format FlowFormat) ([]byte, error) {
 	return data, nil
 }
 
-// convertToSchedulerFlow converts a Flow to scheduler.Flow
+// ConvertToSchedulerFlow converts a Flow to scheduler.Flow
 func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID, getNodesByNames func(context.Context, []string, uuid.UUID) ([]Node, error)) (scheduler.Flow, error) {
 	// Convert inputs
 	var inputs []scheduler.Input
@@ -428,18 +433,27 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 		outputs = append(outputs, scheduler.Output(out))
 	}
 
+	// Convert schedules
+	var schedules []scheduler.Scheduling
+	for _, sched := range f.Schedules {
+		schedules = append(schedules, scheduler.Scheduling{
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+	}
+
 	return scheduler.Flow{
 		Meta: scheduler.Metadata{
 			ID:          f.Meta.ID,
 			DBID:        f.Meta.DBID,
 			Name:        f.Meta.Name,
 			Description: f.Meta.Description,
-			Schedules:   f.Meta.Schedules,
 			SrcDir:      f.Meta.SrcDir,
 			Namespace:   f.Meta.Namespace,
 		},
-		Inputs:  inputs,
-		Actions: actions,
-		Outputs: outputs,
+		Inputs:    inputs,
+		Actions:   actions,
+		Outputs:   outputs,
+		Schedules: schedules,
 	}, nil
 }

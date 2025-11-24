@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 const addExecutionLog = `-- name: AddExecutionLog :one
@@ -682,7 +681,7 @@ WITH namespace_lookup AS (
     ORDER BY version DESC
     LIMIT 1
 )
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.cron_schedules, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at FROM flows f
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at FROM flows f
 INNER JOIN latest_exec_log el ON el.flow_id = f.id
 WHERE f.namespace_id = (SELECT id FROM namespace_lookup) AND f.is_active = TRUE
 `
@@ -701,7 +700,6 @@ func (q *Queries) GetFlowFromExecID(ctx context.Context, arg GetFlowFromExecIDPa
 		&i.Name,
 		&i.Checksum,
 		&i.Description,
-		pq.Array(&i.CronSchedules),
 		&i.FilePath,
 		&i.NamespaceID,
 		&i.IsActive,
@@ -724,7 +722,7 @@ WITH namespace_lookup AS (
     ORDER BY el.version DESC
     LIMIT 1
 )
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.cron_schedules, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at FROM flows f
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at FROM flows f
 INNER JOIN latest_exec_log el ON el.flow_id = f.id
 WHERE f.namespace_id = (SELECT id FROM namespace_lookup) AND f.is_active = TRUE
 `
@@ -743,7 +741,6 @@ func (q *Queries) GetFlowFromExecIDWithNamespace(ctx context.Context, arg GetFlo
 		&i.Name,
 		&i.Checksum,
 		&i.Description,
-		pq.Array(&i.CronSchedules),
 		&i.FilePath,
 		&i.NamespaceID,
 		&i.IsActive,

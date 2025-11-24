@@ -12,11 +12,10 @@ INSERT INTO flows (
     name,
     description,
     checksum,
-    cron_schedules,
     file_path,
     namespace_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, (SELECT id FROM namespaces WHERE namespaces.name = $7)
+    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6)
 ) RETURNING *;
 
 -- name: UpdateFlow :one
@@ -24,11 +23,10 @@ UPDATE flows SET
     name = $1,
     description = $2,
     checksum = $3,
-    cron_schedules = $4,
-    file_path = $5,
+    file_path = $4,
     is_active = TRUE,
     updated_at = NOW()
-WHERE slug = $6 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $7)
+WHERE slug = $5 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $6)
 RETURNING *;
 
 -- name: DeleteFlow :exec
@@ -113,10 +111,11 @@ SELECT
 FROM paged p, page_count pc, total t;
 
 -- name: GetScheduledFlows :many
-SELECT f.*, n.uuid AS namespace_uuid
+SELECT f.*, n.uuid AS namespace_uuid, cs.cron, cs.timezone
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
-WHERE f.is_active = TRUE AND f.cron_schedules IS NOT NULL AND array_length(f.cron_schedules, 1) > 0;
+JOIN cron_schedules cs ON cs.flow_id = f.id
+WHERE f.is_active = TRUE;
 
 -- name: MarkAllFlowsInactiveForNamespace :exec
 UPDATE flows SET is_active = FALSE, updated_at = NOW()

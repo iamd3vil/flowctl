@@ -21,12 +21,10 @@ func (s *Scheduler) syncScheduledFlows(ctx context.Context) error {
 	s.scheduledMu.Lock()
 	defer s.scheduledMu.Unlock()
 
-	// Clear and rebuild the map
 	s.scheduledFlows = make(map[string]repo.GetScheduledFlowsRow)
 	for _, flow := range scheduledFlows {
-		if len(flow.CronSchedules) > 0 {
-			s.scheduledFlows[flow.Slug] = flow
-		}
+		key := fmt.Sprintf("%s_%s_%s", flow.Slug, flow.Cron, flow.Timezone)
+		s.scheduledFlows[key] = flow
 	}
 
 	s.logger.Debug("synced scheduled flows to cache", "count", len(s.scheduledFlows))
@@ -42,17 +40,11 @@ func (s *Scheduler) checkPeriodicTasks(ctx context.Context) error {
 	}
 	s.scheduledMu.RUnlock()
 
-	now := time.Now()
-
 	for _, flow := range scheduledFlows {
-		// Check each cron schedule in the array
-		for _, cronExpr := range flow.CronSchedules {
-			if cronExpr != "" && s.shouldRunNow(cronExpr, now) {
-				if err := s.createImmediateTaskFromFlow(ctx, flow); err != nil {
-					s.logger.Error("failed to create immediate task from scheduled flow", "flow", flow.Name, "error", err)
-				}
-				// Only create one task per flow per check, even if multiple schedules match
-				break
+		// Check if this specific schedule should run now
+		if flow.Cron != "" && s.shouldRunNow(flow.Cron, flow.Timezone) {
+			if err := s.createImmediateTaskFromFlow(ctx, flow); err != nil {
+				s.logger.Error("failed to create immediate task from scheduled flow", "flow", flow.Name, "error", err)
 			}
 		}
 	}
@@ -61,14 +53,23 @@ func (s *Scheduler) checkPeriodicTasks(ctx context.Context) error {
 }
 
 // shouldRunNow evaluates if a cron expression should execute in the current minute
-func (s *Scheduler) shouldRunNow(cronExpr string, now time.Time) bool {
+func (s *Scheduler) shouldRunNow(cronExpr string, timezone string) bool {
 	schedule, err := cron.ParseStandard(cronExpr)
 	if err != nil {
 		log.Printf("Failed to parse cron expression '%s': %v", cronExpr, err)
 		return false
 	}
 
-	currentMinute := now.Truncate(time.Minute)
+	// Load the timezone
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		s.logger.Error("failed to load timezone, using UTC", "timezone", timezone, "error", err)
+		loc = time.UTC
+	}
+
+	// Convert current time to the schedules's timezone
+	nowInTz := time.Now().In(loc)
+	currentMinute := nowInTz.Truncate(time.Minute)
 
 	lastMinute := currentMinute.Add(-time.Minute)
 	nextRun := schedule.Next(lastMinute)
@@ -111,7 +112,7 @@ func (s *Scheduler) createImmediateTaskFromFlow(ctx context.Context, flow repo.G
 		return err
 	}
 
-	s.logger.Info("created immediate task from scheduled flow", "flow", flow.Slug, "id", flow.ID, "schedules", flow.CronSchedules)
+	s.logger.Info("created immediate task from scheduled flow", "flow", flow.Slug, "id", flow.ID, "cron", flow.Cron)
 	return nil
 }
 

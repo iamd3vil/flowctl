@@ -13,6 +13,7 @@
         FlowCreateReq,
         FlowInputReq,
         FlowActionReq,
+        Schedule,
     } from "$lib/types.js";
     import { goto } from "$app/navigation";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
@@ -26,8 +27,9 @@
             id: "",
             name: "",
             description: "",
-            schedules: [] as string[],
+            schedules: [] as Schedule[],
             namespace: namespace,
+            allow_overlap: false,
         },
         inputs: [] as any[],
         actions: [] as any[],
@@ -102,8 +104,9 @@
                     name: flow.metadata.name,
                     description: flow.metadata.description || undefined,
                     schedules:
-                        flow.metadata.schedules?.filter((s) => s.trim()) ||
+                        flow.metadata.schedules?.filter((s) => s.cron.trim()) ||
                         undefined,
+                    allow_overlap: flow.metadata.allow_overlap || undefined,
                 },
                 inputs: flow.inputs
                     .filter((i) => i.name)

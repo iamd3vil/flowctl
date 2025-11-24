@@ -45,12 +45,40 @@ type ApprovalDecisionResult struct {
 	ExecID      string
 }
 
+type CreateFlowTxParams struct {
+	Slug        string
+	Name        string
+	Description string
+	Checksum    string
+	FilePath    string
+	Namespace   string
+	Schedules   []struct {
+		Cron     string
+		Timezone string
+	}
+}
+
+type UpdateFlowTxParams struct {
+	Slug        string
+	Name        string
+	Description string
+	Checksum    string
+	FilePath    string
+	Namespace   string
+	Schedules   []struct {
+		Cron     string
+		Timezone string
+	}
+}
+
 type Store interface {
 	Querier
 	RequestApprovalTx(ctx context.Context, execID string, namespaceUUID uuid.UUID, action RequestApprovalParam) (AddApprovalRequestRow, error)
 	CreateUserTx(ctx context.Context, params CreateUserTxParams) (UserView, error)
 	UpdateUserTx(ctx context.Context, params UpdateUserTxParams) (UserView, error)
 	ProcessApprovalDecisionTx(ctx context.Context, params ApprovalDecisionTxParams) (ApprovalDecisionResult, error)
+	CreateFlowTx(ctx context.Context, params CreateFlowTxParams) (Flow, error)
+	UpdateFlowTx(ctx context.Context, params UpdateFlowTxParams) (Flow, error)
 }
 
 type PostgresStore struct {
@@ -279,4 +307,92 @@ func (p *PostgresStore) ProcessApprovalDecisionTx(ctx context.Context, params Ap
 	}
 
 	return approval, nil
+}
+
+func (p *PostgresStore) CreateFlowTx(ctx context.Context, params CreateFlowTxParams) (Flow, error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	q := Queries{db: tx}
+
+	// Create the flow
+	flow, err := q.CreateFlow(ctx, CreateFlowParams{
+		Slug:        params.Slug,
+		Name:        params.Name,
+		Description: sql.NullString{String: params.Description, Valid: true},
+		Checksum:    params.Checksum,
+		FilePath:    params.FilePath,
+		Name_2:      params.Namespace,
+	})
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not create flow: %w", err)
+	}
+
+	// Create cron schedules
+	for _, sched := range params.Schedules {
+		_, err = q.CreateCronSchedule(ctx, CreateCronScheduleParams{
+			FlowID:   flow.ID,
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+		if err != nil {
+			return Flow{}, fmt.Errorf("could not create schedule: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Flow{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return flow, nil
+}
+
+func (p *PostgresStore) UpdateFlowTx(ctx context.Context, params UpdateFlowTxParams) (Flow, error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	q := Queries{db: tx}
+
+	// Update the flow
+	flow, err := q.UpdateFlow(ctx, UpdateFlowParams{
+		Name:        params.Name,
+		Description: sql.NullString{String: params.Description, Valid: true},
+		Checksum:    params.Checksum,
+		FilePath:    params.FilePath,
+		Slug:        params.Slug,
+		Name_2:      params.Namespace,
+	})
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not update flow: %w", err)
+	}
+
+	// Delete existing schedules
+	err = q.DeleteCronSchedulesByFlowID(ctx, flow.ID)
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not delete old schedules: %w", err)
+	}
+
+	// Create new schedules
+	for _, sched := range params.Schedules {
+		_, err = q.CreateCronSchedule(ctx, CreateCronScheduleParams{
+			FlowID:   flow.ID,
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+		if err != nil {
+			return Flow{}, fmt.Errorf("could not create schedule: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Flow{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return flow, nil
 }

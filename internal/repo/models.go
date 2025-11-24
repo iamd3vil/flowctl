@@ -349,6 +349,15 @@ type Credential struct {
 	UpdatedAt    time.Time    `db:"updated_at" json:"updated_at"`
 }
 
+type CronSchedule struct {
+	ID        int32     `db:"id" json:"id"`
+	FlowID    int32     `db:"flow_id" json:"flow_id"`
+	Cron      string    `db:"cron" json:"cron"`
+	Timezone  string    `db:"timezone" json:"timezone"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
 type ExecutionLog struct {
 	ID              int32           `db:"id" json:"id"`
 	ExecID          string          `db:"exec_id" json:"exec_id"`
@@ -366,17 +375,16 @@ type ExecutionLog struct {
 }
 
 type Flow struct {
-	ID            int32          `db:"id" json:"id"`
-	Slug          string         `db:"slug" json:"slug"`
-	Name          string         `db:"name" json:"name"`
-	Checksum      string         `db:"checksum" json:"checksum"`
-	Description   sql.NullString `db:"description" json:"description"`
-	CronSchedules []string       `db:"cron_schedules" json:"cron_schedules"`
-	FilePath      string         `db:"file_path" json:"file_path"`
-	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
-	IsActive      bool           `db:"is_active" json:"is_active"`
-	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	ID          int32          `db:"id" json:"id"`
+	Slug        string         `db:"slug" json:"slug"`
+	Name        string         `db:"name" json:"name"`
+	Checksum    string         `db:"checksum" json:"checksum"`
+	Description sql.NullString `db:"description" json:"description"`
+	FilePath    string         `db:"file_path" json:"file_path"`
+	NamespaceID int32          `db:"namespace_id" json:"namespace_id"`
+	IsActive    bool           `db:"is_active" json:"is_active"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 type FlowSecret struct {

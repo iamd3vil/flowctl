@@ -42,6 +42,11 @@ export interface GroupWithUsers extends Group {
 }
 
 // Flow types
+export interface Schedule {
+  cron: string;
+  timezone: string;
+}
+
 export interface Flow {
   metadata: FlowMeta;
   inputs: FlowInput[];
@@ -53,7 +58,7 @@ export interface FlowListItem {
   slug: string;
   name: string;
   description: string;
-  schedules: string[];
+  schedules: Schedule[];
   step_count: number;
 }
 
@@ -82,7 +87,7 @@ export interface FlowMeta {
   id: string;
   name: string;
   description: string;
-  schedules: string[];
+  schedules: Schedule[];
   namespace: string;
   allow_overlap: boolean;
 }
@@ -378,7 +383,7 @@ export interface FlowCreateReq {
 export interface FlowMetaReq {
   name: string;
   description?: string;
-  schedules?: string[];
+  schedules?: Schedule[];
   allow_overlap?: boolean;
 }
 
@@ -416,7 +421,7 @@ export interface FlowCreateResp {
 }
 
 export interface FlowUpdateReq {
-  schedules: string[];
+  schedules: Schedule[];
   allow_overlap?: boolean;
   description?: string;
   inputs: FlowInputReq[];

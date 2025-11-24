@@ -45,6 +45,7 @@ func isFlowFile(filename string) bool {
 		strings.HasSuffix(lower, ".huml")
 }
 
+// GetFlowByID returns a flow from memory using the flow slug (id) and namespace
 func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 	c.rwf.RLock()
 	defer c.rwf.RUnlock()
@@ -54,26 +55,6 @@ func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 	}
 
 	return f, nil
-}
-
-func (c *Core) GetAllFlows(ctx context.Context, namespaceID string) ([]models.Flow, error) {
-	c.rwf.RLock()
-	defer c.rwf.RUnlock()
-	namespaceUUID, err := uuid.Parse(namespaceID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
-	}
-
-	flows, err := c.store.GetFlowsByNamespace(ctx, namespaceUUID)
-	if err != nil {
-		return nil, fmt.Errorf("could not get flows for namespace %s: %w", namespaceID, err)
-	}
-
-	var fs []models.Flow
-	for _, v := range flows {
-		fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
-	}
-	return fs, nil
 }
 
 func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit, offset int) ([]models.Flow, int64, int64, error) {
@@ -504,7 +485,7 @@ func (c *Core) CreateFlow(ctx context.Context, f models.Flow, namespaceID string
 	c.rwf.RUnlock()
 
 	// Remove duplicate schedules
-	f.Meta.Schedules = removeDuplicateStrings(f.Meta.Schedules)
+	f.Schedules = removeDuplicateSchedules(f.Schedules)
 
 	n, err := c.GetNamespaceByID(ctx, namespaceID)
 	if err != nil {
@@ -554,7 +535,7 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 	c.rwf.RUnlock()
 
 	// Remove duplicate schedules
-	f.Meta.Schedules = removeDuplicateStrings(f.Meta.Schedules)
+	f.Schedules = removeDuplicateSchedules(f.Schedules)
 
 	n, err := c.GetNamespaceByID(ctx, namespaceID)
 	if err != nil {
@@ -760,30 +741,44 @@ func (c *Core) importFlowFromFile(flowFilePath, namespaceName string) (models.Fl
 		return models.Flow{}, "", fmt.Errorf("error getting namespace %s: %w", f.Meta.Namespace, err)
 	}
 
+	var schedules []struct {
+		Cron     string
+		Timezone string
+	}
+	for _, sched := range f.Schedules {
+		schedules = append(schedules, struct {
+			Cron     string
+			Timezone string
+		}{
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+	}
+
 	fd, err := c.store.GetFlowBySlug(context.Background(), repo.GetFlowBySlugParams{
 		Slug:     f.Meta.ID,
 		Uuid:     ns.Uuid,
 		IsActive: sql.NullBool{Valid: false},
 	})
 	if err != nil {
-		fd, err = c.store.CreateFlow(context.Background(), repo.CreateFlowParams{
-			Slug:          f.Meta.ID,
-			Name:          f.Meta.Name,
-			Checksum:      checksum,
-			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
-			CronSchedules: f.Meta.Schedules,
-			FilePath:      flowFilePath,
-			Name_2:        f.Meta.Namespace,
+		fd, err = c.store.CreateFlowTx(context.Background(), repo.CreateFlowTxParams{
+			Slug:        f.Meta.ID,
+			Name:        f.Meta.Name,
+			Description: f.Meta.Description,
+			Checksum:    checksum,
+			FilePath:    flowFilePath,
+			Namespace:   f.Meta.Namespace,
+			Schedules:   schedules,
 		})
 	} else if fd.Checksum != checksum {
-		fd, err = c.store.UpdateFlow(context.Background(), repo.UpdateFlowParams{
-			Name:          f.Meta.Name,
-			Description:   sql.NullString{String: f.Meta.Description, Valid: true},
-			Checksum:      checksum,
-			CronSchedules: f.Meta.Schedules,
-			FilePath:      flowFilePath,
-			Slug:          f.Meta.ID,
-			Name_2:        f.Meta.Namespace,
+		fd, err = c.store.UpdateFlowTx(context.Background(), repo.UpdateFlowTxParams{
+			Slug:        f.Meta.ID,
+			Name:        f.Meta.Name,
+			Description: f.Meta.Description,
+			Checksum:    checksum,
+			FilePath:    flowFilePath,
+			Namespace:   f.Meta.Namespace,
+			Schedules:   schedules,
 		})
 	}
 	if err != nil {
@@ -844,19 +839,20 @@ func (c *Core) GetSchedulerFlow(ctx context.Context, flowSlug string, namespaceU
 	return models.ConvertToSchedulerFlow(ctx, flow, nsUUID, c.GetNodesByNames)
 }
 
-// removeDuplicateStrings removes duplicate strings from a slice
-func removeDuplicateStrings(slice []string) []string {
-	if len(slice) == 0 {
-		return slice
+// removeDuplicateSchedules removes duplicate schedules from a slice
+func removeDuplicateSchedules(schedules []models.Schedule) []models.Schedule {
+	if len(schedules) == 0 {
+		return schedules
 	}
 
 	seen := make(map[string]bool)
-	result := make([]string, 0, len(slice))
+	result := make([]models.Schedule, 0, len(schedules))
 
-	for _, item := range slice {
-		if item != "" && !seen[item] {
-			seen[item] = true
-			result = append(result, item)
+	for _, sched := range schedules {
+		key := sched.Cron + ":" + sched.Timezone
+		if sched.Cron != "" && !seen[key] {
+			seen[key] = true
+			result = append(result, sched)
 		}
 	}
 

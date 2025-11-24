@@ -133,14 +133,18 @@ type Action struct {
 	On        []Node         `yaml:"on"`
 }
 
+type Scheduling struct {
+	Cron     string `yaml:"cron" json:"cron"`
+	Timezone string `yaml:"timezone" json:"timezone"`
+}
+
 type Metadata struct {
-	ID          string   `yaml:"id" validate:"required,alphanum_underscore"`
-	DBID        int32    `yaml:"-"`
-	Name        string   `yaml:"name" validate:"required"`
-	Description string   `yaml:"description"`
-	Schedules   []string `yaml:"schedules"`
-	SrcDir      string   `yaml:"-"`
-	Namespace   string   `yaml:"namespace"`
+	ID          string `yaml:"id" validate:"required,alphanum_underscore"`
+	DBID        int32  `yaml:"-"`
+	Name        string `yaml:"name" validate:"required"`
+	Description string `yaml:"description"`
+	SrcDir      string `yaml:"-"`
+	Namespace   string `yaml:"namespace"`
 }
 
 type Variable map[string]any
@@ -176,15 +180,16 @@ func (v Variable) Value() string {
 type Output map[string]any
 
 type Flow struct {
-	Meta    Metadata `yaml:"metadata" validate:"required"`
-	Inputs  []Input  `yaml:"inputs" validate:"required"`
-	Actions []Action `yaml:"actions" validate:"required"`
-	Outputs []Output `yaml:"outputs"`
+	Meta      Metadata     `yaml:"metadata" validate:"required"`
+	Inputs    []Input      `yaml:"inputs" validate:"required"`
+	Actions   []Action     `yaml:"actions" validate:"required"`
+	Outputs   []Output     `yaml:"outputs"`
+	Schedules []Scheduling `yaml:"scheduling"`
 }
 
 type FlowExecutionPayload struct {
 	Workflow          Flow
-	Input             map[string]interface{}
+	Input             map[string]any
 	StartingActionIdx int
 	ExecID            string
 	NamespaceID       string

@@ -22,7 +22,7 @@
       <div class="flex-1 min-w-0">
         <h1 class="text-2xl font-semibold text-gray-900 mb-1">{name}</h1>
         {#if description}
-          <p class="text-sm text-gray-600">{description}</p>
+          <p class="text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap">{description}</p>
         {/if}
       </div>
     </div>

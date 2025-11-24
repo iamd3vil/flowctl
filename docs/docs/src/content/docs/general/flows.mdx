@@ -12,11 +12,12 @@ Flows are the core automation units in flowctl. A flow is a sequence of actions 
 
 ## Flow Structure
 
-Every flow consists of three main sections:
+Every flow consists of four main sections:
 
 1. **Metadata** - Flow identification and configuration
 2. **Inputs** - Parameters that users provide when triggering the flow
 3. **Actions** - The actual tasks to execute
+4. **Schedules** - List of cron schedules
 
 ## Basic Flow Example
 
@@ -61,9 +62,6 @@ metadata:
   description: Flow description
   namespace: default # Namespace for organization
   allow_overlap: true # Allow executions to overlap
-  schedules: # Optional: cron schedules
-    - "0 0 * * *" # Daily at midnight
-    - "*/5 * * * *" # Every 5 minutes
 ```
 
 ### Execution Overlap
@@ -80,9 +78,9 @@ inputs:
     type: string
     default: "production" # Required for scheduled flows
 
-metadata:
-  schedules:
-    - "0 2 * * *" # Run daily at 2 AM
+schedules:
+  - cron: "0 2 * * *" # Run daily at 2 AM
+    timezone: Asia/Kolkata
 ```
 
 <Aside>Only flows where all inputs have default values can be scheduled.</Aside>
@@ -181,6 +179,7 @@ inputs:
     type: string
     validation: len(username) >= 3 && len(username) <= 20
 ```
+
 Validations are [expr](https://expr-lang.org/) statements that should evaluate to either `true` or `false`.
 
 ## Actions

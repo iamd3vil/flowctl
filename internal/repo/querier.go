@@ -21,6 +21,7 @@ type Querier interface {
 	AssignUserNamespaceRole(ctx context.Context, arg AssignUserNamespaceRoleParams) (NamespaceMember, error)
 	CancelTasksByExecID(ctx context.Context, execID string) error
 	CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error)
+	CreateCronSchedule(ctx context.Context, arg CreateCronScheduleParams) (CronSchedule, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
 	CreateFlowSecret(ctx context.Context, arg CreateFlowSecretParams) (FlowSecret, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
@@ -31,6 +32,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAllFlows(ctx context.Context) error
 	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
+	DeleteCronSchedulesByFlowID(ctx context.Context, flowID int32) error
 	DeleteFlow(ctx context.Context, arg DeleteFlowParams) error
 	DeleteFlowSecret(ctx context.Context, arg DeleteFlowSecretParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
@@ -38,6 +40,7 @@ type Querier interface {
 	DeleteNode(ctx context.Context, arg DeleteNodeParams) error
 	DeleteUserByUUID(ctx context.Context, argUuid uuid.UUID) error
 	ExecutionExistsForFlow(ctx context.Context, arg ExecutionExistsForFlowParams) (bool, error)
+	GetAllCronSchedules(ctx context.Context) ([]GetAllCronSchedulesRow, error)
 	GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecutionsPaginatedParams) ([]GetAllExecutionsPaginatedRow, error)
 	GetAllGroups(ctx context.Context) ([]Group, error)
 	GetAllGroupsWithUsers(ctx context.Context) ([]GroupView, error)
@@ -51,6 +54,7 @@ type Querier interface {
 	GetApprovalsPaginated(ctx context.Context, arg GetApprovalsPaginatedParams) ([]GetApprovalsPaginatedRow, error)
 	GetCredentialByID(ctx context.Context, arg GetCredentialByIDParams) (GetCredentialByIDRow, error)
 	GetCredentialByUUID(ctx context.Context, arg GetCredentialByUUIDParams) (GetCredentialByUUIDRow, error)
+	GetCronSchedulesByFlowID(ctx context.Context, flowID int32) ([]CronSchedule, error)
 	GetExecutionByExecID(ctx context.Context, arg GetExecutionByExecIDParams) (GetExecutionByExecIDRow, error)
 	GetExecutionByExecIDWithNamespace(ctx context.Context, arg GetExecutionByExecIDWithNamespaceParams) (GetExecutionByExecIDWithNamespaceRow, error)
 	GetExecutionByID(ctx context.Context, arg GetExecutionByIDParams) (GetExecutionByIDRow, error)

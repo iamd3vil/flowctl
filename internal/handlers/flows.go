@@ -506,7 +506,7 @@ func (h *Handler) HandleGetFlowMeta(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "flow not found", err, nil)
 	}
 
-	meta := coreFlowMetatoFlowMeta(flow.Meta)
+	meta := coreFlowMetatoFlowMeta(flow.Meta, flow.Schedules)
 	actions := coreFlowActionstoFlowActions(flow.Actions)
 	return c.JSON(http.StatusOK, FlowMetaResp{
 		Metadata: meta,
@@ -530,16 +530,26 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
 	}
 
+	// Convert scheduling requests to model schedules
+	var schedules []models.Schedule
+	for _, sched := range req.Meta.Schedules {
+		schedules = append(schedules, models.Schedule{
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+	}
+
 	flow := models.Flow{
 		Meta: models.Metadata{
-			ID:          GenerateSlug(req.Meta.Name),
-			Name:        req.Meta.Name,
-			Description: req.Meta.Description,
-			Schedules:   req.Meta.Schedules,
-			Namespace:   namespace,
+			ID:           GenerateSlug(req.Meta.Name),
+			Name:         req.Meta.Name,
+			Description:  req.Meta.Description,
+			Namespace:    namespace,
+			AllowOverlap: req.Meta.AllowOverlap,
 		},
-		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
-		Actions: convertFlowActionsReqToActions(req.Actions),
+		Inputs:    convertFlowInputsReqToInputs(req.Inputs),
+		Actions:   convertFlowActionsReqToActions(req.Actions),
+		Schedules: schedules,
 	}
 
 	if err := flow.Validate(); err != nil {
@@ -572,16 +582,23 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
 	}
 
-	// Update the metadata schedules from request
+	var schedules []models.Schedule
+	for _, sched := range req.Schedules {
+		schedules = append(schedules, models.Schedule{
+			Cron:     sched.Cron,
+			Timezone: sched.Timezone,
+		})
+	}
+
 	updatedMeta := f.Meta
-	updatedMeta.Schedules = req.Schedules
 	updatedMeta.AllowOverlap = req.AllowOverlap
 	updatedMeta.Description = req.Description
 
 	flow := models.Flow{
-		Meta:    updatedMeta,
-		Inputs:  convertFlowInputsReqToInputs(req.Inputs),
-		Actions: convertFlowActionsReqToActions(req.Actions),
+		Meta:      updatedMeta,
+		Inputs:    convertFlowInputsReqToInputs(req.Inputs),
+		Actions:   convertFlowActionsReqToActions(req.Actions),
+		Schedules: schedules,
 	}
 
 	if err := flow.Validate(); err != nil {
@@ -622,11 +639,19 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
 	}
 
+	schedules := make([]Schedule, 0)
+	for _, s := range f.Schedules {
+		schedules = append(schedules, Schedule{
+			Cron:     s.Cron,
+			Timezone: s.Timezone,
+		})
+	}
+
 	return c.JSON(http.StatusOK, FlowCreateReq{
 		Meta: FlowMetaReq{
 			Name:         f.Meta.Name,
 			Description:  f.Meta.Description,
-			Schedules:    f.Meta.Schedules,
+			Schedules:    schedules,
 			AllowOverlap: f.Meta.AllowOverlap,
 		},
 		Inputs:  convertFlowInputsToInputsReq(f.Inputs),

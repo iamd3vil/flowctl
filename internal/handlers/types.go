@@ -319,14 +319,20 @@ func coreNamespaceArrayToNamespaceRespArray(namespaces []models.Namespace) []Nam
 	return resp
 }
 
+// Schedule represents a cron schedule with timezone
+type Schedule struct {
+	Cron     string `json:"cron"`
+	Timezone string `json:"timezone"`
+}
+
 // Flow list response type
 type FlowListItem struct {
-	ID          string   `json:"id"`
-	Slug        string   `json:"slug"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Schedules   []string `json:"schedules"`
-	StepCount   int      `json:"step_count"`
+	ID          string     `json:"id"`
+	Slug        string     `json:"slug"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Schedules   []Schedule `json:"schedules"`
+	StepCount   int        `json:"step_count"`
 }
 
 type FlowInput struct {
@@ -364,20 +370,31 @@ func coreFlowInputsToInputs(inputs []models.Input) []FlowInput {
 }
 
 type FlowMeta struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Schedules    []string `json:"schedules"`
-	Namespace    string   `json:"namespace"`
-	AllowOverlap bool     `json:"allow_overlap"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Description  string     `json:"description"`
+	Schedules    []Schedule `json:"schedules"`
+	Namespace    string     `json:"namespace"`
+	AllowOverlap bool       `json:"allow_overlap"`
 }
 
-func coreFlowMetatoFlowMeta(m models.Metadata) FlowMeta {
+func coreSchedulesToSchedules(schedules []models.Schedule) []Schedule {
+	resp := make([]Schedule, len(schedules))
+	for i, s := range schedules {
+		resp[i] = Schedule{
+			Cron:     s.Cron,
+			Timezone: s.Timezone,
+		}
+	}
+	return resp
+}
+
+func coreFlowMetatoFlowMeta(m models.Metadata, schedules []models.Schedule) FlowMeta {
 	return FlowMeta{
 		ID:           m.ID,
 		Name:         m.Name,
 		Description:  m.Description,
-		Schedules:    m.Schedules,
+		Schedules:    coreSchedulesToSchedules(schedules),
 		Namespace:    m.Namespace,
 		AllowOverlap: m.AllowOverlap,
 	}
@@ -447,7 +464,7 @@ func coreFlowToFlow(flow models.Flow) FlowListItem {
 		Slug:        flow.Meta.ID,
 		Name:        flow.Meta.Name,
 		Description: flow.Meta.Description,
-		Schedules:   flow.Meta.Schedules,
+		Schedules:   coreSchedulesToSchedules(flow.Schedules),
 		StepCount:   len(flow.Actions),
 	}
 }
@@ -573,10 +590,10 @@ type FlowCreateReq struct {
 }
 
 type FlowMetaReq struct {
-	Name         string   `json:"name" validate:"required,min=2,max=150,alphanum_whitespace"`
-	Description  string   `json:"description" validate:"max=255"`
-	Schedules    []string `json:"schedules" validate:"omitempty,dive,cron"`
-	AllowOverlap bool     `json:"allow_overlap"`
+	Name         string     `json:"name" validate:"required,min=2,max=150,alphanum_whitespace"`
+	Description  string     `json:"description" validate:"max=255"`
+	Schedules    []Schedule `json:"schedules" validate:"omitempty,dive"`
+	AllowOverlap bool       `json:"allow_overlap"`
 }
 
 type FlowInputReq struct {
@@ -613,7 +630,7 @@ type ExecutionGetReq struct {
 }
 
 type FlowUpdateReq struct {
-	Schedules    []string        `json:"schedules" validate:"omitempty,dive,cron"`
+	Schedules    []Schedule      `json:"schedules" validate:"omitempty,dive"`
 	AllowOverlap bool            `json:"allow_overlap"`
 	Description  string          `json:"description" validate:"max=255"`
 	Inputs       []FlowInputReq  `json:"inputs" validate:"required,dive"`
