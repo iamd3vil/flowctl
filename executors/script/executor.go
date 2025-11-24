@@ -17,6 +17,7 @@ import (
 type ScriptWithConfig struct {
 	Script      string `yaml:"script" json:"script" jsonschema:"title=script" jsonschema_extras:"widget=codeeditor"`
 	Interpreter string `yaml:"interpreter,omitempty" json:"interpreter,omitempty" jsonschema:"title=interpreter,description=Shell interpreter to use (default: /bin/bash)" jsonschema_extras:"placeholder=/bin/bash"`
+	Extension   string `yaml:"extension,omitempty" json:"extension,omitempty" jsonschema:"title=extension,description=File extension for the script (default: .sh)" jsonschema_extras:"placeholder=.sh`
 }
 
 type ScriptExecutor struct {
@@ -113,13 +114,22 @@ func (s *ScriptExecutor) prepareEnvironment(inputs map[string]interface{}, outpu
 }
 
 func (s *ScriptExecutor) runScript(ctx context.Context, config ScriptWithConfig, env []string) error {
-	localScriptFile := fmt.Sprintf("/tmp/local-script-%s.sh", xid.New().String())
+	// Normalize extension (add dot if not present)
+	if config.Extension == "" {
+		config.Extension = ".sh"
+	}
+	ext := config.Extension
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+
+	localScriptFile := fmt.Sprintf("/tmp/local-script-%s%s", xid.New().String(), ext)
 	if err := os.WriteFile(localScriptFile, []byte(config.Script), 0755); err != nil {
 		return fmt.Errorf("failed to write local script file: %w", err)
 	}
 	defer os.Remove(localScriptFile)
 
-	remoteScriptFile := s.driver.Join(s.driver.TempDir(), fmt.Sprintf("script-%s.sh", xid.New().String()))
+	remoteScriptFile := s.driver.Join(s.driver.TempDir(), fmt.Sprintf("script-%s%s", xid.New().String(), ext))
 	if err := s.driver.Upload(ctx, localScriptFile, remoteScriptFile); err != nil {
 		return fmt.Errorf("failed to upload script: %w", err)
 	}
