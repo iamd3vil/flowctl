@@ -54,7 +54,7 @@ Use the provided [docker-compose.yml](https://raw.githubusercontent.com/cvhariha
    ./flowctl install
    ```
 
-3. Start the server and visit `http://localhost:7000`:
+4. Start the server and visit `http://localhost:7000`:
 
    ```bash
    ./flowctl start
@@ -98,3 +98,9 @@ Contributions are welcome! Please open an issue or submit a pull request.
 ## License
 
 flowctl is licensed under the Apache 2.0 license.
+
+## Third-Party Data
+
+- **Timezone data** from [timezones-list](https://github.com/omsrivastava/timezones-list)
+  - Copyright (c) 2020 Om Srivastava
+  - MIT License - [Full text](https://github.com/omsrivastava/timezones-list/blob/master/LICENSE)
