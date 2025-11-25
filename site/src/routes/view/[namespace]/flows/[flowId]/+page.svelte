@@ -171,7 +171,7 @@
     { label: data.flowMeta?.meta?.name || 'Loading...' }
   ]}
   actions={[
-    ...(canUpdateFlow ? [{ label: 'Edit', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'secondary' as const }] : [])
+    ...(canUpdateFlow ? [{ label: 'Edit', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'ghost' as const }] : [])
   ]}
 />
 
