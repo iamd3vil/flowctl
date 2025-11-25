@@ -138,6 +138,15 @@
       render: (value) => `<div class="text-sm text-gray-900">${value || 'System'}</div>`
     },
     {
+      key: 'trigger_type',
+      header: 'Trigger Type',
+      render: (value, row) => `<div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+        row.trigger_type === 'manual'
+          ? 'bg-primary-100 text-primary-900'
+          : 'bg-success-100 text-success-900'
+      }">${row.trigger_type}</div>`
+    },
+    {
       key: 'id',
       header: 'Exec ID',
       render: (value) => `<div class="text-sm font-mono text-gray-600">${value.substring(0, 8)}</div>`

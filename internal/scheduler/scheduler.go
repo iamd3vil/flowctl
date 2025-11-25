@@ -305,6 +305,7 @@ func (s *Scheduler) executeJob(ctx context.Context, job storage.Job) error {
 	}
 
 	if err := s.executeFlow(execCtx, payload); err != nil {
+		s.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
 		if errors.Is(err, ErrPendingApproval) {
 			return s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, nil)
 		}
