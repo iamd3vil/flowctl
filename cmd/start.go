@@ -199,7 +199,7 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	api := e.Group("/api/v1", h.Authenticate)
 
-	api.GET("/users", h.HandleUserPagination, h.AuthorizeForRole("superuser"))
+	api.GET("/users", h.HandleUserPagination, h.AuthorizeNamespaceAdmins())
 	api.GET("/users/profile", h.HandleGetUserProfile)
 	api.GET("/users/:userID", h.HandleGetUser, h.AuthorizeForRole("superuser"))
 	api.POST("/users", h.HandleCreateUser, h.AuthorizeForRole("superuser"))

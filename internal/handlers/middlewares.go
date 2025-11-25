@@ -76,6 +76,7 @@ func (h *Handler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
 	}
 }
 
+// AuthorizeNamespaceAction checks if a user is allowed to perform an action on the given resource given the namespace
 func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action models.RBACAction) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -90,6 +91,57 @@ func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action mode
 			}
 
 			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, namespaceID, resource, action)
+			if err != nil {
+				return wrapError(ErrOperationFailed, "could not check permissions", err, nil)
+			}
+
+			if !allowed {
+				return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+			}
+
+			return next(c)
+		}
+	}
+}
+
+// AuthorizeNamespaceAdmins checks if a user is an admin in at least one namespace
+// This is used for global resources that namespace admins should be able to access
+func (h *Handler) AuthorizeNamespaceAdmins() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			user, err := h.getUserInfo(c)
+			if err != nil {
+				return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
+			}
+
+			// Get all namespaces the user has access to
+			namespaces, err := h.co.GetUserNamespaces(c.Request().Context(), user.ID)
+			if err != nil {
+				return wrapError(ErrOperationFailed, "could not get user namespaces", err, nil)
+			}
+
+			// Check if user is admin in any namespace
+			for _, ns := range namespaces {
+				if ns.Role == models.NamespaceRoleAdmin {
+					return next(c)
+				}
+			}
+
+			return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+		}
+	}
+}
+
+// AuthorizeAction checks if a user is allowed to perform an action on the resource irrespective of the namespace
+func (h *Handler) AuthorizeAction(resource models.Resource, action models.RBACAction) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			user, err := h.getUserInfo(c)
+			if err != nil {
+				return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
+			}
+
+			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, "*", resource, action)
 			if err != nil {
 				return wrapError(ErrOperationFailed, "could not check permissions", err, nil)
 			}
