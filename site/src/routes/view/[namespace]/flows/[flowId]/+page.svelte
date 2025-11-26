@@ -10,6 +10,7 @@
   import Pagination from '$lib/components/shared/Pagination.svelte';
   import FlowHero from '$lib/components/flows/FlowHero.svelte';
   import FlowActionsSummary from '$lib/components/flow-input/FlowActionsSummary.svelte';
+  import FlowSchedulesList from '$lib/components/flows/FlowSchedulesList.svelte';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import type { PageData } from './$types';
   import type { TableColumn } from '$lib/types';
@@ -191,6 +192,9 @@
   {#if activeTab === 'run'}
     <div class="max-w-2xl mx-auto">
       <FlowInputForm inputs={data.flowInputs || []} namespace={namespace!} flowId={flowId!} />
+      <div class="mt-6">
+        <FlowSchedulesList schedules={data.flowMeta?.meta?.schedules || []} />
+      </div>
       <FlowActionsSummary actions={data.flowMeta?.actions || []} />
     </div>
   {/if}
