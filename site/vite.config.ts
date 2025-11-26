@@ -17,6 +17,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/sso-providers": {
+        target: `http://${backendHost}`,
+        changeOrigin: true,
+        secure: false,
+      },
       "/login": {
         target: `http://${backendHost}`,
         changeOrigin: true,

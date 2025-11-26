@@ -60,6 +60,18 @@
 		{ key: 'username', header: 'Username', sortable: true },
 		{ key: 'os_family', header: 'OS Family', sortable: true },
 		{
+			key: 'connection_type',
+			header: 'Connection Type',
+			sortable: true,
+			render: (_value: any, node: NodeResp) => `
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+					node.connection_type === 'qssh'
+						? 'bg-success-100 text-success-800'
+						: 'bg-blue-100 text-blue-800'
+				}">${node.connection_type?.toUpperCase() || 'N/A'}</span>
+			`
+		},
+		{
 			key: 'tags',
 			header: 'Tags',
 			render: (_value: any, node: NodeResp) => node.tags && node.tags.length > 0
