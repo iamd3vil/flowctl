@@ -327,7 +327,7 @@ latest_versions AS (
     GROUP BY exec_id
 )
 SELECT exists (SELECT * FROM execution_log el INNER JOIN latest_versions lv on el.exec_id = lv.exec_id
-WHERE flow_id = (SELECT id FROM flows WHERE flows.slug = $1 AND flows.is_active = TRUE) AND
+WHERE flow_id = (SELECT id FROM flows WHERE flows.slug = $1 AND flows.namespace_id = (SELECT id FROM namespace_lookup) AND flows.is_active = TRUE) AND
 namespace_id = (SELECT id FROM namespace_lookup) AND
 (status = 'running' or status = 'pending_approval' or status = 'pending') AND
 version = lv.max_version);

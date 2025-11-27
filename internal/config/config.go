@@ -23,6 +23,12 @@ type Config struct {
 	OIDC      OIDCConfig      `koanf:"oidc"`
 	Scheduler SchedulerConfig `koanf:"scheduler"`
 	Logger    Logger          `koanf:"logger"`
+	Metrics   Metrics         `koanf:"metrics"`
+}
+
+type Metrics struct {
+	Enabled bool   `koanf:"enabled"`
+	Path    string `koanf:"path"`
 }
 
 type DBConfig struct {

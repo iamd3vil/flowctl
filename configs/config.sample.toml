@@ -79,3 +79,8 @@ password = "flowctl"
 user = "flowctl"
 # (required) Postgres port
 port = 5432
+
+# Prometheus metrics
+[metrics]
+enabled = true
+path = "/metrics"

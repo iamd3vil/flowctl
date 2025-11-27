@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cvhariharan/flowctl/internal/metrics"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler/storage"
 	"github.com/cvhariharan/flowctl/internal/streamlogger"
@@ -31,6 +32,7 @@ type Scheduler struct {
 	secretsProvider  SecretsProviderFn
 	flowLoader       FlowLoaderFn
 	logmanager       streamlogger.LogManager
+	metrics          *metrics.Manager
 	cancelFuncs      map[string]context.CancelFunc
 	scheduledFlows   map[string]repo.GetScheduledFlowsRow // Cache of scheduled flows
 	cancelMu         sync.RWMutex                         // Lock for cancelFuncs
@@ -52,6 +54,7 @@ type SchedulerBuilder struct {
 	secretsProvider  SecretsProviderFn
 	flowLoader       FlowLoaderFn
 	logmanager       streamlogger.LogManager
+	metrics          *metrics.Manager
 	workerCount      int
 	logger           *slog.Logger
 	cronSyncInterval time.Duration
@@ -104,6 +107,11 @@ func (b *SchedulerBuilder) WithCronSyncInterval(s time.Duration) *SchedulerBuild
 	return b
 }
 
+func (b *SchedulerBuilder) WithMetrics(m *metrics.Manager) *SchedulerBuilder {
+	b.metrics = m
+	return b
+}
+
 // Build creates the scheduler instance
 func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 	if b.workerCount == 0 {
@@ -124,6 +132,7 @@ func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 		secretsProvider:  b.secretsProvider,
 		flowLoader:       b.flowLoader,
 		logmanager:       b.logmanager,
+		metrics:          b.metrics,
 		workerCount:      b.workerCount,
 		logger:           b.logger,
 		cronSyncInterval: b.cronSyncInterval,
@@ -287,10 +296,20 @@ func (s *Scheduler) executeJob(ctx context.Context, job storage.Job) error {
 	s.cancelFuncs[job.ExecID] = cancel
 	s.cancelMu.Unlock()
 
+	// Track running execution metrics
+	if s.metrics != nil {
+		s.metrics.IncExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
+	}
+
 	defer func() {
 		s.cancelMu.Lock()
 		delete(s.cancelFuncs, job.ExecID)
 		s.cancelMu.Unlock()
+
+		// Decrement running execution metrics
+		if s.metrics != nil {
+			s.metrics.DecExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
+		}
 	}()
 
 	// Create execution log for scheduled executions only (manual ones are created in core)
@@ -307,15 +326,15 @@ func (s *Scheduler) executeJob(ctx context.Context, job storage.Job) error {
 	if err := s.executeFlow(execCtx, payload); err != nil {
 		s.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
 		if errors.Is(err, ErrPendingApproval) {
-			return s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, nil)
+			return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
 		}
 		if errors.Is(err, ErrExecutionCancelled) {
-			return s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, nil)
+			return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
 		}
-		return s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, err)
+		return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, payload.Workflow.Meta.ID, err)
 	}
 
-	return s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusCompleted, payload.NamespaceID, nil)
+	return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusCompleted, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
 }
 
 // setStatus updates the execution status in the execution_log table
@@ -336,6 +355,28 @@ func (s *Scheduler) setStatus(ctx context.Context, execID string, status repo.Ex
 	})
 	if err != nil {
 		return fmt.Errorf("could not update error execution status: %w", err)
+	}
+
+	return nil
+}
+
+// setStatusWithMetrics updates the execution status and tracks metrics
+func (s *Scheduler) setStatusWithMetrics(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, flowID string, err error) error {
+	if err := s.setStatus(ctx, execID, status, namespaceID, err); err != nil {
+		return err
+	}
+
+	if s.metrics != nil {
+		switch status {
+		case repo.ExecutionStatusCompleted:
+			s.metrics.IncrementExecutionCount(namespaceID, flowID, "completed")
+		case repo.ExecutionStatusErrored:
+			s.metrics.IncrementExecutionCount(namespaceID, flowID, "errored")
+		case repo.ExecutionStatusCancelled:
+			s.metrics.IncrementExecutionCount(namespaceID, flowID, "cancelled")
+		case repo.ExecutionStatusPendingApproval:
+			s.metrics.IncExecutionsWaiting(namespaceID, flowID)
+		}
 	}
 
 	return nil

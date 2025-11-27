@@ -16,6 +16,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/handlers"
+	"github.com/cvhariharan/flowctl/internal/metrics"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/cvhariharan/flowctl/internal/scheduler/storage"
@@ -54,7 +55,7 @@ var startCmd = &cobra.Command{
 			startWorker(shared.Scheduler, shared.Logger)
 		}()
 		// start server
-		startServer(shared.DB, shared.Core, shared.Logger)
+		startServer(shared.DB, shared.Core, shared.Metrics, shared.Logger)
 		wg.Wait()
 	},
 }
@@ -68,6 +69,7 @@ type SharedComponents struct {
 	DB        *sqlx.DB
 	Core      *core.Core
 	Scheduler *scheduler.Scheduler
+	Metrics   *metrics.Manager
 	Logger    *slog.Logger
 	Keeper    *secrets.Keeper
 }
@@ -143,11 +145,19 @@ func initializeSharedComponents() *SharedComponents {
 
 	jobStore := storage.NewPostgresStorage(db)
 
+	// Initialize metrics
+	var metricsManager *metrics.Manager
+	if appConfig.Metrics.Enabled {
+		metricsManager = metrics.NewManager()
+		metricsManager.Register()
+	}
+
 	// Build scheduler
 	sch, err := scheduler.NewSchedulerBuilder(logger.WithGroup("scheduler")).
 		WithStore(s).
 		WithJobStore(jobStore).
 		WithLogManager(fileLogManager).
+		WithMetrics(metricsManager).
 		WithWorkerCount(appConfig.Scheduler.WorkerCount).
 		WithCronSyncInterval(appConfig.Scheduler.CronSyncInterval).
 		Build()
@@ -171,12 +181,13 @@ func initializeSharedComponents() *SharedComponents {
 		DB:        db,
 		Core:      co,
 		Scheduler: sch,
+		Metrics:   metricsManager,
 		Logger:    logger,
 		Keeper:    keeper,
 	}
 }
 
-func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
+func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, logger *slog.Logger) {
 	h, err := handlers.NewHandler(logger, db.DB, co, appConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -185,6 +196,10 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 	e := echo.New()
 	e.Use(middleware.Recover())
 
+	if metricsManager != nil {
+		e.Use(metricsManager.HTTPMetricsMiddleware())
+	}
+
 	e.GET("/ping", h.HandlePing)
 	e.POST("/login", h.HandleLoginPage)
 	e.POST("/logout", h.HandleLogout)
@@ -192,6 +207,14 @@ func startServer(db *sqlx.DB, co *core.Core, logger *slog.Logger) {
 
 	e.GET("/login/oidc", h.HandleOIDCLogin)
 	e.GET("/auth/callback", h.HandleAuthCallback)
+
+	if metricsManager != nil {
+		metricsPath := appConfig.Metrics.Path
+		if metricsPath == "" {
+			metricsPath = "/metrics"
+		}
+		e.GET(metricsPath, echo.WrapHandler(metricsManager.GetHandler()))
+	}
 
 	e.Logger.SetLevel(0)
 
