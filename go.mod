@@ -26,6 +26,7 @@ require (
 	github.com/memwey/casbin-sqlx-adapter v0.3.0
 	github.com/nxadm/tail v1.4.11
 	github.com/pkg/sftp v1.13.9
+	github.com/prometheus/client_golang v1.23.2
 	github.com/quic-go/quic-go v0.54.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.6.0
@@ -85,7 +86,6 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect

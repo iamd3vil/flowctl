@@ -230,7 +230,14 @@ func (s *Scheduler) CancelTask(ctx context.Context, execID string) error {
 		delete(s.cancelFuncs, execID)
 	}
 	s.cancelMu.Unlock()
-	return s.jobStore.CancelByExecID(ctx, execID)
+
+	go func() {
+		if err := s.jobStore.CancelByExecID(context.Background(), execID); err != nil {
+			s.logger.Error("error cancelling exec", "exec_id", execID, "error", err)
+		}
+	}()
+
+	return nil
 }
 
 // processLoop runs the main processing loop

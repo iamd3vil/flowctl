@@ -84,7 +84,27 @@ func (d *LocalLinuxDriver) Exec(ctx context.Context, command string, workingDir 
 	cmd.Env = env
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
-	return cmd.Run()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Kill the entire process to quickly terminate
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+
+		return ctx.Err()
+	case err := <-done:
+		return err
+	}
 }
 
 func (d *LocalLinuxDriver) Dial(network, address string) (net.Conn, error) {
