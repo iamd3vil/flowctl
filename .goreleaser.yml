@@ -21,7 +21,6 @@ builds:
       - darwin
     goarch:
       - amd64
-      - "386"
       - arm
       - arm64
     goarm:
@@ -82,19 +81,6 @@ dockers:
     goarch: arm
     goarm: "7"
 
-  - image_templates:
-      - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-386"
-    use: buildx
-    dockerfile: Dockerfile.goreleaser
-    build_flag_templates:
-      - "--platform=linux/386"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    goos: linux
-    goarch: "386"
-
 docker_manifests:
   - name_template: "ghcr.io/cvhariharan/flowctl:{{ .Version }}"
     image_templates:
@@ -111,7 +97,7 @@ docker_manifests:
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-386"
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 snapshot:
   version_template: "{{ incpatch .Version }}-alpha"
@@ -120,8 +106,8 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - '^chore:'
-      - '^wip:'
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^wip:"
