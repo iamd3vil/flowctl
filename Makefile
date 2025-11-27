@@ -20,7 +20,7 @@ dev-docker: dev/docker-compose.yaml
 build-site: site/build
 
 site/build: $(SITE_SRC) site/node_modules
-	cd site && npm run build
+	cd site && VITE_VERSION=$(VERSION) VITE_COMMIT=$(COMMIT) VITE_DATE=$(DATE) npm run build
 
 site/node_modules: site/package.json site/package-lock.json
 	cd site && npm install

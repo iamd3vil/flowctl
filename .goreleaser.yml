@@ -4,7 +4,7 @@ before:
   hooks:
     - go mod tidy
     - sh -c "cd site && npm install"
-    - sh -c "cd site && npm run build"
+    - sh -c "cd site && VITE_VERSION={{.Version}} VITE_COMMIT={{.ShortCommit}} VITE_DATE={{.Date}} npm run build"
 
 builds:
   - main: .

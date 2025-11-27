@@ -26,6 +26,7 @@
     } from "@tabler/icons-svelte";
     import UserDropdown from "./UserDropdown.svelte";
     import Logo from "./Logo.svelte";
+    import { APP_VERSION, APP_COMMIT } from "$lib/constants";
 
     let { namespace }: { namespace: string } = $props();
 
@@ -266,11 +267,12 @@
 >
     <!-- Logo -->
     <a href="/">
-        <div class="px-6 py-6 flex justify-center">
+        <div class="px-6 py-6 flex flex-col items-center">
             {#if isCollapsed}
                 <Logo height="h-6" iconOnly={true} />
             {:else}
                 <Logo height="h-8" />
+                <div class="text-xs text-gray-400 mt-1">{APP_VERSION}-{APP_COMMIT}</div>
             {/if}
         </div>
     </a>
@@ -587,11 +589,7 @@
             {#if isCollapsed}
                 <IconChevronsRight size={20} aria-hidden="true" />
             {:else}
-                <IconChevronsLeft
-                    class="mr-3"
-                    size={20}
-                    aria-hidden="true"
-                />
+                <IconChevronsLeft class="mr-3" size={20} aria-hidden="true" />
                 Collapse
             {/if}
         </button>
