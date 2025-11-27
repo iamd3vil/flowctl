@@ -87,14 +87,12 @@ docker_manifests:
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-amd64"
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-arm64"
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-armv7"
-      - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-386"
 
   - name_template: "ghcr.io/cvhariharan/flowctl:latest"
     image_templates:
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-amd64"
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-arm64"
       - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-armv7"
-      - "ghcr.io/cvhariharan/flowctl:{{ .Version }}-386"
 
 checksum:
   name_template: "checksums.txt"
