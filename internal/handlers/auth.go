@@ -21,7 +21,7 @@ const (
 	SessionTimeout     = 2 * time.Hour
 	RedirectPath       = "/auth/callback"
 	LoginPath          = "/login"
-	RedirectAfterLogin = "/view/default/flows"
+	RedirectAfterLogin = "/"
 )
 
 func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {

@@ -1,24 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { apiClient } from '$lib/apiClient';
-  import { currentUser, isAuthenticated, isLoading } from '$lib/stores/auth';
-  
+  import { isAuthenticated, isLoading } from '$lib/stores/auth';
+  import { getDefaultNamespace } from '$lib/utils/navigation';
+
   onMount(async () => {
-    // Wait for auth to load
     if ($isLoading) {
-      // Wait a bit for the auth store to be populated
       await new Promise(resolve => setTimeout(resolve, 100));
     }
-    
+
     if (!$isAuthenticated) {
       goto('/login');
       return;
     }
-    
+
     try {
-      goto(`/view/default/flows`);
-    } catch (error) {
+      const namespace = await getDefaultNamespace();
+      goto(`/view/${namespace}/flows`);
+    } catch {
       goto('/login');
     }
   });

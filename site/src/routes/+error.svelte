@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { isAuthenticated } from '$lib/stores/auth';
+  import { getDefaultNamespace } from '$lib/utils/navigation';
   import {
     IconLock,
     IconShieldX,
@@ -14,8 +15,7 @@
   const error = page.error;
   const status = page.status;
   const errorCode = error?.code;
-  
-  // Get error details based on status and code
+
   const getErrorDetails = () => {
     if (status === 401) {
       return {
@@ -27,7 +27,7 @@
         showLoginButton: true
       };
     }
-    
+
     if (status === 403) {
       return {
         IconComponent: IconShieldX,
@@ -38,7 +38,7 @@
         showLoginButton: false
       };
     }
-    
+
     if (status === 404) {
       return {
         IconComponent: IconFileX,
@@ -49,8 +49,7 @@
         showLoginButton: false
       };
     }
-    
-    // Default error
+
     return {
       IconComponent: IconAlertTriangle,
       iconColor: 'text-danger-600',
@@ -63,9 +62,10 @@
 
   const errorDetails = getErrorDetails();
 
-  const handleGoHome = () => {
+  const handleGoHome = async () => {
     if ($isAuthenticated) {
-      goto('/view/default/flows');
+      const namespace = await getDefaultNamespace();
+      goto(`/view/${namespace}/flows`);
     } else {
       goto('/');
     }
