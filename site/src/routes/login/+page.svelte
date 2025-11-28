@@ -1,6 +1,7 @@
 <script lang="ts">
   import { apiClient } from '$lib/apiClient';
   import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/stores';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import Logo from '$lib/components/shared/Logo.svelte';
   import LoginCard from '$lib/components/login/LoginCard.svelte';
@@ -10,6 +11,8 @@
   let password = $state('');
   let loading = $state(false);
   let error = $state('');
+
+  const redirectUrl = $derived($page.url.searchParams.get('redirect_url'));
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -22,7 +25,8 @@
     try {
       await apiClient.auth.login({ username, password });
       await invalidateAll();
-      goto('/view/default/flows');
+      const targetUrl = redirectUrl && redirectUrl.startsWith('/') ? redirectUrl : '/view/default/flows';
+      goto(targetUrl);
     } catch (err) {
       handleInlineError(err, 'Unable to Sign In');
     } finally {
@@ -48,6 +52,7 @@
       {error}
       bind:username
       bind:password
+      {redirectUrl}
     />
     <Footer />
   </section>

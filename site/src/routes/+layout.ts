@@ -20,10 +20,11 @@ export const load: LayoutLoad = async ({ url }) => {
     const user = await apiClient.users.getProfile();
     return { user };
   } catch (error) {
+    const redirectUrl = encodeURIComponent(url.pathname + url.search);
     if (error instanceof Error && 'status' in error && error.status === 401) {
-      throw redirect(302, '/login');
+      throw redirect(302, `/login?redirect_url=${redirectUrl}`);
     }
     console.error('Failed to fetch user profile:', error);
-    throw redirect(302, '/login');
+    throw redirect(302, `/login?redirect_url=${redirectUrl}`);
   }
 };

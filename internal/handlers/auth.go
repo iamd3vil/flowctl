@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -118,8 +119,8 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 	sess.Set("user", user.ToUserInfo())
 
 	redirectAfterLogin := RedirectAfterLogin
-	if redirect, _ := sess.String(sess.Get("redirect_after_login")); redirect != "" {
-		redirectAfterLogin = redirect
+	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && strings.HasPrefix(redirectURL, "/") {
+		redirectAfterLogin = redirectURL
 	}
 
 	c.Response().Header().Set("x-redirect", redirectAfterLogin)
@@ -146,6 +147,10 @@ func (h *Handler) HandleOIDCLogin(c echo.Context) error {
 	}
 
 	sess.Set("state", state)
+
+	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && strings.HasPrefix(redirectURL, "/") {
+		sess.Set("redirect_url", redirectURL)
+	}
 
 	authURL := h.authconfig.oauth2Config.AuthCodeURL(state)
 	return c.Redirect(http.StatusTemporaryRedirect, authURL)
@@ -210,34 +215,15 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 
 	sess.Set("user", user.ToUserInfo())
 
-	redirectURL, err := sess.Get("redirect_after_login")
-	if err != nil || redirectURL == nil {
-		redirectURL = RedirectAfterLogin
+	redirectAfterLogin := RedirectAfterLogin
+	if redirectURL, err := sess.Get("redirect_url"); err == nil && redirectURL != nil {
+		if url, ok := redirectURL.(string); ok && strings.HasPrefix(url, "/") {
+			redirectAfterLogin = url
+		}
 	}
 
-	return c.Redirect(http.StatusTemporaryRedirect, redirectURL.(string))
+	return c.Redirect(http.StatusTemporaryRedirect, redirectAfterLogin)
 }
-
-// func (h *Handler) handleUnauthenticated(c echo.Context) error {
-// 	sess, err := h.sessMgr.Acquire(nil, c, c)
-
-// 	if err == simplesessions.ErrInvalidSession {
-// 		sess, err = h.sessMgr.NewSession(c, c)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	sess.Set("redirect_after_login", c.Request().URL.String())
-
-// 	// For API requests, return 401
-// 	if strings.HasPrefix(c.Request().URL.Path, "/api/") {
-// 		return wrapError(ErrAuthenticationFailed, "authentication required", nil, nil)
-// 	}
-
-// 	// For web requests, redirect to login page
-// 	return c.Redirect(http.StatusTemporaryRedirect, LoginPath)
-// }
 
 func (h *Handler) HandleLogout(c echo.Context) error {
 	sess, err := h.sessMgr.Acquire(nil, c, c)

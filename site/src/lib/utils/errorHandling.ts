@@ -23,23 +23,24 @@ export function handleError(err: unknown, options: ErrorHandlingOptions = {}) {
 
   if (err instanceof ApiError) {
     const { status, data } = err;
-    
-    // Handle authentication errors - redirect to login
+
     if (status === 401 && redirectOnAuth) {
-      goto('/login');
+      const currentPath = window.location.pathname + window.location.search;
+      const redirectUrl = encodeURIComponent(currentPath);
+      goto(`/login?redirect_url=${redirectUrl}`);
       return;
     }
-    
+
     // Show notification using API response data
     if (showNotification && data) {
       const title = customTitle || formatErrorCode(data.code) || 'Error';
       const message = formatErrorMessage(data);
-      
+
       notifications.error(title, message, {
         duration: isValidationError(data.code) ? 8000 : 5000
       });
     }
-    
+
     // Optionally throw SvelteKit error (for load functions)
     if (throwError) {
       throw error(status, {
@@ -48,20 +49,20 @@ export function handleError(err: unknown, options: ErrorHandlingOptions = {}) {
         details: data?.details
       });
     }
-    
+
     return;
   }
-  
+
   // Handle unknown errors
   console.error('Unknown error:', err);
-  
+
   if (showNotification) {
     notifications.error(
       customTitle || 'Unexpected Error',
       'An unexpected error occurred'
     );
   }
-  
+
   if (throwError) {
     throw error(500, {
       message: 'An unexpected error occurred',
@@ -76,7 +77,7 @@ export function handleError(err: unknown, options: ErrorHandlingOptions = {}) {
  */
 function formatErrorCode(code?: string): string | undefined {
   if (!code) return undefined;
-  
+
   return code
     .toLowerCase()
     .split('_')
@@ -92,7 +93,7 @@ function formatErrorMessage(data: { error: string; details?: any }): string {
   if (data.details && data.details.field && data.details.error) {
     return `${data.details.field}: ${data.details.error}`;
   }
-  
+
   return data.error;
 }
 
@@ -100,8 +101,8 @@ function formatErrorMessage(data: { error: string; details?: any }): string {
  * Check if error code is a validation error that should show longer
  */
 function isValidationError(code?: string): boolean {
-  return code === 'VALIDATION_FAILED' || 
-         code === 'REQUIRED_FIELD_MISSING' || 
+  return code === 'VALIDATION_FAILED' ||
+         code === 'REQUIRED_FIELD_MISSING' ||
          code === 'INVALID_INPUT';
 }
 

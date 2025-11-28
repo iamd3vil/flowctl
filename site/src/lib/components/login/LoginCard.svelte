@@ -9,13 +9,15 @@
     error,
     loading,
     username = $bindable(''),
-    password = $bindable('')
+    password = $bindable(''),
+    redirectUrl = null
   }: {
     onSubmit: (event: SubmitEvent) => void,
     error: string,
     loading: boolean,
     username: string,
-    password: string
+    password: string,
+    redirectUrl: string | null
   } = $props();
 
   let ssoProviders: SSOProvider[] = $state([]);
@@ -92,7 +94,7 @@
 
     {#each ssoProviders as provider}
       <a
-        href="/login/oidc"
+        href={redirectUrl ? `/login/oidc?redirect_url=${encodeURIComponent(redirectUrl)}` : '/login/oidc'}
         class="block w-full px-4 py-2 text-sm font-medium text-center rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
         aria-label={provider.label}
       >
