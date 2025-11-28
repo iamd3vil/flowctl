@@ -1,5 +1,6 @@
 <script lang="ts" generics="T">
     import type { TableColumn, TableAction } from "$lib/types";
+    import type { ComponentType } from "svelte";
 
     type SortDirection = "asc" | "desc" | null;
 
@@ -11,6 +12,8 @@
         loading?: boolean;
         emptyMessage?: string;
         emptyIcon?: string;
+        EmptyIconComponent?: ComponentType;
+        emptyIconSize?: number;
         title?: string;
         subtitle?: string;
     };
@@ -23,6 +26,8 @@
         loading = false,
         emptyMessage = "No data available",
         emptyIcon,
+        EmptyIconComponent,
+        emptyIconSize = 64,
         title,
         subtitle,
     }: Props = $props();
@@ -147,7 +152,11 @@
         </div>
     {:else if data.length === 0}
         <div class="flex flex-col items-center justify-center h-64 text-center">
-            {#if emptyIcon}
+            {#if EmptyIconComponent}
+                <div class="text-gray-400 mb-4">
+                    <EmptyIconComponent size={emptyIconSize} />
+                </div>
+            {:else if emptyIcon}
                 {@html emptyIcon}
             {:else}
                 <svg

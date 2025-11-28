@@ -15,6 +15,7 @@
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import type { TableAction } from '$lib/types';
 	import { formatDateTime } from '$lib/utils';
+	import { IconUsers } from '@tabler/icons-svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -196,6 +197,8 @@
 			actions={tableActions()}
 			{loading}
 			emptyMessage="No members found. Get started by adding users or groups to this namespace."
+			EmptyIconComponent={IconUsers}
+			emptyIconSize={64}
 		/>
 	</div>
 </div>

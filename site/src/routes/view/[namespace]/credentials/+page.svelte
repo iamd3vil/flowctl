@@ -14,7 +14,7 @@
     import { DEFAULT_PAGE_SIZE } from "$lib/constants";
     import Header from "$lib/components/shared/Header.svelte";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
-    import { IconPlus } from "@tabler/icons-svelte";
+    import { IconPlus, IconKey } from "@tabler/icons-svelte";
     import { formatDateTime } from "$lib/utils";
 
     let { data }: { data: PageData } = $props();
@@ -300,6 +300,8 @@
             actions={tableActions()}
             {loading}
             emptyMessage="No credentials found. Get started by adding your first credential."
+            EmptyIconComponent={IconKey}
+            emptyIconSize={64}
         />
     </div>
 

@@ -284,6 +284,8 @@
 			actions={tableActions}
 			{loading}
 			emptyMessage="No nodes found. Get started by adding your first node."
+			EmptyIconComponent={IconServer}
+			emptyIconSize={64}
 		/>
 	</div>
 
