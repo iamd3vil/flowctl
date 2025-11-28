@@ -4,7 +4,7 @@
   import UserGroupSelector from '$lib/components/shared/UserGroupSelector.svelte';
   import type { NamespaceMemberReq, NamespaceMemberResp, User, Group } from '$lib/types';
   import { IconUsers, IconUser } from '@tabler/icons-svelte';
-  
+
   interface Props {
     isEditMode?: boolean;
     memberData?: NamespaceMemberResp | null;
@@ -26,7 +26,7 @@
     subject_id: '',
     role: 'user'
   });
-  
+
   let selectedSubject = $state<User | Group | null>(null);
   let loading = $state(false);
 
@@ -62,18 +62,18 @@
   async function handleSubmit() {
     try {
       loading = true;
-      
+
       // Basic client-side validation
       if (!selectedSubject) {
         handleInlineError(new Error('Please select a member'), 'Validation Error');
         return;
       }
-      
+
       if (!memberForm.role) {
         handleInlineError(new Error('Please select a role'), 'Validation Error');
         return;
       }
-      
+
       onSave(memberForm);
     } catch (err) {
       handleInlineError(err, isEditMode ? 'Unable to Update Member Role' : 'Unable to Add Member to Namespace');
@@ -113,7 +113,7 @@
         <h3 class="font-bold text-lg mb-4 text-gray-900">
           {isEditMode ? 'Edit Member' : 'Add Member'}
         </h3>
-        
+
 
         <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <!-- Subject Type Selection -->
@@ -159,7 +159,7 @@
               </div>
               <p class="text-xs text-gray-500 mt-1">Member cannot be changed when editing.</p>
             {:else}
-              <UserGroupSelector 
+              <UserGroupSelector
                 bind:type={memberForm.subject_type}
                 bind:selectedSubject={selectedSubject}
                 placeholder="Search {memberForm.subject_type}s..."
@@ -204,7 +204,7 @@
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               {/if}
-              {isEditMode ? 'Update Member' : 'Add Member'}
+              {isEditMode ? 'Update' : 'Add'}
             </button>
           </div>
         </form>
