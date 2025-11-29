@@ -276,4 +276,13 @@
   .resize-handle:hover .resize-handle-line {
     background: #6b7280;
   }
+
+  /* Ensure CodeMirror editor fills the container */
+  :global(.code-editor-wrapper .cm-editor) {
+    height: 100%;
+  }
+
+  :global(.code-editor-wrapper .cm-scroller) {
+    overflow: auto;
+  }
 </style>
