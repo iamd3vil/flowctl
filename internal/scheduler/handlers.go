@@ -179,7 +179,7 @@ func (s *Scheduler) executeSingleAction(ctx context.Context, action Action, srcD
 }
 
 // processActionResults processes action results and updates the outputs map
-func processActionResults(results map[string]string, outputs map[string]interface{}) {
+func processActionResults(results map[string]string, outputs map[string]any) {
 	for k, v := range results {
 		parts := strings.SplitN(k, "@", 2)
 		// node suffixed output
@@ -188,9 +188,9 @@ func processActionResults(results map[string]string, outputs map[string]interfac
 			nodeName := parts[1]
 
 			if _, exists := outputs[nodeName]; !exists {
-				outputs[nodeName] = make(map[string]interface{})
+				outputs[nodeName] = make(map[string]any)
 			}
-			outputs[nodeName].(map[string]interface{})[keyName] = v
+			outputs[nodeName].(map[string]any)[keyName] = v
 		} else {
 			outputs[k] = v
 		}
@@ -198,7 +198,7 @@ func processActionResults(results map[string]string, outputs map[string]interfac
 }
 
 // executeOnNode executes an action on a single node and returns the results
-func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]interface{}, withConfig []byte, artifactDir string) ExecResults {
+func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string) ExecResults {
 	nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
 
 	// Create a separate executor instance for each node
@@ -305,17 +305,18 @@ func prefixResultKeys(results map[string]string, nodeName string) map[string]str
 }
 
 // interpolateVariables processes action variables and replaces templated values with evaluated expressions
-func (s *Scheduler) interpolateVariables(action Action, input map[string]interface{}, secrets map[string]string, outputs map[string]interface{}) (map[string]interface{}, error) {
+func (s *Scheduler) interpolateVariables(action Action, input map[string]any, secrets map[string]string, outputs map[string]any) (map[string]any, error) {
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
 
-	inputVars := make(map[string]interface{})
+	inputVars := make(map[string]any)
 	for _, variable := range action.Variables {
 		matches := re.FindAllStringSubmatch(variable.Value(), -1)
 		if len(matches) > 0 {
+			// Interpolated variable, needs evaluation
 			inputExpr := matches[0][1]
-			env := map[string]interface{}{
+			env := map[string]any{
 				"inputs":  input,
 				"secrets": secrets,
 				"outputs": outputs,
@@ -332,6 +333,9 @@ func (s *Scheduler) interpolateVariables(action Action, input map[string]interfa
 			}
 
 			inputVars[variable.Name()] = output
+		} else {
+			// Normal variable, no evaluation
+			inputVars[variable.Name()] = variable.Value()
 		}
 	}
 
@@ -339,7 +343,7 @@ func (s *Scheduler) interpolateVariables(action Action, input map[string]interfa
 }
 
 // runAction executes a single action
-func (s *Scheduler) runAction(ctx context.Context, execID string, action Action, srcdir string, input map[string]interface{}, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]interface{}) (map[string]string, error) {
+func (s *Scheduler) runAction(ctx context.Context, execID string, action Action, srcdir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any) (map[string]string, error) {
 	streamLogger.SetActionID(action.ID)
 
 	jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
