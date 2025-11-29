@@ -7,10 +7,14 @@
 <div align="center">
     <picture>
         <source srcset="./docs/site/static/images/full-logo.svg" media="(prefers-color-scheme: light)">
-        <img src="./docs/site/static/images/full-logo-light.svg">
+        <img src="./docs/site/static/images/full-logo-light.svg" width="250">
     </picture>
 </div>
-<h3 align="center">An open-source self-service workflow execution platform</h3>
+<h4 align="center">An open-source self-service workflow execution platform</h4>
+
+<div align="center">
+    <a href="https://flowctl.net"><img src="./docs/site/static/images/flows.png" width="650"></a>
+</div>
 
 ## Features
 
