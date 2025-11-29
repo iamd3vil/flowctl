@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -108,7 +107,7 @@ func initializeSharedComponents() *SharedComponents {
 	})
 	go fileLogManager.Run(context.Background(), logger.WithGroup("file_log_manager"))
 
-	dbConnectionString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", appConfig.DB.User, appConfig.DB.Password, appConfig.DB.Host, appConfig.DB.Port, appConfig.DB.DBName)
+	dbConnectionString := appConfig.DB.ConnectionString()
 	db, err := sqlx.Connect("postgres", dbConnectionString)
 	if err != nil {
 		log.Fatalf("could not connect to database: %v", err)

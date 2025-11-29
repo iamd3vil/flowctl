@@ -79,6 +79,20 @@ password = "flowctl"
 user = "flowctl"
 # (required) Postgres port
 port = 5432
+# (optional) Default is disable
+sslmode = ""
+# (optional) SSL config
+# path to ssl cert
+sslcert = ""
+# path to key
+sslkey = ""
+# path to root CA
+sslrootcert = ""
+
+# Optionally you can also set the entire postgres DSN
+# If set, this will override other DB config
+# dsn = "postgres://user:password@127.0.0.1:5432/flowctl?sslmode=disable"
+dsn = ""
 
 # Prometheus metrics
 [metrics]

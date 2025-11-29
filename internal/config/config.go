@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -32,11 +33,53 @@ type Metrics struct {
 }
 
 type DBConfig struct {
-	DBName   string `koanf:"dbname"`
-	User     string `koanf:"user"`
-	Password string `koanf:"password"`
-	Host     string `koanf:"host"`
-	Port     int    `koanf:"port"`
+	DSN        string `koanf:"dsn"`
+	DBName     string `koanf:"dbname"`
+	User       string `koanf:"user"`
+	Password   string `koanf:"password"`
+	Host       string `koanf:"host"`
+	Port       int    `koanf:"port"`
+	SSLMode    string `koanf:"sslmode"`
+	SSLCert    string `koanf:"sslcert"`
+	SSLKey     string `koanf:"sslkey"`
+	SSLRootCert string `koanf:"sslrootcert"`
+}
+
+// ConnectionString returns the database connection string.
+// If DSN is set, it returns the DSN directly else it builds a URL.
+func (db DBConfig) ConnectionString() string {
+	if db.DSN != "" {
+		return db.DSN
+	}
+
+	userInfo := url.UserPassword(db.User, db.Password)
+	dbURL := &url.URL{
+		Scheme: "postgres",
+		User:   userInfo,
+		Host:   fmt.Sprintf("%s:%d", db.Host, db.Port),
+		Path:   db.DBName,
+	}
+
+	query := dbURL.Query()
+	sslMode := db.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	query.Add("sslmode", sslMode)
+
+	if db.SSLCert != "" {
+		query.Add("sslcert", db.SSLCert)
+	}
+	if db.SSLKey != "" {
+		query.Add("sslkey", db.SSLKey)
+	}
+	if db.SSLRootCert != "" {
+		query.Add("sslrootcert", db.SSLRootCert)
+	}
+
+	dbURL.RawQuery = query.Encode()
+
+	return dbURL.String()
 }
 
 type SchedulerConfig struct {
@@ -111,36 +154,20 @@ func Load(configPath string) (Config, error) {
 	return config, nil
 }
 
-// WriteConfigFile writes the current configuration to a TOML file
-// func WriteConfigFile(filename string) error {
-// 	k := koanf.New(".")
-
-// 	defaultConfig := getDefaultConfig()
-// 	if err := k.Load(structs.Provider(defaultConfig, "koanf"), nil); err != nil {
-// 		return fmt.Errorf("error loading default config: %w", err)
-// 	}
-
-// 	data, err := k.Marshal(toml.Parser())
-// 	if err != nil {
-// 		return fmt.Errorf("error marshaling config: %w", err)
-// 	}
-
-// 	if err := os.WriteFile(filename, data, 0644); err != nil {
-// 		return fmt.Errorf("error writing config file: %w", err)
-// 	}
-
-// 	return nil
-// }
-
 // GetDefaultConfig returns the default configuration values
 func GetDefaultConfig() Config {
 	return Config{
 		DB: DBConfig{
-			DBName:   "flowctl",
-			User:     "flowctl",
-			Password: "flowctl",
-			Host:     "127.0.0.1",
-			Port:     5432,
+			DSN:         "",
+			DBName:      "flowctl",
+			User:        "flowctl",
+			Password:    "flowctl",
+			Host:        "127.0.0.1",
+			Port:        5432,
+			SSLMode:     "disable",
+			SSLCert:     "",
+			SSLKey:      "",
+			SSLRootCert: "",
 		},
 		App: AppConfig{
 			AdminUsername:   "flowctl_admin",
