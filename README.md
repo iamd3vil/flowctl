@@ -15,6 +15,12 @@
 <div align="center">
     <a href="https://flowctl.net"><img src="./docs/site/static/images/flows.png" width="650"></a>
 </div>
+<br/>
+  
+
+Flowctl is a self-service platform that gives users secure access to complex workflows, all in a single binary. These workflows could be anything, granting SSH access to an instance, provisioning infra, or custom business process automation. The executor paradigm in flowctl makes it domain-agnostic.  
+
+Check out the [demo](https://demo.flowctl.net) to see it in action.
 
 ## Features
 
