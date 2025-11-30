@@ -306,6 +306,8 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	// Serve static assets from embedded FS
 	e.GET("/_app/*", echo.WrapHandler(http.FileServer(http.FS(buildFS))))
 	e.GET("/robots.txt", echo.WrapHandler(http.StripPrefix("/", http.FileServer(http.FS(buildFS)))))
+	e.GET("/fonts.css", echo.WrapHandler(http.StripPrefix("/", http.FileServer(http.FS(buildFS)))))
+	e.GET("/fonts/*", echo.WrapHandler(http.StripPrefix("/", http.FileServer(http.FS(buildFS)))))
 
 	// SPA fallback - serve index.html for all other routes
 	e.GET("/*", func(c echo.Context) error {

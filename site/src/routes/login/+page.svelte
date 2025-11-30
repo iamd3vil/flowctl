@@ -43,7 +43,6 @@
 
 <svelte:head>
   <title>Login - Flowctl</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 </svelte:head>
 
 <main class="min-h-screen flex items-center justify-center bg-slate-50 px-4">
