@@ -84,17 +84,23 @@ The `config.toml` file controls all aspects of flowctl's behavior. Here's a comp
   dbname = "flowctl"
   user = "flowctl"
   password = "flowctl"
+  sslmode = ""
+  sslcert = ""
+  sslkey = ""
+  sslrootcert = ""
 ```
 
 - **`host`**: PostgreSQL server hostname or IP address
 - **`port`**: PostgreSQL server port (default: `5432`)
 - **`dbname`**: Name of the database to use
 - **`user`** / **`password`**: Database authentication credentials
+- **`sslmode`**: (optional) Postgres SSL mode (`disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`). Default - `disable`
+- **`sslcert`/`sslkey`/`sslrootcert`**: Path to ssl cert, key and root cert respectively
 
 ### Keystore Configuration
 
 ```toml
-[app.keystore]
+[keystore]
   keeper_url = "base64key://..."
 ```
 
@@ -109,7 +115,7 @@ This uses the [gocloud](https://gocloud.dev/howto/secrets/) package which suppor
 ### Scheduler Settings
 
 ```toml
-[app.scheduler]
+[scheduler]
   workers = 20
   cron_sync_interval = "5m0s"
 ```
@@ -120,7 +126,7 @@ This uses the [gocloud](https://gocloud.dev/howto/secrets/) package which suppor
 ### Logger Configuration
 
 ```toml
-[app.logger]
+[logger]
   log_directory = "/var/log/flowctl"
   max_size_bytes = 0
   retention_time = 0
@@ -135,7 +141,7 @@ This uses the [gocloud](https://gocloud.dev/howto/secrets/) package which suppor
 ### OIDC Authentication
 
 ```toml
-[app.oidc]
+[oidc]
   client_id = "your-client-id"
   client_secret = "your-client-secret"
   issuer = "https://your-oidc-provider.com/"
@@ -151,6 +157,15 @@ Configure OpenID Connect for single sign-on:
 - **`client_id`**: OAuth2 client ID from your OIDC provider
 - **`client_secret`**: OAuth2 client secret
 - **`issuer`**: OIDC provider's issuer URL
+
+### Metrics
+```toml
+enabled = true
+path = "/metrics"
+```
+Export Prometheus metrics
+- **`enabled`**: (default: `false`) Enable or disable metrics export
+- **`path`**: (default: `/metrics`) URL path where metrics will be exposed
 
 ## Next Steps
 
