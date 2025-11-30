@@ -310,6 +310,8 @@ func (s *Scheduler) interpolateVariables(action Action, input map[string]any, se
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
 
+	s.logger.Debug("scheduler variables", "input", input)
+
 	inputVars := make(map[string]any)
 	for _, variable := range action.Variables {
 		matches := re.FindAllStringSubmatch(variable.Value(), -1)
@@ -332,7 +334,10 @@ func (s *Scheduler) interpolateVariables(action Action, input map[string]any, se
 				return nil, fmt.Errorf("failed to run expression: %w", err)
 			}
 
-			inputVars[variable.Name()] = output
+			inputVars[variable.Name()] = ""
+			if output != nil {
+				inputVars[variable.Name()] = output
+			}
 		} else {
 			// Normal variable, no evaluation
 			inputVars[variable.Name()] = variable.Value()
