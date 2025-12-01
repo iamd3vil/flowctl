@@ -88,12 +88,12 @@
 		{
 			label: 'Edit',
 			onClick: (node: NodeResp) => handleEdit(node.id),
-			className: 'text-primary-600 hover:text-primary-800'
+			className: 'text-primary-600 border-primary-600 hover:bg-primary-50'
 		},
 		{
 			label: 'Delete',
 			onClick: (node: NodeResp) => handleDelete(node.id),
-			className: 'text-danger-600 hover:text-danger-800'
+			className: 'text-danger-600 border-danger-600 hover:bg-danger-50'
 		}
 	];
 

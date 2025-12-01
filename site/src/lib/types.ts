@@ -442,7 +442,8 @@ export interface TableColumn<T = any> {
 
 export interface TableAction<T = any> {
   label: string;
-  onClick: (row: T, event?: Event) => void;
+  onClick?: (row: T, event?: Event) => void;
+  href?: (row: T) => string;
   className?: string;
 }
 

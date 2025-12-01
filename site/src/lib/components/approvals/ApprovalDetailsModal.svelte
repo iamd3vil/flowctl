@@ -200,7 +200,7 @@
                                 <div>
                                     <span class="block text-sm font-medium text-gray-700 mb-1">Execution ID</span>
                                     <a href="/view/{namespace}/results/{approval.flow_id}/{approval.exec_id}">
-                                        <span class="font-mono underline text-sm text-blue-600 hover:text-blue-800">{approval.exec_id}</span>
+                                        <span class="font-mono hover:underline text-sm text-blue-600 hover:text-blue-800">{approval.exec_id}</span>
                                     </a>
                                 </div>
                                 <div>

@@ -133,8 +133,10 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
             </svg>
           </div>
-          <div class="ml-4 transition-colors" onclick="document.dispatchEvent(new CustomEvent('viewFlow', {detail: {slug: '${row.slug}'}}))">
-            <div class="text-sm cursor-pointer hover:text-primary-600 font-medium text-gray-900">${value}</div>
+          <div class="ml-4">
+            <a href="/view/${page.params.namespace}/flows/${row.slug}" class="text-sm hover:text-primary-600 hover:underline font-medium text-gray-900">
+              ${value}
+            </a>
           </div>
         </div>
       `,
@@ -181,19 +183,12 @@
     const actions = $derived(() => {
         const actionsList: TableAction<FlowListItem>[] = [];
 
-        actionsList.push({
-            label: "View",
-            onClick: (row: FlowListItem) => goToFlow(row.slug),
-            className:
-                "text-primary-600 hover:text-primary-700 transition-colors cursor-pointer",
-        });
-
         if (permissions.canUpdate) {
             actionsList.push({
                 label: "Edit",
                 onClick: (row: FlowListItem) => goToEditFlow(row.slug),
                 className:
-                    "text-primary-600 hover:text-primary-700 transition-colors cursor-pointer",
+                    "text-primary-600 border-primary-600 hover:bg-primary-50",
             });
         }
 
@@ -202,19 +197,12 @@
                 label: "Delete",
                 onClick: (row: FlowListItem) => handleDeleteFlow(row),
                 className:
-                    "text-danger-600 hover:text-danger-700 transition-colors cursor-pointer",
+                    "text-danger-600 border-danger-600 hover:bg-danger-50 transition-colors",
             });
         }
 
         return actionsList;
     });
-
-    // Handle flow name clicks
-    if (typeof document !== "undefined") {
-        document.addEventListener("viewFlow", ((event: CustomEvent) => {
-            goToFlow(event.detail.slug);
-        }) as EventListener);
-    }
 </script>
 
 <svelte:head>

@@ -68,15 +68,15 @@
 			actionsList.push({
 				label: 'Edit',
 				onClick: (member: NamespaceMemberResp) => handleEdit(member),
-				className: 'text-primary-600 hover:text-primary-800'
+				className: 'text-primary-600 border-primary-600 hover:bg-primary-50'
 			});
 		}
 
 		if (permissions.canDelete) {
 			actionsList.push({
-				label: 'Remove',
+				label: 'Delete',
 				onClick: (member: NamespaceMemberResp) => handleDelete(member.id, member.subject_name),
-				className: 'text-danger-600 hover:text-danger-800'
+				className: 'text-danger-600 border-danger-600 hover:bg-danger-50'
 			});
 		}
 

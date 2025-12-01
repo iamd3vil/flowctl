@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { FlowInput } from '$lib/types';
   import { ApiError } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
@@ -38,7 +39,7 @@
       } else {
         const data = await response.json();
         // Success - redirect to results page
-        window.location.href = `/view/${namespace}/results/${flowId}/${data.exec_id}`;
+        goto(`/view/${namespace}/results/${flowId}/${data.exec_id}`);
       }
     } catch (error) {
       handleInlineError(error, 'Unable to Start Flow');

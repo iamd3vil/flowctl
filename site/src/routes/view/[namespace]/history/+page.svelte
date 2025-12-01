@@ -33,7 +33,23 @@
 			header: 'Flow Name',
 			sortable: true,
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm font-medium text-gray-900">${execution.flow_name}</div>
+					<a href="/view/${data.namespace}/flows/${execution.flow_id}"
+					   class="text-sm hover:underline text-gray-900 hover:text-primary-600 font-medium"
+					>
+					  ${execution.flow_name}
+					</a>
+			`
+		},
+		{
+			key: 'id',
+			header: 'Exec ID',
+			render: (_value: any, execution: ExecutionSummary) => `
+     			<a
+      				href="/view/${data.namespace}/results/${execution.flow_id}/${execution.id}"
+      				class="font-mono text-primary-600 hover:text-primary-800 hover:underline text-sm"
+     			>
+                    ${execution.id.substring(0, 8)}
+				</a>
 			`
 		},
 		{
@@ -85,13 +101,6 @@
 					${execution.trigger_type}
 				</div>
 			`
-		},
-		{
-			key: 'id',
-			header: 'Exec ID',
-			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm font-mono text-gray-600">${execution.id.substring(0, 8)}</div>
-			`
 		}
 	];
 
@@ -128,16 +137,6 @@
 		fetchExecutions('', currentPage);
 	}
 
-	function viewExecution(executionId: string, flowId?: string) {
-		if (flowId) {
-			window.location.href = `/view/${data.namespace}/results/${flowId}/${executionId}`;
-		} else {
-			// Fallback to API endpoint if no flowId available
-			window.location.href = `/api/v1/${data.namespace}/flows/executions/${executionId}`;
-		}
-	}
-
-
 	function formatDuration(startedAt: string, completedAt: string): string {
 		if (!startedAt) return 'Unknown';
 		if (!completedAt) return 'Running...';
@@ -159,10 +158,6 @@
 		} else {
 			return `${seconds}s`;
 		}
-	}
-
-	function handleRowClick(execution: ExecutionSummary) {
-		viewExecution(execution.id, execution.flow_id);
 	}
 </script>
 
@@ -197,7 +192,6 @@
 			data={executions}
 			columns={tableColumns}
 			{loading}
-			onRowClick={handleRowClick}
 			emptyMessage="No execution history found. Executions will appear here once flows are triggered."
 			EmptyIconComponent={IconHistory}
 			emptyIconSize={64}

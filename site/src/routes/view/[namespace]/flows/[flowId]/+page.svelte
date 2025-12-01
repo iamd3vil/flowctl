@@ -75,15 +75,6 @@
     goToHistoryPage(event.detail.page);
   };
 
-  const viewExecution = (executionId: string) => {
-    goto(`/view/${namespace}/results/${flowId}/${executionId}`)
-  };
-
-  const handleRowClick = (execution: any) => {
-    viewExecution(execution.id);
-  };
-
-
   const formatDuration = (startedAt: string, completedAt?: string) => {
     if (!startedAt) return 'Unknown';
     if (!completedAt) return 'Running...';
@@ -117,6 +108,18 @@
   // Table configuration
   const tableColumns: TableColumn<any>[] = [
     {
+      key: 'id',
+      header: 'Exec ID',
+      render: (value) => `
+        <a
+          href="/view/${namespace}/results/${flowId}/${value}"
+          class="text-sm text-primary-600 hover:underline hover:text-primary-800 font-mono block"
+        >
+          ${value.substring(0, 8)}
+        </a>
+      `
+    },
+    {
       key: 'started_at',
       header: 'Started At',
       width: 'w-40',
@@ -146,11 +149,6 @@
           ? 'bg-primary-100 text-primary-900'
           : 'bg-success-100 text-success-900'
       }">${row.trigger_type}</div>`
-    },
-    {
-      key: 'id',
-      header: 'Exec ID',
-      render: (value) => `<div class="text-sm font-mono text-gray-600">${value.substring(0, 8)}</div>`
     }
   ];
 
@@ -206,7 +204,6 @@
       <Table
         columns={tableColumns}
         data={flowExecutions}
-        onRowClick={handleRowClick}
         loading={historyLoading}
         title="Execution History for {data.flowMeta?.meta?.name || 'Flow'}"
         subtitle="Past executions of this flow"
