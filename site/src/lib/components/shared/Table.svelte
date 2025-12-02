@@ -1,6 +1,7 @@
 <script lang="ts" generics="T">
     import type { TableColumn, TableAction } from "$lib/types";
     import type { ComponentType } from "svelte";
+    import LoadingSpinner from "./LoadingSpinner.svelte";
 
     type SortDirection = "asc" | "desc" | null;
 
@@ -144,11 +145,7 @@
             role="status"
             aria-live="polite"
         >
-            <div
-                class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"
-                aria-hidden="true"
-            ></div>
-            <span class="ml-3 text-gray-600">Loading...</span>
+            <LoadingSpinner label="Loading..." />
         </div>
     {:else if data.length === 0}
         <div class="flex flex-col items-center justify-center h-64 text-center">

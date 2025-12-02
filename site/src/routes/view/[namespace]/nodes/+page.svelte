@@ -10,23 +10,81 @@
 	import NodeModal from '$lib/components/nodes/NodeModal.svelte';
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { NodeResp, NodeReq, NodeStatsResp } from '$lib/types';
-    import { DEFAULT_PAGE_SIZE } from '$lib/constants';
-    import Header from '$lib/components/shared/Header.svelte';
+	import type { NodeResp, NodeReq, NodeStatsResp, NodesPaginateResponse, CredentialResp, CredentialsPaginateResponse } from '$lib/types';
+	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
+	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import { IconPlus, IconServer } from '@tabler/icons-svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	// State
-	let nodes = $state(data.nodes);
-	let totalCount = $state(data.totalCount);
-	let pageCount = $state(data.pageCount);
+	let nodes = $state<NodeResp[]>([]);
+	let totalCount = $state(0);
+	let pageCount = $state(0);
 	let currentPage = $state(data.currentPage);
 	let searchQuery = $state(data.searchQuery);
-	let stats = $state(data.stats);
-	let loading = $state(false);
+	let stats = $state<NodeStatsResp>({ total_hosts: 0, qssh_hosts: 0, ssh_hosts: 0 });
+	let credentials = $state<CredentialResp[]>([]);
+	let loading = $state(true);
 	let showModal = $state(false);
+
+	// Handle the async data from load function
+	$effect(() => {
+		let cancelled = false;
+
+		// Load nodes
+		data.nodesPromise
+			.then((result: NodesPaginateResponse) => {
+				if (!cancelled) {
+					nodes = result.nodes || [];
+					totalCount = result.total_count || 0;
+					pageCount = result.page_count || 1;
+					loading = false;
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					nodes = [];
+					totalCount = 0;
+					pageCount = 0;
+					handleInlineError(err, "Unable to Load Nodes");
+					loading = false;
+				}
+			});
+
+		// Load stats
+		data.statsPromise
+			.then((result: NodeStatsResp) => {
+				if (!cancelled) {
+					stats = result;
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					stats = { total_hosts: 0, qssh_hosts: 0, ssh_hosts: 0 };
+					handleInlineError(err, "Unable to Load Node Statistics");
+				}
+			});
+
+		// Load credentials
+		data.credentialsPromise
+			.then((result: CredentialsPaginateResponse) => {
+				if (!cancelled) {
+					credentials = result.credentials || [];
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					credentials = [];
+					handleInlineError(err, "Unable to Load Credentials");
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 	let isEditMode = $state(false);
 	let editingNodeId = $state<string | null>(null);
 	let editingNodeData = $state<NodeResp | null>(null);
@@ -304,7 +362,7 @@
 	<NodeModal
 		{isEditMode}
 		nodeData={editingNodeData}
-		credentials={data.credentials}
+		{credentials}
 		onSave={handleNodeSave}
 		onClose={handleModalClose}
 	/>

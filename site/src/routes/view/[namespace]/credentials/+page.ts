@@ -7,16 +7,16 @@ import { permissionChecker, type ResourcePermissions } from '$lib/utils/permissi
 export const load: PageLoad = async ({ params, url, parent }) => {
 	const { user, namespaceId } = await parent();
 	// Check permissions
-	let permissions: ResourcePermissions
+	let permissions: ResourcePermissions;
 	try {
 		permissions = await permissionChecker(user!, 'credential', namespaceId, ['view', 'create', 'update', 'delete']);
 		if (!permissions.canRead) {
 			error(403, {
-			message: 'You do not have permission to view credentials in this namespace',
-			code: 'INSUFFICIENT_PERMISSIONS'
+				message: 'You do not have permission to view credentials in this namespace',
+				code: 'INSUFFICIENT_PERMISSIONS'
 			});
 		}
-		} catch (err) {
+	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
@@ -26,29 +26,22 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 		});
 	}
 
-	try {
-		const { namespace } = params;
-		const page = Number(url.searchParams.get('page') || '1');
-		const search = url.searchParams.get('search') || '';
+	const { namespace } = params;
+	const page = Number(url.searchParams.get('page') || '1');
+	const search = url.searchParams.get('search') || '';
 
-		// Fetch credentials data
-		const credentialsResponse = await apiClient.credentials.list(namespace, {
-			page,
-			count_per_page: DEFAULT_PAGE_SIZE,
-			filter: search || undefined
-		});
+	// Return promise without awaiting - page renders immediately while data loads
+	const credentialsPromise = apiClient.credentials.list(namespace, {
+		page,
+		count_per_page: DEFAULT_PAGE_SIZE,
+		filter: search || undefined
+	});
 
-		return {
-			credentials: credentialsResponse.credentials || [],
-			totalCount: credentialsResponse.total_count || 0,
-			pageCount: credentialsResponse.page_count || 1,
-			currentPage: page,
-			searchQuery: search,
-			namespace,
-			permissions
-		};
-	} catch (err) {
-		console.error('Failed to load credentials data:', err);
-		throw error(500, 'Failed to load credentials data');
-	}
+	return {
+		credentialsPromise,
+		currentPage: page,
+		searchQuery: search,
+		namespace,
+		permissions
+	};
 };

@@ -1,30 +1,14 @@
 import { apiClient } from '$lib/apiClient.js';
-import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false; // Disable SSR for the entire app
 
-export const load: LayoutLoad = async ({ url }) => {
-  // Allow access to login page and root
-  if (url.pathname === '/login' || url.pathname === '/') {
-    try {
-      const user = await apiClient.users.getProfile();
-      return { user };
-    } catch (error) {
-      return { user: null };
-    }
-  }
+export const load: LayoutLoad = () => {
+  // Return promise without awaiting - layout renders immediately while user data loads
+  const userPromise = apiClient.users.getProfile().catch((error) => {
+    console.error('[Auth] Failed to fetch user profile:', error);
+    return null;
+  });
 
-  // For all other routes, require authentication
-  try {
-    const user = await apiClient.users.getProfile();
-    return { user };
-  } catch (error) {
-    const redirectUrl = encodeURIComponent(url.pathname + url.search);
-    if (error instanceof Error && 'status' in error && error.status === 401) {
-      throw redirect(302, `/login?redirect_url=${redirectUrl}`);
-    }
-    console.error('Failed to fetch user profile:', error);
-    throw redirect(302, `/login?redirect_url=${redirectUrl}`);
-  }
+  return { userPromise };
 };

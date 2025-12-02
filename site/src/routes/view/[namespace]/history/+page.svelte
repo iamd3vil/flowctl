@@ -9,7 +9,7 @@
 	import ExecutionIdCell from '$lib/components/shared/ExecutionIdCell.svelte';
 	import StatusBadge from '$lib/components/shared/StatusBadge.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { ExecutionSummary } from '$lib/types';
+	import type { ExecutionSummary, ExecutionsPaginateResponse } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
 	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
@@ -19,12 +19,40 @@
 	let { data }: { data: PageData } = $props();
 
 	// State
-	let executions = $state(data.executions);
-	let totalCount = $state(data.totalCount);
-	let pageCount = $state(data.pageCount);
+	let executions = $state<ExecutionSummary[]>([]);
+	let totalCount = $state(0);
+	let pageCount = $state(0);
 	let currentPage = $state(data.currentPage);
 	let searchQuery = $state(data.searchQuery);
-	let loading = $state(false);
+	let loading = $state(true);
+
+	// Handle the async data from load function
+	$effect(() => {
+		let cancelled = false;
+
+		data.executionsPromise
+			.then((result: ExecutionsPaginateResponse) => {
+				if (!cancelled) {
+					executions = result.executions || [];
+					totalCount = result.total_count || 0;
+					pageCount = result.page_count || 1;
+					loading = false;
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					executions = [];
+					totalCount = 0;
+					pageCount = 0;
+					handleInlineError(err, "Unable to Load Execution History");
+					loading = false;
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	// Table configuration
 	let tableColumns = [

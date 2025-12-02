@@ -4,6 +4,8 @@
   import { page } from '$app/stores';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import { getDefaultNamespace } from '$lib/utils/navigation';
+  import { isLoading } from '$lib/stores/auth';
+  import { onMount } from 'svelte';
   import Logo from '$lib/components/shared/Logo.svelte';
   import LoginCard from '$lib/components/login/LoginCard.svelte';
   import Footer from '$lib/components/login/Footer.svelte';
@@ -14,6 +16,11 @@
   let error = $state('');
 
   const redirectUrl = $derived($page.url.searchParams.get('redirect_url'));
+
+  // Reset loading state when landing on login page
+  onMount(() => {
+    isLoading.set(false);
+  });
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -26,6 +33,7 @@
     try {
       await apiClient.auth.login({ username, password });
       await invalidateAll();
+      // Keep loading state active until navigation completes
       if (redirectUrl && redirectUrl.startsWith('/')) {
         goto(redirectUrl);
       } else {
@@ -34,7 +42,6 @@
       }
     } catch (err) {
       handleInlineError(err, 'Unable to Sign In');
-    } finally {
       loading = false;
     }
   };

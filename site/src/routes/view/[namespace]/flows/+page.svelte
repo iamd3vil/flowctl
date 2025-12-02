@@ -8,7 +8,7 @@
     import SearchInput from "$lib/components/shared/SearchInput.svelte";
     import PageHeader from "$lib/components/shared/PageHeader.svelte";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
-    import type { TableColumn, TableAction, FlowListItem } from "$lib/types";
+    import type { TableColumn, TableAction, FlowListItem, FlowsPaginateResponse } from "$lib/types";
     import { FLOWS_PER_PAGE } from "$lib/constants";
     import {
         permissionChecker,
@@ -18,11 +18,11 @@
 
     let { data } = $props();
     let searchValue = $state("");
-    let flows = $state(data.flows);
-    let pageCount = $state(data.pageCount);
-    let totalCount = $state(data.totalCount);
+    let flows = $state<FlowListItem[]>([]);
+    let pageCount = $state(0);
+    let totalCount = $state(0);
     let currentPage = $state(data.currentPage);
-    let loading = $state(false);
+    let loading = $state(true);
     let permissions = $state<ResourcePermissions>({
         canCreate: false,
         canRead: false,
@@ -31,6 +31,34 @@
     });
     let showDeleteModal = $state(false);
     let flowToDelete = $state<FlowListItem | null>(null);
+
+    // Handle the async data from load function
+    $effect(() => {
+        let cancelled = false;
+
+        data.flowsPromise
+            .then((result: FlowsPaginateResponse) => {
+                if (!cancelled) {
+                    flows = result.flows;
+                    pageCount = result.page_count;
+                    totalCount = result.total_count;
+                    loading = false;
+                }
+            })
+            .catch((err: Error) => {
+                if (!cancelled) {
+                    flows = [];
+                    pageCount = 0;
+                    totalCount = 0;
+                    handleInlineError(err, "Unable to Load Flows");
+                    loading = false;
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    });
 
     const goToFlow = (flowSlug: string) => {
         goto(`/view/${page.params.namespace}/flows/${flowSlug}`);

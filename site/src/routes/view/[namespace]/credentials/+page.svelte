@@ -10,7 +10,7 @@
     import CredentialModal from "$lib/components/credentials/CredentialModal.svelte";
     import DeleteModal from "$lib/components/shared/DeleteModal.svelte";
     import { apiClient } from "$lib/apiClient";
-    import type { CredentialResp, CredentialReq } from "$lib/types";
+    import type { CredentialResp, CredentialReq, CredentialsPaginateResponse } from "$lib/types";
     import { DEFAULT_PAGE_SIZE } from "$lib/constants";
     import Header from "$lib/components/shared/Header.svelte";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
@@ -20,13 +20,41 @@
     let { data }: { data: PageData } = $props();
 
     // State
-    let credentials = $state(data.credentials);
-    let totalCount = $state(data.totalCount);
-    let pageCount = $state(data.pageCount);
+    let credentials = $state<CredentialResp[]>([]);
+    let totalCount = $state(0);
+    let pageCount = $state(0);
     let currentPage = $state(data.currentPage);
     let searchQuery = $state(data.searchQuery);
     let permissions = $state(data.permissions);
-    let loading = $state(false);
+    let loading = $state(true);
+
+    // Handle the async data from load function
+    $effect(() => {
+        let cancelled = false;
+
+        data.credentialsPromise
+            .then((result: CredentialsPaginateResponse) => {
+                if (!cancelled) {
+                    credentials = result.credentials || [];
+                    totalCount = result.total_count || 0;
+                    pageCount = result.page_count || 1;
+                    loading = false;
+                }
+            })
+            .catch((err: Error) => {
+                if (!cancelled) {
+                    credentials = [];
+                    totalCount = 0;
+                    pageCount = 0;
+                    handleInlineError(err, "Unable to Load Credentials");
+                    loading = false;
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    });
     let showModal = $state(false);
     let isEditMode = $state(false);
     let editingCredentialId = $state<string | null>(null);

@@ -2,6 +2,7 @@
   import { IconKey } from '@tabler/icons-svelte';
   import { onMount } from 'svelte';
   import { apiClient } from '$lib/apiClient';
+  import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import type { SSOProvider } from '$lib/types';
 
   let {
@@ -21,6 +22,7 @@
   } = $props();
 
   let ssoProviders: SSOProvider[] = $state([]);
+  let oidcLoading = $state(false);
 
   onMount(async () => {
     try {
@@ -29,6 +31,12 @@
       console.error('Failed to fetch SSO providers:', err);
     }
   });
+
+  const handleOIDCLogin = () => {
+    oidcLoading = true;
+    const url = redirectUrl ? `/login/oidc?redirect_url=${encodeURIComponent(redirectUrl)}` : '/login/oidc';
+    window.location.href = url;
+  };
 </script>
 
 <!-- Login Card -->
@@ -93,16 +101,24 @@
     </button>
 
     {#each ssoProviders as provider}
-      <a
-        href={redirectUrl ? `/login/oidc?redirect_url=${encodeURIComponent(redirectUrl)}` : '/login/oidc'}
-        class="block w-full px-4 py-2 text-sm font-medium text-center rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+      <button
+        type="button"
+        onclick={handleOIDCLogin}
+        disabled={oidcLoading}
+        class="w-full px-4 py-2 text-sm font-medium rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label={provider.label}
       >
-        <div class="flex items-center justify-center">
-          <IconKey class="w-4 h-4 mr-2" aria-hidden="true" />
-          {provider.label}
-        </div>
-      </a>
+        {#if oidcLoading}
+          <div class="flex items-center justify-center">
+            <LoadingSpinner size="sm" label="Redirecting..." />
+          </div>
+        {:else}
+          <div class="flex items-center justify-center">
+            <IconKey class="w-4 h-4 mr-2" aria-hidden="true" />
+            {provider.label}
+          </div>
+        {/if}
+      </button>
     {/each}
   </form>
 </article>

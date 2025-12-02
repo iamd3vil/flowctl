@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import { isAuthenticated, isLoading } from '$lib/stores/auth';
   import { getDefaultNamespace } from '$lib/utils/navigation';
+  import logo from '$lib/assets/full-logo.svg';
+  import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
 
   onMount(async () => {
     if ($isLoading) {
@@ -27,12 +29,9 @@
   <title>Flowctl</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50">
-  <div class="text-center">
-    <div class="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-lg bg-primary-500">
-      <span class="text-2xl font-bold text-white">F</span>
-    </div>
-    <h1 class="text-2xl font-bold text-gray-900 mb-2">Flowctl</h1>
-    <p class="text-gray-600">Loading...</p>
+<div class="min-h-screen flex items-center justify-center bg-white">
+  <div class="flex flex-col items-center gap-6">
+    <img src={logo} alt="Flowctl" class="h-16 w-auto" />
+    <LoadingSpinner label="Loading..." />
   </div>
 </div>

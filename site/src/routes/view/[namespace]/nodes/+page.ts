@@ -27,33 +27,24 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 		});
 	}
 
-	try {
-		const { namespace } = params;
-		const page = Number(url.searchParams.get('page') || '1');
-		const search = url.searchParams.get('search') || '';
+	const { namespace } = params;
+	const page = Number(url.searchParams.get('page') || '1');
+	const search = url.searchParams.get('search') || '';
 
-		// Fetch nodes data, stats, and credentials in parallel
-		const [nodesResponse, statsResponse, credentialsResponse] = await Promise.all([
-			apiClient.nodes.list(namespace, {
-				page,
-				count_per_page: DEFAULT_PAGE_SIZE,
-				filter: search || undefined
-			}),
-			apiClient.nodes.getStats(namespace),
-			apiClient.credentials.list(namespace)
-		]);
+	const nodesPromise = apiClient.nodes.list(namespace, {
+		page,
+		count_per_page: DEFAULT_PAGE_SIZE,
+		filter: search || undefined
+	});
+	const statsPromise = apiClient.nodes.getStats(namespace);
+	const credentialsPromise = apiClient.credentials.list(namespace);
 
-		return {
-			nodes: nodesResponse.nodes || [],
-			totalCount: nodesResponse.total_count || 0,
-			pageCount: nodesResponse.page_count || 1,
-			currentPage: page,
-			searchQuery: search,
-			credentials: credentialsResponse.credentials || [],
-			stats: statsResponse,
-			namespace
-		};
-	} catch (err) {
-		error(500, 'Failed to load nodes data');
-	}
+	return {
+		nodesPromise,
+		statsPromise,
+		credentialsPromise,
+		currentPage: page,
+		searchQuery: search,
+		namespace
+	};
 };

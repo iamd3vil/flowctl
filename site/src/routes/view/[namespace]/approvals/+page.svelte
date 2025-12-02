@@ -12,7 +12,7 @@
 	import StatusFilter from '$lib/components/approvals/StatusFilter.svelte';
 	import ApprovalDetailsModal from '$lib/components/approvals/ApprovalDetailsModal.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { ApprovalResp } from '$lib/types';
+	import type { ApprovalResp, ApprovalsPaginateResponse } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
 	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
@@ -21,13 +21,41 @@
 	let { data }: { data: PageData } = $props();
 
 	// State
-	let approvals = $state(data.approvals);
-	let totalCount = $state(data.totalCount);
-	let pageCount = $state(data.pageCount);
+	let approvals = $state<ApprovalResp[]>([]);
+	let totalCount = $state(0);
+	let pageCount = $state(0);
 	let currentPage = $state(data.currentPage);
 	let searchQuery = $state(data.searchQuery);
 	let statusFilter = $state(data.statusFilter);
-	let loading = $state(false);
+	let loading = $state(true);
+
+	// Handle the async data from load function
+	$effect(() => {
+		let cancelled = false;
+
+		data.approvalsPromise
+			.then((result: ApprovalsPaginateResponse) => {
+				if (!cancelled) {
+					approvals = result.approvals || [];
+					totalCount = result.total_count || 0;
+					pageCount = result.page_count || 1;
+					loading = false;
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					approvals = [];
+					totalCount = 0;
+					pageCount = 0;
+					handleInlineError(err, "Unable to Load Approvals");
+					loading = false;
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	// Modal state
 	let showModal = $state(false);

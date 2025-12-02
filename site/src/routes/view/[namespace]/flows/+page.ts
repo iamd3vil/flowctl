@@ -26,26 +26,19 @@ export const load: PageLoad = async ({ params, url, parent }) => {
     });
   }
 
-  try {
-    const page = Number(url.searchParams.get('page')) || 1;
-    const filter = url.searchParams.get('filter') || '';
-    
-    const data = await apiClient.flows.list(params.namespace, {
-      page,
-      count_per_page: FLOWS_PER_PAGE,
-      filter
-    });
-    
-    return {
-      flows: data.flows,
-      pageCount: data.page_count,
-      totalCount: data.total_count,
-      currentPage: page,
-      filter,
-      namespaceId
-    };
-  } catch (err) {
-    console.log("failed to load flows: ", err)
-    error(500, 'Failed to load flows data');
-  }
+  const page = Number(url.searchParams.get('page')) || 1;
+  const filter = url.searchParams.get('filter') || '';
+
+  const flowsPromise = apiClient.flows.list(params.namespace, {
+    page,
+    count_per_page: FLOWS_PER_PAGE,
+    filter
+  });
+
+  return {
+    flowsPromise,
+    currentPage: page,
+    filter,
+    namespaceId
+  };
 };

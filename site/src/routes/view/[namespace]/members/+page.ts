@@ -28,20 +28,15 @@ export const load: PageLoad = async ({ params, parent }) => {
 		});
 	}
 
-	try {
-		const { namespace } = params;
+	const { namespace } = params;
 
-		// Fetch namespace members
-		const membersResponse = await apiClient.namespaces.members.list(namespace);
+	const membersPromise = apiClient.namespaces.members.list(namespace);
 
-		return {
-			members: membersResponse.members || [],
-			namespace,
-			permissions,
-			user,
-			namespaceId
-		};
-	} catch (err) {
-		error(500, 'Failed to load members data');
-	}
+	return {
+		membersPromise,
+		namespace,
+		permissions,
+		user,
+		namespaceId
+	};
 };

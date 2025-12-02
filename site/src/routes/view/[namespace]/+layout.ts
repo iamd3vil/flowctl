@@ -1,25 +1,32 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { apiClient } from '$lib/apiClient.js';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async ({ params, parent }) => {
-  const { user } = await parent();
-  const namespace = params.namespace;
-  
-  // Check if user has access to this namespace and get the namespace object
-  try {
-    const namespacesResponse = await apiClient.namespaces.list();
-    const namespaceObject = namespacesResponse.namespaces.find(ns => ns.name === namespace);
-    
-    if (!namespaceObject) {
-      error(403, 'Access denied. You do not have permission to access this namespace.');
-    }
+  const namespacePromise = apiClient.namespaces.list();
 
-    return {
-      namespace: namespaceObject.name,
-      namespaceId: namespaceObject.id
-    };
-  } catch (err) {
-    error(500, 'Could not retrieve the namespace');
+  const [{ userPromise }, namespacesResponse] = await Promise.all([
+    parent(),
+    namespacePromise
+  ]);
+
+  const user = await userPromise;
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    throw redirect(302, '/login');
   }
+
+  const namespace = params.namespace;
+  const namespaceObject = namespacesResponse.namespaces.find(ns => ns.name === namespace);
+
+  if (!namespaceObject) {
+    throw error(403, 'Access denied. You do not have permission to access this namespace.');
+  }
+
+  return {
+    user,
+    namespace: namespaceObject.name,
+    namespaceId: namespaceObject.id
+  };
 };

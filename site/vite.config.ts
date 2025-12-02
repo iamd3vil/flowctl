@@ -7,8 +7,13 @@ const backendHost = process.env.VITE_BACKEND_HOST || "localhost:7000";
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
   cacheDir: "node_modules/.vite",
+  build: {
+    cssCodeSplit: true,
+    minify: 'esbuild',
+  },
   optimizeDeps: {
     force: false,
+    include: ['@tabler/icons-svelte']
   },
   server: {
     proxy: {

@@ -10,7 +10,7 @@
 	import MemberModal from '$lib/components/members/MemberModal.svelte';
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { NamespaceMemberResp, NamespaceMemberReq } from '$lib/types';
+	import type { NamespaceMemberResp, NamespaceMemberReq, NamespaceMembersResponse } from '$lib/types';
 	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import type { TableAction } from '$lib/types';
@@ -20,8 +20,32 @@
 	let { data }: { data: PageData } = $props();
 
 	// State
-	let members = $state(data.members);
-	let loading = $state(false);
+	let members = $state<NamespaceMemberResp[]>([]);
+	let loading = $state(true);
+
+	// Handle the async data from load function
+	$effect(() => {
+		let cancelled = false;
+
+		data.membersPromise
+			.then((result: NamespaceMembersResponse) => {
+				if (!cancelled) {
+					members = result.members || [];
+					loading = false;
+				}
+			})
+			.catch((err: Error) => {
+				if (!cancelled) {
+					members = [];
+					handleInlineError(err, "Unable to Load Members");
+					loading = false;
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 	let showMemberModal = $state(false);
 	let showDeleteModal = $state(false);
 	let isEditMode = $state(false);
