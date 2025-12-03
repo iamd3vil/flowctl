@@ -314,7 +314,22 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 }
 
 // CancelFlowExecution cancels the given execution using the scheduler
-func (c *Core) CancelFlowExecution(ctx context.Context, execID string) error {
+func (c *Core) CancelFlowExecution(ctx context.Context, execID string, namespaceID string) error {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	// Update execution status to cancelled in the database
+	_, err = c.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
+		Status: repo.ExecutionStatusCancelled,
+		ExecID: execID,
+		Uuid:   namespaceUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update execution status: %w", err)
+	}
+
 	return c.scheduler.CancelTask(ctx, execID)
 }
 

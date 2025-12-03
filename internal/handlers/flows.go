@@ -676,7 +676,7 @@ func (h *Handler) HandleCancelExecution(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
 	}
 
-	err = h.co.CancelFlowExecution(c.Request().Context(), execID)
+	err = h.co.CancelFlowExecution(c.Request().Context(), execID, namespace)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "failed to cancel execution", err, nil)
 	}
