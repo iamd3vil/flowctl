@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import type { ComponentType } from 'svelte';
 
   type BreadcrumbItem = {
     label: string;
@@ -12,7 +13,7 @@
     children
   }: {
     breadcrumbs?: (string | BreadcrumbItem)[],
-    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }>,
+    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' | 'ghost', icon?: ComponentType }>,
     children?: any
   } = $props();
 
@@ -69,6 +70,10 @@
           onclick={action.onClick}
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : action.variant === 'danger' ? 'bg-danger-500 text-white hover:bg-danger-600' : action.variant === 'ghost' ? 'text-primary-500 hover:text-primary-600 font-medium' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
         >
+          {#if action.icon}
+            {@const Icon = action.icon}
+            <Icon size={16} />
+          {/if}
           {action.label}
         </button>
       {/each}

@@ -92,7 +92,7 @@
 			actionsList.push({
 				label: 'Edit',
 				onClick: (member: NamespaceMemberResp) => handleEdit(member),
-				className: 'text-primary-600 border-primary-600 hover:bg-primary-50'
+				className: 'text-primary-600 border-primary-600 hover:bg-primary-100'
 			});
 		}
 
@@ -100,7 +100,7 @@
 			actionsList.push({
 				label: 'Delete',
 				onClick: (member: NamespaceMemberResp) => handleDelete(member.id, member.subject_name),
-				className: 'text-danger-600 border-danger-600 hover:bg-danger-50'
+				className: 'text-danger-600 border-danger-600 hover:bg-danger-100'
 			});
 		}
 

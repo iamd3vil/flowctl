@@ -20,6 +20,7 @@
         showWarning,
     } from "$lib/utils/errorHandling";
     import { formatDateTime } from "$lib/utils";
+    import { IconPlayerStop } from "@tabler/icons-svelte";
 
     let {
         data,
@@ -478,9 +479,10 @@
                 ...(status === "running"
                     ? [
                           {
-                              label: "Stop Flow",
+                              label: "Stop",
                               onClick: stopFlow,
                               variant: "danger" as const,
+                              icon: IconPlayerStop,
                           },
                       ]
                     : []),

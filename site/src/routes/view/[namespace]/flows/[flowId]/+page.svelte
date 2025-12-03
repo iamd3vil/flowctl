@@ -17,6 +17,7 @@
   import { DEFAULT_PAGE_SIZE } from '$lib/constants';
   import { permissionChecker } from '$lib/utils/permissions';
   import { formatDateTime } from '$lib/utils';
+    import { IconPencil } from '@tabler/icons-svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -170,7 +171,7 @@
     { label: data.flowMeta?.meta?.name || 'Loading...' }
   ]}
   actions={[
-    ...(canUpdateFlow ? [{ label: 'Edit', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'ghost' as const }] : [])
+    ...(canUpdateFlow ? [{ icon: IconPencil, label: 'Edit', onClick: () => goto(`/view/${namespace}/flows/${flowId}/edit`), variant: 'primary' as const }] : [])
   ]}
 />
 

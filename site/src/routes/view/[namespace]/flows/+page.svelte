@@ -60,10 +60,6 @@
         };
     });
 
-    const goToFlow = (flowSlug: string) => {
-        goto(`/view/${page.params.namespace}/flows/${flowSlug}`);
-    };
-
     const goToEditFlow = (flowSlug: string) => {
         goto(`/view/${page.params.namespace}/flows/${flowSlug}/edit`);
     };
@@ -216,7 +212,7 @@
                 label: "Edit",
                 onClick: (row: FlowListItem) => goToEditFlow(row.slug),
                 className:
-                    "text-primary-600 border-primary-600 hover:bg-primary-50",
+                    "text-primary-600 border-primary-600 hover:bg-primary-100",
             });
         }
 
@@ -225,7 +221,7 @@
                 label: "Delete",
                 onClick: (row: FlowListItem) => handleDeleteFlow(row),
                 className:
-                    "text-danger-600 border-danger-600 hover:bg-danger-50 transition-colors",
+                    "text-danger-600 border-danger-600 hover:bg-danger-100 transition-colors",
             });
         }
 
