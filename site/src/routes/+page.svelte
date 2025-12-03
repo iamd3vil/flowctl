@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { isAuthenticated, isLoading } from '$lib/stores/auth';
   import { getDefaultNamespace } from '$lib/utils/navigation';
   import logo from '$lib/assets/full-logo.svg';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
 
-  onMount(async () => {
+  // Wait for auth loading to complete
+  $effect(() => {
     if ($isLoading) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      return;
     }
 
     if (!$isAuthenticated) {
@@ -16,12 +16,9 @@
       return;
     }
 
-    try {
-      const namespace = await getDefaultNamespace();
-      goto(`/view/${namespace}/flows`);
-    } catch {
-      goto('/login');
-    }
+    getDefaultNamespace()
+      .then((namespace) => goto(`/view/${namespace}/flows`))
+      .catch(() => goto('/login'));
   });
 </script>
 
