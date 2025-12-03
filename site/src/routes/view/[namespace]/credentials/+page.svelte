@@ -83,7 +83,7 @@
                     }
 				</div>
 					<div>
-						<div class="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editCredential', {detail: {id: '${credential.id}'}}))">${credential.name}</div>
+						<a href="#" class="text-sm hover:underline font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="event.preventDefault(); document.dispatchEvent(new CustomEvent('editCredential', {detail: {id: '${credential.id}'}}))">${credential.name}</a>
 						<div class="text-sm text-gray-500">${credential.id}</div>
 					</div>
 				</div>

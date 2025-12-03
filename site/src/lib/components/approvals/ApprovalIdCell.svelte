@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ApprovalResp } from '$lib/types';
-  
-  let { row }: { row: ApprovalResp } = $props();
+
+  let { row, onClick }: { row: ApprovalResp; onClick?: (approval: ApprovalResp) => void } = $props();
 </script>
 
 <div class="flex items-center">
@@ -11,7 +11,7 @@
     </svg>
   </div>
   <div>
-    <div class="text-sm font-medium text-gray-900">{row.action_id}</div>
+    <a href="#" class="text-sm hover:underline font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick={(e) => { e.preventDefault(); onClick?.(row); }}>{row.action_id}</a>
     <div class="text-sm text-gray-500">{row.id}</div>
   </div>
 </div>

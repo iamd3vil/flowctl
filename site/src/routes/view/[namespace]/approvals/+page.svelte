@@ -68,6 +68,12 @@
 
 	// Table configuration
 	let tableColumns = [
+        {
+            key: 'id',
+            header: 'Approval',
+            component: ApprovalIdCell,
+            componentProps: { onClick: handleRowClick }
+        },
 		{
 			key: 'flow_name',
 			header: 'Flow Name',
@@ -75,11 +81,6 @@
 			render: (_value: any, approval: ApprovalResp) => `
 				<div class="text-sm font-medium text-gray-900">${approval.flow_name}</div>
 			`
-		},
-		{
-			key: 'id',
-			header: 'Approval',
-			component: ApprovalIdCell
 		},
 		{
 			key: 'created_at',
@@ -245,7 +246,6 @@
 		<Table
 			data={approvals}
 			columns={tableColumns}
-			onRowClick={handleRowClick}
 			{loading}
 			emptyMessage="No approvals found. Approvals will appear here when workflows require approval."
 			emptyIcon='<svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
