@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { handleInlineError } from '$lib/utils/errorHandling';
 	import { autofocus } from '$lib/utils/autofocus';
-	import type { FlowSecretReq, FlowSecretResp } from '$lib/types';
+	import type { NamespaceSecretReq, NamespaceSecretResp } from '$lib/types';
 	import { IconEye, IconEyeOff } from '@tabler/icons-svelte';
 
 	interface Props {
 		isEditMode?: boolean;
-		secretData?: FlowSecretResp | null;
-		onSave: (secretData: FlowSecretReq) => void;
+		secretData?: NamespaceSecretResp | null;
+		onSave: (secretData: NamespaceSecretReq) => void;
 		onClose: () => void;
 	}
 
@@ -50,7 +50,7 @@
 		try {
 			loading = true;
 
-			const secretFormData: FlowSecretReq = {
+			const secretFormData: NamespaceSecretReq = {
 				key: formData.key,
 				value: formData.value,
 				description: formData.description || undefined
@@ -75,9 +75,9 @@
 	<div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onclick={(e) => e.stopPropagation()}>
 		<div class="p-6">
 			<h2 class="text-xl font-semibold mb-4">
-				{isEditMode ? 'Edit Secret' : 'Add New Secret'}
+				{isEditMode ? 'Edit Namespace Secret' : 'Add New Namespace Secret'}
 			</h2>
-			
+
 			<form onsubmit={handleSubmit} class="space-y-4">
 				<!-- Secret Key -->
 				<div>

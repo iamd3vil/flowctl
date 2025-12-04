@@ -323,6 +323,21 @@ export interface FlowSecretResp {
   updated_at: string;
 }
 
+// Namespace secrets types
+export interface NamespaceSecretReq {
+  key: string;
+  value: string;
+  description?: string;
+}
+
+export interface NamespaceSecretResp {
+  id: string;
+  key: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApprovalsPaginateResponse
   extends PaginatedResponse<ApprovalResp> {
   approvals: ApprovalResp[];

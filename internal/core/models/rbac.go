@@ -11,14 +11,15 @@ const (
 type Resource string
 
 const (
-	ResourceFlow       Resource = "flow"
-	ResourceFlowSecret Resource = "flow_secret"
-	ResourceNode       Resource = "node"
-	ResourceCredential Resource = "credential"
-	ResourceMember     Resource = "member"
-	ResourceExecution  Resource = "execution"
-	ResourceApproval   Resource = "approval"
-	ResourceNamespace  Resource = "namespace"
+	ResourceFlow            Resource = "flow"
+	ResourceFlowSecret      Resource = "flow_secret"
+	ResourceNamespaceSecret Resource = "namespace_secret"
+	ResourceNode            Resource = "node"
+	ResourceCredential      Resource = "credential"
+	ResourceMember          Resource = "member"
+	ResourceExecution       Resource = "execution"
+	ResourceApproval        Resource = "approval"
+	ResourceNamespace       Resource = "namespace"
 )
 
 type RBACAction string

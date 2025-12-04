@@ -8,6 +8,7 @@
     import FlowActions from "$lib/components/flow-create/FlowActions.svelte";
     import ValidationModal from "$lib/components/flow-create/ValidationModal.svelte";
     import Tabs from "$lib/components/shared/Tabs.svelte";
+    import SecretsTab from "$lib/components/secrets/SecretsTab.svelte";
     import type { PageData } from "./$types";
     import type {
         FlowCreateReq,
@@ -56,6 +57,7 @@
         { id: "metadata", label: "General" },
         { id: "inputs", label: "Inputs" },
         { id: "actions", label: "Actions" },
+        { id: "secrets", label: "Secrets" },
     ];
 
     onMount(() => {
@@ -223,6 +225,8 @@
                                 {availableExecutors}
                                 bind:executorConfigs
                             />
+                        {:else if activeTab === "secrets"}
+                            <SecretsTab {namespace} disabled={true} />
                         {/if}
                     </div>
 

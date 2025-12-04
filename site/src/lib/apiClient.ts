@@ -24,6 +24,8 @@ import type {
   CredentialsPaginateResponse,
   FlowSecretReq,
   FlowSecretResp,
+  NamespaceSecretReq,
+  NamespaceSecretResp,
   NamespaceReq,
   NamespaceResp,
   NamespaceMemberReq,
@@ -318,6 +320,28 @@ export const apiClient = {
       }),
     delete: (namespace: string, flowId: string, secretId: string) =>
       baseFetch<void>(`/api/v1/${namespace}/flows/${flowId}/secrets/${secretId}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Namespace secrets
+  namespaceSecrets: {
+    list: (namespace: string) =>
+      baseFetch<NamespaceSecretResp[]>(`/api/v1/${namespace}/secrets`),
+    getById: (namespace: string, secretId: string) =>
+      baseFetch<NamespaceSecretResp>(`/api/v1/${namespace}/secrets/${secretId}`),
+    create: (namespace: string, secret: NamespaceSecretReq) =>
+      baseFetch<NamespaceSecretResp>(`/api/v1/${namespace}/secrets`, {
+        method: 'POST',
+        body: JSON.stringify(secret),
+      }),
+    update: (namespace: string, secretId: string, secret: Partial<NamespaceSecretReq>) =>
+      baseFetch<NamespaceSecretResp>(`/api/v1/${namespace}/secrets/${secretId}`, {
+        method: 'PUT',
+        body: JSON.stringify(secret),
+      }),
+    delete: (namespace: string, secretId: string) =>
+      baseFetch<void>(`/api/v1/${namespace}/secrets/${secretId}`, {
         method: 'DELETE',
       }),
   },
