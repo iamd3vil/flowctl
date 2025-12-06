@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import { apiClient } from '$lib/apiClient';
 import { permissionChecker } from '$lib/utils/permissions';
 
 export const ssr = false;
@@ -29,7 +30,10 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	const { namespace } = params;
 
+	const secretsPromise = apiClient.namespaceSecrets.list(namespace);
+
 	return {
+		secretsPromise,
 		namespace,
 		permissions,
 		user,
