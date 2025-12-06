@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import { apiClient } from '$lib/apiClient';
 import { permissionChecker } from '$lib/utils/permissions';
 
 export const ssr = false;
@@ -8,13 +7,13 @@ export const ssr = false;
 export const load: PageLoad = async ({ params, parent }) => {
 	const { user, namespaceId } = await parent();
 
-	// Check permissions for members
+	// Check permissions for namespace secrets
 	let permissions;
 	try {
-		permissions = await permissionChecker(user!, 'member', namespaceId, ['view', 'create', 'update', 'delete']);
+		permissions = await permissionChecker(user!, 'namespace_secret', namespaceId, ['view', 'create', 'update', 'delete']);
 		if (!permissions.canRead) {
 			error(403, {
-				message: 'You do not have permission to view members in this namespace',
+				message: 'You do not have permission to view secrets in this namespace',
 				code: 'INSUFFICIENT_PERMISSIONS'
 			});
 		}
@@ -30,10 +29,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	const { namespace } = params;
 
-	const membersPromise = apiClient.namespaces.members.list(namespace);
-
 	return {
-		membersPromise,
 		namespace,
 		permissions,
 		user,

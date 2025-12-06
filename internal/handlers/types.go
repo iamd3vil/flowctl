@@ -754,6 +754,39 @@ func coreFlowSecretToFlowSecretResp(secret models.FlowSecret) FlowSecretResp {
 	}
 }
 
+type NamespaceSecretReq struct {
+	Key         string `json:"key" validate:"required,min=1,max=150,alphanum_underscore"`
+	Value       string `json:"value" validate:"required,max=255"`
+	Description string `json:"description" validate:"max=255"`
+}
+
+type NamespaceSecretResp struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+type NamespaceSecretGetReq struct {
+	SecretID string `param:"secretID" validate:"required"`
+}
+
+type NamespaceSecretUpdateReq struct {
+	NamespaceSecretGetReq
+	NamespaceSecretReq
+}
+
+func coreNamespaceSecretToNamespaceSecretResp(secret models.NamespaceSecret) NamespaceSecretResp {
+	return NamespaceSecretResp{
+		ID:          secret.ID,
+		Key:         secret.Key,
+		Description: secret.Description,
+		CreatedAt:   secret.CreatedAt,
+		UpdatedAt:   secret.UpdatedAt,
+	}
+}
+
 type FlowCancellationResp struct {
 	Message string `json:"message"`
 	ExecID  string `json:"execID"`

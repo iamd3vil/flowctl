@@ -1,59 +1,35 @@
 <script lang="ts">
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import { apiClient } from '$lib/apiClient';
-	import type { FlowSecretReq, FlowSecretResp, NamespaceSecretResp } from '$lib/types';
-	import SecretsModal from './SecretsModal.svelte';
+	import type { NamespaceSecretReq, NamespaceSecretResp } from '$lib/types';
+	import NamespaceSecretsModal from './NamespaceSecretsModal.svelte';
 	import DeleteModal from '../shared/DeleteModal.svelte';
 	import { formatDateTime } from '$lib/utils';
 
 	interface Props {
 		namespace: string;
-		flowId?: string; // Optional for create mode
 		disabled?: boolean;
 	}
 
-	let { namespace, flowId, disabled = false }: Props = $props();
+	let { namespace, disabled = false }: Props = $props();
 
 	// State
-	let secrets = $state<FlowSecretResp[]>([]);
-	let namespaceSecrets = $state<NamespaceSecretResp[]>([]);
+	let secrets = $state<NamespaceSecretResp[]>([]);
 	let loading = $state(false);
-	let loadingNamespaceSecrets = $state(false);
 	let showModal = $state(false);
 	let showDeleteModal = $state(false);
-	let selectedSecret = $state<FlowSecretResp | null>(null);
+	let selectedSecret = $state<NamespaceSecretResp | null>(null);
 	let isEditMode = $state(false);
 
-	// Load namespace secrets on mount
+	// Load secrets on mount
 	$effect(() => {
-		loadNamespaceSecrets();
+		loadSecrets();
 	});
-
-	// Load flow secrets when flowId is available (edit mode)
-	$effect(() => {
-		if (flowId && !disabled) {
-			loadSecrets();
-		}
-	});
-
-	async function loadNamespaceSecrets() {
-		try {
-			loadingNamespaceSecrets = true;
-			namespaceSecrets = await apiClient.namespaceSecrets.list(namespace);
-		} catch (error) {
-			// Silently fail - user might not have permission
-			namespaceSecrets = [];
-		} finally {
-			loadingNamespaceSecrets = false;
-		}
-	}
 
 	async function loadSecrets() {
-		if (!flowId) return;
-
 		try {
 			loading = true;
-			secrets = await apiClient.flowSecrets.list(namespace, flowId);
+			secrets = await apiClient.namespaceSecrets.list(namespace);
 		} catch (error) {
 			handleInlineError(error);
 		} finally {
@@ -67,29 +43,24 @@
 		showModal = true;
 	}
 
-	function openEditModal(secret: FlowSecretResp) {
+	function openEditModal(secret: NamespaceSecretResp) {
 		selectedSecret = secret;
 		isEditMode = true;
 		showModal = true;
 	}
 
-	function openDeleteModal(secret: FlowSecretResp) {
+	function openDeleteModal(secret: NamespaceSecretResp) {
 		selectedSecret = secret;
 		showDeleteModal = true;
 	}
 
-	async function handleSave(secretData: FlowSecretReq) {
-		if (!flowId) {
-			handleInlineError(new Error('Flow must be saved before adding secrets'));
-			return;
-		}
-
+	async function handleSave(secretData: NamespaceSecretReq) {
 		try {
 			if (isEditMode && selectedSecret) {
-				await apiClient.flowSecrets.update(namespace, flowId, selectedSecret.id, secretData);
+				await apiClient.namespaceSecrets.update(namespace, selectedSecret.id, secretData);
 				showSuccess('Secret updated successfully');
 			} else {
-				await apiClient.flowSecrets.create(namespace, flowId, secretData);
+				await apiClient.namespaceSecrets.create(namespace, secretData);
 				showSuccess('Secret created successfully');
 			}
 
@@ -101,10 +72,10 @@
 	}
 
 	async function handleDelete() {
-		if (!selectedSecret || !flowId) return;
+		if (!selectedSecret) return;
 
 		try {
-			await apiClient.flowSecrets.delete(namespace, flowId, selectedSecret.id);
+			await apiClient.namespaceSecrets.delete(namespace, selectedSecret.id);
 			showSuccess('Secret deleted successfully');
 			showDeleteModal = false;
 			await loadSecrets();
@@ -118,16 +89,14 @@
 <div class="space-y-4">
 	<div class="flex justify-between items-center">
 		<div>
-			<h3 class="text-lg font-medium text-gray-900">Flow Secrets</h3>
+			<h3 class="text-lg font-medium text-gray-900">Namespace Secrets</h3>
 			<p class="text-sm text-gray-500">
-				{flowId
-					? 'Manage encrypted secrets for this flow. Values are never displayed after creation.'
-					: 'Save the flow first to add secrets.'
-				}
+				Manage encrypted secrets available to all flows in this namespace.
+				Flow-level secrets with the same key will override these.
 			</p>
 		</div>
 
-		{#if flowId && !disabled}
+		{#if !disabled}
 			<button
 				onclick={openCreateModal}
 				class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
@@ -141,24 +110,14 @@
 		<div class="flex items-center justify-center py-8">
 			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
 		</div>
-	{:else if !flowId}
-		<div class="text-center py-8">
-			<div class="text-gray-500">
-				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-				</svg>
-				<h3 class="mt-2 text-sm font-medium text-gray-900">No secrets yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Save the flow first to add secrets.</p>
-			</div>
-		</div>
 	{:else if secrets.length === 0}
 		<div class="text-center py-8">
 			<div class="text-gray-500">
 				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 				</svg>
-				<h3 class="mt-2 text-sm font-medium text-gray-900">No secrets yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Add your first secret to get started.</p>
+				<h3 class="mt-2 text-sm font-medium text-gray-900">No namespace secrets yet</h3>
+				<p class="mt-1 text-sm text-gray-500">Add secrets that will be available to all flows in this namespace.</p>
 			</div>
 		</div>
 	{:else}
@@ -220,7 +179,7 @@
 
 <!-- Modals -->
 {#if showModal}
-	<SecretsModal
+	<NamespaceSecretsModal
 		{isEditMode}
 		secretData={selectedSecret}
 		onSave={handleSave}
@@ -231,49 +190,9 @@
 {#if showDeleteModal}
 	<DeleteModal
 		title="Delete Secret"
-		message="Are you sure you want to delete this secret? This action cannot be undone and may break flow executions that depend on it."
+		itemName={selectedSecret?.key ?? ''}
+		description="This may break flow executions that depend on this secret."
 		onConfirm={handleDelete}
-		onCancel={() => { showDeleteModal = false; }}
+		onClose={() => { showDeleteModal = false; }}
 	/>
 {/if}
-
-<!-- Namespace Secrets Section (Read-only) -->
-<div class="mt-8 pt-8 border-t border-gray-200">
-	<div class="mb-4">
-		<h3 class="text-lg font-medium text-gray-900">Namespace Secrets</h3>
-		<p class="text-sm text-gray-500">
-			These secrets are available to all flows in this namespace. Flow secrets with the same key will override these.
-		</p>
-	</div>
-
-	{#if loadingNamespaceSecrets}
-		<div class="flex items-center justify-center py-4">
-			<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-		</div>
-	{:else if namespaceSecrets.length === 0}
-		<div class="text-center py-4">
-			<p class="text-sm text-gray-500">No namespace secrets configured.</p>
-		</div>
-	{:else}
-		<div class="bg-gray-50 rounded-md border border-gray-200">
-			<ul role="list" class="divide-y divide-gray-200">
-				{#each namespaceSecrets as secret}
-					<li class="px-4 py-3 flex items-center">
-						<div class="flex-shrink-0 mr-3">
-							<svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-							</svg>
-						</div>
-						<div class="min-w-0 flex-1">
-							<p class="text-sm font-medium text-gray-700">{secret.key}</p>
-							{#if secret.description}
-								<p class="text-xs text-gray-500">{secret.description}</p>
-							{/if}
-						</div>
-						<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 rounded">namespace</span>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-</div>

@@ -18,6 +18,7 @@
         IconGridDots,
         IconServer,
         IconKey,
+        IconLock,
         IconUsers,
         IconCircleCheck,
         IconClock,
@@ -43,6 +44,7 @@
         flows: ResourcePermissions;
         nodes: ResourcePermissions;
         credentials: ResourcePermissions;
+        secrets: ResourcePermissions;
         members: ResourcePermissions;
         approvals: ResourcePermissions;
         history: ResourcePermissions;
@@ -60,6 +62,12 @@
             canRead: false,
         },
         credentials: {
+            canCreate: false,
+            canUpdate: false,
+            canDelete: false,
+            canRead: false,
+        },
+        secrets: {
             canCreate: false,
             canUpdate: false,
             canDelete: false,
@@ -94,6 +102,8 @@
             return currentPath.includes("/nodes");
         } else if (section === "credentials") {
             return currentPath.includes("/credentials");
+        } else if (section === "secrets") {
+            return currentPath.includes("/secrets");
         } else if (section === "members") {
             return currentPath.includes("/members");
         } else if (section === "approvals") {
@@ -170,6 +180,7 @@
             flows: "flow",
             nodes: "node",
             credentials: "credential",
+            secrets: "namespace_secret",
             members: "member",
             approvals: "approval",
             history: "execution",
@@ -460,6 +471,35 @@
                     />
                     {#if !isCollapsed}
                         Credentials
+                    {/if}
+                </a>
+            </li>
+        {/if}
+        {#if permissions.secrets.canRead}
+            <li>
+                <a
+                    href="/view/{namespace}/secrets"
+                    class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed
+                        ? 'justify-center px-4 py-3'
+                        : 'px-4 py-3'}"
+                    class:bg-primary-50={isActiveLink("secrets")}
+                    class:text-primary-600={isActiveLink("secrets")}
+                    class:text-gray-700={!isActiveLink("secrets")}
+                    class:hover:bg-gray-100={!isActiveLink("secrets")}
+                    aria-current={isActiveLink("secrets")
+                        ? "page"
+                        : undefined}
+                    title={isCollapsed ? "Secrets" : ""}
+                >
+                    <IconLock
+                        class="text-xl flex-shrink-0 {isCollapsed
+                            ? ''
+                            : 'mr-3'}"
+                        size={20}
+                        aria-hidden="true"
+                    />
+                    {#if !isCollapsed}
+                        Secrets
                     {/if}
                 </a>
             </li>

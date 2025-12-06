@@ -173,7 +173,8 @@ func initializeSharedComponents() *SharedComponents {
 	co.LogManager = fileLogManager
 
 	// Set secrets provider and flow loader after core is created
-	sch.SetSecretsProvider(co.GetDecryptedFlowSecrets)
+	// GetMergedSecretsForFlow merges namespace + flow secrets (flow overrides namespace)
+	sch.SetSecretsProvider(co.GetMergedSecretsForFlow)
 	sch.SetFlowLoader(co.GetSchedulerFlow)
 
 	return &SharedComponents{
@@ -297,6 +298,13 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionCreate))
 	namespaceGroup.PUT("/members/:membershipID", h.HandleUpdateNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionDelete))
+
+	// Namespace secrets routes - admins only
+	namespaceGroup.GET("/secrets", h.HandleListNamespaceSecrets, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionView))
+	namespaceGroup.GET("/secrets/:secretID", h.HandleGetNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionView))
+	namespaceGroup.POST("/secrets", h.HandleCreateNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionCreate))
+	namespaceGroup.PUT("/secrets/:secretID", h.HandleUpdateNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionUpdate))
+	namespaceGroup.DELETE("/secrets/:secretID", h.HandleDeleteNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionDelete))
 
 	buildFS, err := fs.Sub(StaticFiles, "site/build")
 	if err != nil {
