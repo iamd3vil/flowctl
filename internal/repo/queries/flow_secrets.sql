@@ -16,9 +16,8 @@ ORDER BY fs.created_at DESC;
 
 -- name: UpdateFlowSecret :one
 UPDATE flow_secrets SET
-    key = $3,
-    encrypted_value = $4,
-    description = $5,
+    encrypted_value = $3,
+    description = $4,
     updated_at = NOW()
 WHERE flow_secrets.uuid = $1 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $2)
 RETURNING *;

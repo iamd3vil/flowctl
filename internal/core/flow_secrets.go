@@ -108,9 +108,6 @@ func (c *Core) UpdateFlowSecret(ctx context.Context, id string, secret models.Fl
 		return models.FlowSecret{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	if secret.Key == "" {
-		return models.FlowSecret{}, errors.New("secret key is required")
-	}
 	if secret.Value == "" {
 		return models.FlowSecret{}, errors.New("secret value is required")
 	}
@@ -134,7 +131,6 @@ func (c *Core) UpdateFlowSecret(ctx context.Context, id string, secret models.Fl
 	updated, err := c.store.UpdateFlowSecret(ctx, repo.UpdateFlowSecretParams{
 		Uuid:           uuidID,
 		Uuid_2:         namespaceUUID,
-		Key:            secret.Key,
 		EncryptedValue: encryptedValue,
 		Description:    description,
 	})

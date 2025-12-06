@@ -7,7 +7,7 @@
 	import NamespaceSecretsModal from '$lib/components/namespace-secrets/NamespaceSecretsModal.svelte';
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
-	import type { NamespaceSecretReq, NamespaceSecretResp } from '$lib/types';
+	import type { NamespaceSecretReq, NamespaceSecretUpdateReq, NamespaceSecretResp } from '$lib/types';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import { formatDateTime } from '$lib/utils';
 	import { IconPlus, IconLock } from '@tabler/icons-svelte';
@@ -78,13 +78,13 @@
 		showDeleteModal = true;
 	}
 
-	async function handleSave(secretData: NamespaceSecretReq) {
+	async function handleSave(secretData: NamespaceSecretReq | NamespaceSecretUpdateReq) {
 		try {
 			if (isEditMode && selectedSecret) {
-				await apiClient.namespaceSecrets.update(data.namespace, selectedSecret.id, secretData);
+				await apiClient.namespaceSecrets.update(data.namespace, selectedSecret.id, secretData as NamespaceSecretUpdateReq);
 				showSuccess('Secret Updated', 'Secret updated successfully');
 			} else {
-				await apiClient.namespaceSecrets.create(data.namespace, secretData);
+				await apiClient.namespaceSecrets.create(data.namespace, secretData as NamespaceSecretReq);
 				showSuccess('Secret Created', 'Secret created successfully');
 			}
 

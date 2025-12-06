@@ -737,7 +737,8 @@ type FlowSecretGetReq struct {
 
 type FlowSecretUpdateReq struct {
 	FlowSecretGetReq
-	FlowSecretReq
+	Value       string `json:"value" validate:"required,max=255"`
+	Description string `json:"description" validate:"max=255"`
 }
 
 type FlowSecretsListReq struct {
@@ -774,7 +775,8 @@ type NamespaceSecretGetReq struct {
 
 type NamespaceSecretUpdateReq struct {
 	NamespaceSecretGetReq
-	NamespaceSecretReq
+	Value       string `json:"value" validate:"required,max=255"`
+	Description string `json:"description" validate:"max=255"`
 }
 
 func coreNamespaceSecretToNamespaceSecretResp(secret models.NamespaceSecret) NamespaceSecretResp {

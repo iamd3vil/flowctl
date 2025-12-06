@@ -104,7 +104,6 @@ func (h *Handler) HandleUpdateFlowSecret(c echo.Context) error {
 	}
 
 	secret := models.FlowSecret{
-		Key:         req.Key,
 		Value:       req.Value,
 		Description: req.Description,
 	}

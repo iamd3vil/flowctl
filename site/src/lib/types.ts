@@ -315,6 +315,11 @@ export interface FlowSecretReq {
   description?: string;
 }
 
+export interface FlowSecretUpdateReq {
+  value: string;
+  description?: string;
+}
+
 export interface FlowSecretResp {
   id: string;
   key: string;
@@ -326,6 +331,11 @@ export interface FlowSecretResp {
 // Namespace secrets types
 export interface NamespaceSecretReq {
   key: string;
+  value: string;
+  description?: string;
+}
+
+export interface NamespaceSecretUpdateReq {
   value: string;
   description?: string;
 }

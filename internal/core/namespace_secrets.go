@@ -92,9 +92,6 @@ func (c *Core) UpdateNamespaceSecret(ctx context.Context, id string, secret mode
 		return models.NamespaceSecret{}, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	if secret.Key == "" {
-		return models.NamespaceSecret{}, errors.New("secret key is required")
-	}
 	if secret.Value == "" {
 		return models.NamespaceSecret{}, errors.New("secret value is required")
 	}
@@ -118,7 +115,6 @@ func (c *Core) UpdateNamespaceSecret(ctx context.Context, id string, secret mode
 	updated, err := c.store.UpdateNamespaceSecret(ctx, repo.UpdateNamespaceSecretParams{
 		Uuid:           uuidID,
 		Uuid_2:         namespaceUUID,
-		Key:            secret.Key,
 		EncryptedValue: encryptedValue,
 		Description:    description,
 	})

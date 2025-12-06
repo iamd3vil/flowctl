@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { handleInlineError } from '$lib/utils/errorHandling';
 	import { autofocus } from '$lib/utils/autofocus';
-	import type { FlowSecretReq, FlowSecretResp } from '$lib/types';
+	import type { FlowSecretReq, FlowSecretUpdateReq, FlowSecretResp } from '$lib/types';
 	import { IconEye, IconEyeOff } from '@tabler/icons-svelte';
 
 	interface Props {
 		isEditMode?: boolean;
 		secretData?: FlowSecretResp | null;
-		onSave: (secretData: FlowSecretReq) => void;
+		onSave: (secretData: FlowSecretReq | FlowSecretUpdateReq) => void;
 		onClose: () => void;
 	}
 
@@ -50,11 +50,16 @@
 		try {
 			loading = true;
 
-			const secretFormData: FlowSecretReq = {
-				key: formData.key,
-				value: formData.value,
-				description: formData.description || undefined
-			};
+			const secretFormData: FlowSecretReq | FlowSecretUpdateReq = isEditMode
+				? {
+					value: formData.value,
+					description: formData.description || undefined
+				}
+				: {
+					key: formData.key,
+					value: formData.value,
+					description: formData.description || undefined
+				};
 
 			await onSave(secretFormData);
 		} catch (error) {

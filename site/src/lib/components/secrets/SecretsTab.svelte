@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
 	import { apiClient } from '$lib/apiClient';
-	import type { FlowSecretReq, FlowSecretResp, NamespaceSecretResp } from '$lib/types';
+	import type { FlowSecretReq, FlowSecretUpdateReq, FlowSecretResp, NamespaceSecretResp } from '$lib/types';
 	import SecretsModal from './SecretsModal.svelte';
 	import DeleteModal from '../shared/DeleteModal.svelte';
 	import { formatDateTime } from '$lib/utils';
@@ -78,7 +78,7 @@
 		showDeleteModal = true;
 	}
 
-	async function handleSave(secretData: FlowSecretReq) {
+	async function handleSave(secretData: FlowSecretReq | FlowSecretUpdateReq) {
 		if (!flowId) {
 			handleInlineError(new Error('Flow must be saved before adding secrets'));
 			return;
@@ -86,11 +86,11 @@
 
 		try {
 			if (isEditMode && selectedSecret) {
-				await apiClient.flowSecrets.update(namespace, flowId, selectedSecret.id, secretData);
-				showSuccess('Secret updated successfully');
+				await apiClient.flowSecrets.update(namespace, flowId, selectedSecret.id, secretData as FlowSecretUpdateReq);
+				showSuccess('Flow Secret Updated', 'Secret updated successfully');
 			} else {
-				await apiClient.flowSecrets.create(namespace, flowId, secretData);
-				showSuccess('Secret created successfully');
+				await apiClient.flowSecrets.create(namespace, flowId, secretData as FlowSecretReq);
+				showSuccess('Flow Secret Created', 'Secret created successfully');
 			}
 
 			showModal = false;
@@ -105,7 +105,7 @@
 
 		try {
 			await apiClient.flowSecrets.delete(namespace, flowId, selectedSecret.id);
-			showSuccess('Secret deleted successfully');
+			showSuccess('Flow Secret Deleted', 'Secret deleted successfully');
 			showDeleteModal = false;
 			await loadSecrets();
 		} catch (error) {

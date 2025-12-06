@@ -23,8 +23,10 @@ import type {
   CredentialResp,
   CredentialsPaginateResponse,
   FlowSecretReq,
+  FlowSecretUpdateReq,
   FlowSecretResp,
   NamespaceSecretReq,
+  NamespaceSecretUpdateReq,
   NamespaceSecretResp,
   NamespaceReq,
   NamespaceResp,
@@ -313,7 +315,7 @@ export const apiClient = {
         method: 'POST',
         body: JSON.stringify(secret),
       }),
-    update: (namespace: string, flowId: string, secretId: string, secret: Partial<FlowSecretReq>) =>
+    update: (namespace: string, flowId: string, secretId: string, secret: FlowSecretUpdateReq) =>
       baseFetch<FlowSecretResp>(`/api/v1/${namespace}/flows/${flowId}/secrets/${secretId}`, {
         method: 'PUT',
         body: JSON.stringify(secret),
@@ -335,7 +337,7 @@ export const apiClient = {
         method: 'POST',
         body: JSON.stringify(secret),
       }),
-    update: (namespace: string, secretId: string, secret: Partial<NamespaceSecretReq>) =>
+    update: (namespace: string, secretId: string, secret: NamespaceSecretUpdateReq) =>
       baseFetch<NamespaceSecretResp>(`/api/v1/${namespace}/secrets/${secretId}`, {
         method: 'PUT',
         body: JSON.stringify(secret),

@@ -95,7 +95,6 @@ func (h *Handler) HandleUpdateNamespaceSecret(c echo.Context) error {
 	}
 
 	secret := models.NamespaceSecret{
-		Key:         req.Key,
 		Value:       req.Value,
 		Description: req.Description,
 	}
