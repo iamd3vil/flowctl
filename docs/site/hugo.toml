@@ -43,6 +43,11 @@ theme = 'flowctl'
   alt = 'nodes'
   caption = 'Manage nodes for remote executions'
 
+[[params.carousel]]
+  image = 'images/namespace-secrets.png'
+  alt = 'Namespace secrets'
+  caption = 'Securely manage secrets'
+
 [[params.features]]
   title = 'Define Custom Flows'
   description = 'Use the built-in flow editor or use YAML/HUML to create complex workflows easily. All flows are stored as simple files.'
