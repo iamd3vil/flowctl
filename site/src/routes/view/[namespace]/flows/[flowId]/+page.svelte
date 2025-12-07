@@ -32,6 +32,8 @@
 
   let namespace = $derived(page.params.namespace);
   let flowId = $derived(page.params.flowId);
+  let rerunFromExecId = $derived(data.rerunFromExecId);
+  let showRerunBanner = $state(!!rerunFromExecId);
 
   // Check update permission on mount
   permissionChecker(data.user!, 'flow', data.namespaceId, ['update']).then(permissions => {
@@ -190,7 +192,44 @@
 <div class="px-6 py-8 bg-gray-50">
   {#if activeTab === 'run'}
     <div class="max-w-2xl mx-auto">
-      <FlowInputForm inputs={data.flowInputs || []} namespace={namespace!} flowId={flowId!} />
+      {#if showRerunBanner}
+        <div class="mb-6">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="flex-1">
+                <h3 class="text-sm font-medium text-blue-900">Rerunning execution</h3>
+                <p class="text-sm text-blue-700 mt-1">
+                  Inputs have been prepopulated from execution
+                  <a
+                    href="/view/{namespace}/results/{flowId}/{rerunFromExecId}"
+                    class="font-mono underline hover:text-blue-900"
+                  >
+                    {rerunFromExecId.substring(0, 8)}
+                  </a>
+                </p>
+              </div>
+            </div>
+            <button
+              onclick={() => showRerunBanner = false}
+              class="text-blue-400 hover:text-blue-600"
+              aria-label="Dismiss"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      {/if}
+      <FlowInputForm
+        inputs={data.flowInputs || []}
+        namespace={namespace!}
+        flowId={flowId!}
+        executionInput={data.executionInput}
+      />
       <div class="mt-6">
         <FlowSchedulesList schedules={data.flowMeta?.meta?.schedules || []} />
       </div>
