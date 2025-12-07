@@ -20,7 +20,7 @@
         showWarning,
     } from "$lib/utils/errorHandling";
     import { formatDateTime } from "$lib/utils";
-    import { IconPlayerStop } from "@tabler/icons-svelte";
+    import { IconPlayerStop, IconReload } from "@tabler/icons-svelte";
 
     let {
         data,
@@ -416,6 +416,10 @@
         }
     };
 
+    const handleRerun = () => {
+        goto(`/view/${namespace}/flows/${flowId}?rerun_from=${logId}`);
+    };
+
     // Initialize component
     onMount(() => {
         if (data.executionSummary) {
@@ -486,6 +490,12 @@
                           },
                       ]
                     : []),
+                {
+                    label: "Rerun",
+                    onClick: handleRerun,
+                    variant: "primary" as const,
+                    icon: IconReload,
+                },
             ]}
         >
             {#snippet children()}

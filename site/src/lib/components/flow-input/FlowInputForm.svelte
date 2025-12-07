@@ -4,10 +4,29 @@
   import { ApiError } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
 
-  let { inputs, namespace, flowId }: { inputs: FlowInput[], namespace: string, flowId: string } = $props();
+  let {
+    inputs,
+    namespace,
+    flowId,
+    executionInput = null
+  }: {
+    inputs: FlowInput[],
+    namespace: string,
+    flowId: string,
+    executionInput?: Record<string, any> | null
+  } = $props();
 
   let loading = $state(false);
   let errors = $state<Record<string, string>>({});
+
+  const mergedInputs = $derived(
+    inputs.map(input => {
+      if (executionInput && executionInput[input.name] !== undefined) {
+        return { ...input, default: String(executionInput[input.name]) };
+      }
+      return input;
+    })
+  );
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -63,7 +82,7 @@
       </div>
     {/if}
 
-    {#each inputs as input (input.name)}
+    {#each mergedInputs as input (input.name)}
       <div>
         <label for={input.name} class="block text-sm font-medium text-gray-700 mb-2">
           {input.label || input.name}
