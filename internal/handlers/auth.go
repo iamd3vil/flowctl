@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -224,7 +223,7 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 
 	redirectAfterLogin := RedirectAfterLogin
 	if redirectURL, err := sess.Get("redirect_url"); err == nil && redirectURL != nil {
-		if url, ok := redirectURL.(string); ok && strings.HasPrefix(url, "/") {
+		if url, ok := redirectURL.(string); ok && isSafeRedirect(url) {
 			redirectAfterLogin = url
 		}
 	}
