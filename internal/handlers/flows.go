@@ -181,10 +181,16 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
 	}
 
-	logID := c.Param("logID")
-	if logID == "" {
-		return wrapError(ErrRequiredFieldMissing, "execution id cannot be empty", nil, nil)
+	var req LogStreamingReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(ErrValidationFailed, "invalid request", err, nil)
 	}
+
+	if err := h.validate.Struct(req); err != nil {
+		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
+	}
+
+	logID := req.LogID
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")

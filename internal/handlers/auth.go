@@ -24,6 +24,13 @@ const (
 	RedirectAfterLogin = "/"
 )
 
+
+// isSafeRedirect determines if the redirect URL is safe
+// Must start with '/' but not with '//' or '/\'.
+func isSafeRedirect(u string) bool {
+    return len(u) > 0 && u[0] == '/' && (len(u) == 1 || (u[1] != '/' && u[1] != '\\'))
+}
+
 func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
 	provider, err := oidc.NewProvider(context.Background(), authconfig.Issuer)
 	if err != nil {
@@ -119,7 +126,7 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 	sess.Set("user", user.ToUserInfo())
 
 	redirectAfterLogin := RedirectAfterLogin
-	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && strings.HasPrefix(redirectURL, "/") {
+	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && isSafeRedirect(redirectURL) {
 		redirectAfterLogin = redirectURL
 	}
 
@@ -148,7 +155,7 @@ func (h *Handler) HandleOIDCLogin(c echo.Context) error {
 
 	sess.Set("state", state)
 
-	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && strings.HasPrefix(redirectURL, "/") {
+	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && isSafeRedirect(redirectURL) {
 		sess.Set("redirect_url", redirectURL)
 	}
 

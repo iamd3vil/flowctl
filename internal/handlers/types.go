@@ -625,6 +625,10 @@ type FlowGetReq struct {
 	FlowID string `param:"flowID" validate:"required"`
 }
 
+type LogStreamingReq struct {
+	LogID string `param:"logID" validate:"required,uuid4"`
+}
+
 type ExecutionGetReq struct {
 	ExecID string `param:"execID" validate:"required,uuid4"`
 }
