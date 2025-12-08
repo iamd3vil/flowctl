@@ -1,13 +1,14 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async ({ parent }) => {
+export const load: LayoutLoad = async ({ parent, url }) => {
   const { userPromise } = await parent();
   const user = await userPromise;
 
   // Redirect to login if not authenticated
   if (!user) {
-    throw redirect(302, '/login');
+    const redirectUrl = url.pathname + url.search;
+    throw redirect(302, `/login?redirect_url=${encodeURIComponent(redirectUrl)}`);
   }
 
   // Settings page requires superuser role
