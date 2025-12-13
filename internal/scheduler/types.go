@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -20,7 +21,8 @@ const (
 )
 
 var (
-	ErrPendingApproval = errors.New("pending approval")
+	ErrPendingApproval    = errors.New("pending approval")
+	ErrExecutionCancelled = errors.New("execution cancelled")
 )
 
 type TriggerType string
@@ -75,6 +77,8 @@ type Node struct {
 	Auth           NodeAuth
 }
 
+const NodeConnectionTimeout = 5 * time.Second
+
 // CheckConnectivity can be used to check if a remote node is accessible at the given IP:Port
 // The default connection timeout is 5 seconds
 // Non-nil error is returned if the node is not accessible
@@ -82,7 +86,7 @@ func (n *Node) CheckConnectivity() error {
 	address := fmt.Sprintf("%s:%d", n.Hostname, n.Port)
 
 	if n.ConnectionType == "qssh" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), NodeConnectionTimeout)
 		defer cancel()
 
 		tlsConfig := &tls.Config{
@@ -90,7 +94,7 @@ func (n *Node) CheckConnectivity() error {
 		}
 
 		conn, err := quic.DialAddr(ctx, address, tlsConfig, &quic.Config{
-			HandshakeIdleTimeout: 5 * time.Second,
+			HandshakeIdleTimeout: NodeConnectionTimeout,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to connect to %s via QUIC: %w", address, err)
@@ -99,7 +103,7 @@ func (n *Node) CheckConnectivity() error {
 		return nil
 	}
 
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	conn, err := net.DialTimeout("tcp", address, NodeConnectionTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", address, err)
 	}
@@ -191,7 +195,6 @@ type FlowExecutionPayload struct {
 	Workflow          Flow
 	Input             map[string]any
 	StartingActionIdx int
-	ExecID            string
 	NamespaceID       string
 	TriggerType       TriggerType
 	UserUUID          string
@@ -203,11 +206,109 @@ type HookFn func(ctx context.Context, execID string, action Action, namespaceID 
 type SecretsProviderFn func(ctx context.Context, flowID string, namespaceID string) (map[string]string, error)
 type FlowLoaderFn func(ctx context.Context, flowSlug string, namespaceUUID string) (Flow, error)
 
-// SchedulerDependencies contains dependencies needed by the scheduler
-type SchedulerDependencies struct {
-	OnBeforeAction  HookFn
-	OnAfterAction   HookFn
-	SecretsProvider SecretsProviderFn
-	FlowLoader      FlowLoaderFn
-	LogManager      interface{} // streamlogger.LogManager
+// PayloadType identifies different types of jobs in the queue
+type PayloadType string
+
+// Handler processes jobs of a specific payload type
+type Handler interface {
+	// Type returns the payload type this handler processes
+	Type() PayloadType
+	// Handle processes a job
+	Handle(ctx context.Context, job Job) error
 }
+
+// Job represents a job passed to handlers
+type Job struct {
+	ID          int64
+	ExecID      string
+	PayloadType PayloadType
+	Payload     []byte
+	CreatedAt   time.Time
+}
+
+// QueueWeight defines weight for a payload type
+type QueueWeight struct {
+	PayloadType PayloadType
+	Weight      int // 1-100, all weights must sum to 100
+}
+
+// QueueConfig holds the weighted queue configuration
+type QueueConfig struct {
+	Queues []QueueWeight
+}
+
+// Validate ensures queue weights sum to 100
+func (c QueueConfig) Validate() error {
+	total := 0
+	for _, q := range c.Queues {
+		if q.Weight < 0 || q.Weight > 100 {
+			return fmt.Errorf("weight must be 0-100, got %d", q.Weight)
+		}
+		total += q.Weight
+	}
+	if total != 100 {
+		return fmt.Errorf("queue weights must sum to 100, got %d", total)
+	}
+	return nil
+}
+
+// GetWorkerCount calculates the number of goroutines for a payload type
+func (c QueueConfig) GetWorkerCount(pt PayloadType, totalWorkers int) int {
+	for _, q := range c.Queues {
+		if q.PayloadType == pt {
+			count := (totalWorkers * q.Weight) / 100
+			if count < 1 && q.Weight > 0 {
+				count = 1
+			}
+			return count
+		}
+	}
+	return 0
+}
+
+// handlerRegistry manages handler registration and lookup
+type handlerRegistry struct {
+	handlers map[PayloadType]Handler
+	mu       sync.RWMutex
+}
+
+func newHandlerRegistry() *handlerRegistry {
+	return &handlerRegistry{
+		handlers: make(map[PayloadType]Handler),
+	}
+}
+
+// Register adds a handler for a specific payload type
+func (r *handlerRegistry) Register(h Handler) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, exists := r.handlers[h.Type()]; exists {
+		return fmt.Errorf("handler already registered for type: %s", h.Type())
+	}
+
+	r.handlers[h.Type()] = h
+	return nil
+}
+
+// Get retrieves a handler by payload type
+func (r *handlerRegistry) Get(pt PayloadType) (Handler, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	handler, exists := r.handlers[pt]
+	return handler, exists
+}
+
+// ScheduledJob represents a job that can be scheduled via cron
+type ScheduledJob struct {
+	ID          string
+	Name        string
+	Cron        string
+	Timezone    string
+	PayloadType PayloadType
+	Payload     any
+}
+
+// JobSyncerFn syncs scheduled jobs from a data source
+type JobSyncerFn func(ctx context.Context) ([]ScheduledJob, error)

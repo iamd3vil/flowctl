@@ -2,18 +2,19 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"time"
 
-	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 )
 
-// syncScheduledFlows syncs scheduled flows from the database into the in-memory cache
-func (s *Scheduler) syncScheduledFlows(ctx context.Context) error {
-	scheduledFlows, err := s.store.GetScheduledFlows(ctx)
+// syncScheduledJobs syncs scheduled jobs from the job syncer into the cache
+func (s *Scheduler) syncScheduledJobs(ctx context.Context) error {
+	if s.jobSyncer == nil {
+		return nil
+	}
+
+	jobs, err := s.jobSyncer(ctx)
 	if err != nil {
 		return err
 	}
@@ -21,30 +22,38 @@ func (s *Scheduler) syncScheduledFlows(ctx context.Context) error {
 	s.scheduledMu.Lock()
 	defer s.scheduledMu.Unlock()
 
-	s.scheduledFlows = make(map[string]repo.GetScheduledFlowsRow)
-	for _, flow := range scheduledFlows {
-		key := fmt.Sprintf("%s_%s_%s", flow.Slug, flow.Cron, flow.Timezone)
-		s.scheduledFlows[key] = flow
+	s.scheduledJobs = make(map[string]ScheduledJob)
+	for _, job := range jobs {
+		key := job.ID + "_" + job.Cron + "_" + job.Timezone
+		s.scheduledJobs[key] = job
 	}
 
-	s.logger.Debug("synced scheduled flows to cache", "count", len(s.scheduledFlows))
+	s.logger.Debug("synced scheduled jobs to cache", "count", len(s.scheduledJobs))
 	return nil
 }
 
-// checkPeriodicTasks checks for flows with cron schedules that should run now
+// checkPeriodicTasks checks for scheduled jobs that should run now
 func (s *Scheduler) checkPeriodicTasks(ctx context.Context) error {
+	if s.jobSyncer == nil {
+		return nil
+	}
+
 	s.scheduledMu.RLock()
-	scheduledFlows := make([]repo.GetScheduledFlowsRow, 0, len(s.scheduledFlows))
-	for _, flow := range s.scheduledFlows {
-		scheduledFlows = append(scheduledFlows, flow)
+	jobs := make([]ScheduledJob, 0, len(s.scheduledJobs))
+	for _, job := range s.scheduledJobs {
+		jobs = append(jobs, job)
 	}
 	s.scheduledMu.RUnlock()
 
-	for _, flow := range scheduledFlows {
-		// Check if this specific schedule should run now
-		if flow.Cron != "" && s.shouldRunNow(flow.Cron, flow.Timezone) {
-			if err := s.createImmediateTaskFromFlow(ctx, flow); err != nil {
-				s.logger.Error("failed to create immediate task from scheduled flow", "flow", flow.Name, "error", err)
+	for _, job := range jobs {
+		if job.Cron != "" && s.shouldRunNow(job.Cron, job.Timezone) {
+			// Generate a new execID for each execution
+			execID := uuid.NewString()
+
+			if _, err := s.QueueTask(ctx, job.PayloadType, execID, job.Payload); err != nil {
+				s.logger.Error("failed to queue scheduled job", "job", job.Name, "error", err)
+			} else {
+				s.logger.Info("queued scheduled job", "job", job.Name, "id", job.ID, "execID", execID, "cron", job.Cron)
 			}
 		}
 	}
@@ -56,7 +65,7 @@ func (s *Scheduler) checkPeriodicTasks(ctx context.Context) error {
 func (s *Scheduler) shouldRunNow(cronExpr string, timezone string) bool {
 	schedule, err := cron.ParseStandard(cronExpr)
 	if err != nil {
-		log.Printf("Failed to parse cron expression '%s': %v", cronExpr, err)
+		s.logger.Error("failed to parse cron expression", "cron", cronExpr, "error", err)
 		return false
 	}
 
@@ -67,7 +76,7 @@ func (s *Scheduler) shouldRunNow(cronExpr string, timezone string) bool {
 		loc = time.UTC
 	}
 
-	// Convert current time to the schedules's timezone
+	// Convert current time to the schedule's timezone
 	nowInTz := time.Now().In(loc)
 	currentMinute := nowInTz.Truncate(time.Minute)
 
@@ -76,53 +85,4 @@ func (s *Scheduler) shouldRunNow(cronExpr string, timezone string) bool {
 
 	// Task should run if the next scheduled time falls within the current minute
 	return nextRun.Equal(currentMinute) || (nextRun.After(currentMinute) && nextRun.Before(currentMinute.Add(time.Minute)))
-}
-
-// createImmediateTaskFromFlow creates an immediate task from a scheduled flow
-func (s *Scheduler) createImmediateTaskFromFlow(ctx context.Context, flow repo.GetScheduledFlowsRow) error {
-	namespace, err := s.store.GetNamespaceByUUID(ctx, flow.NamespaceUuid)
-	if err != nil {
-		return fmt.Errorf("could not create periodic task %s: %w", flow.Name, err)
-	}
-
-	if s.flowLoader == nil {
-		return fmt.Errorf("flow loader not configured")
-	}
-
-	schedulerFlow, err := s.flowLoader(ctx, flow.Slug, flow.NamespaceUuid.String())
-	if err != nil {
-		log.Printf("Failed to load flow %s: %v", flow.Slug, err)
-		return err
-	}
-
-	input := applyDefaultInputValues(schedulerFlow.Inputs)
-
-	payload := FlowExecutionPayload{
-		Workflow:          schedulerFlow,
-		Input:             input,
-		StartingActionIdx: 0,
-		ExecID:            uuid.NewString(),
-		NamespaceID:       namespace.Uuid.String(),
-		TriggerType:       TriggerTypeScheduled,
-		UserUUID:          "00000000-0000-0000-0000-000000000000", // System user
-	}
-
-	_, err = s.QueueTask(ctx, payload)
-	if err != nil {
-		return err
-	}
-
-	s.logger.Info("created immediate task from scheduled flow", "flow", flow.Slug, "id", flow.ID, "cron", flow.Cron)
-	return nil
-}
-
-// applyDefaultInputValues creates an input map using default values from flow inputs
-func applyDefaultInputValues(inputs []Input) map[string]interface{} {
-	result := make(map[string]interface{})
-	for _, input := range inputs {
-		if input.Default != "" {
-			result[input.Name] = input.Default
-		}
-	}
-	return result
 }

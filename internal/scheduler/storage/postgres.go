@@ -19,7 +19,7 @@ func NewPostgresStorage(db *sqlx.DB) *PostgresStorage {
 
 // Initialize creates the job queue table
 func (p *PostgresStorage) Initialize(ctx context.Context) error {
-	query := `
+	createTableQuery := `
 		CREATE TABLE IF NOT EXISTS job_queue (
 			id SERIAL PRIMARY KEY,
 			exec_id TEXT NOT NULL,
@@ -27,46 +27,73 @@ func (p *PostgresStorage) Initialize(ctx context.Context) error {
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 
-		-- Index for efficient queue operations
-		CREATE INDEX IF NOT EXISTS idx_job_queue_pending ON job_queue(created_at);
 		CREATE INDEX IF NOT EXISTS idx_job_queue_exec_id ON job_queue(exec_id);
 	`
 
-	_, err := p.db.ExecContext(ctx, query)
-	return err
+	if _, err := p.db.ExecContext(ctx, createTableQuery); err != nil {
+		return err
+	}
+	return p.migrateAddPayloadType(ctx)
+}
+
+// migrateAddPayloadType adds the payload_type column to existing job_queue tables
+// This should be called after Initialize
+func (p *PostgresStorage) migrateAddPayloadType(ctx context.Context) error {
+	// Add payload_type column if it doesn't exist
+	addColumnQuery := `
+		ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS payload_type TEXT NOT NULL DEFAULT 'flow_execution';
+	`
+	if _, err := p.db.ExecContext(ctx, addColumnQuery); err != nil {
+		return err
+	}
+
+	// Create new index for payload_type queries
+	createIndexQuery := `
+		CREATE INDEX IF NOT EXISTS idx_job_queue_payload_type ON job_queue(payload_type, created_at);
+	`
+	if _, err := p.db.ExecContext(ctx, createIndexQuery); err != nil {
+		return err
+	}
+
+	// Drop old index (no longer needed with payload_type index)
+	dropOldIndexQuery := `DROP INDEX IF EXISTS idx_job_queue_pending;`
+	_, _ = p.db.ExecContext(ctx, dropOldIndexQuery)
+
+	return nil
 }
 
 // Put adds a job to the queue
 func (p *PostgresStorage) Put(ctx context.Context, job Job) error {
 	query := `
-		INSERT INTO job_queue (exec_id, payload, created_at)
-		VALUES ($1, $2, $3)
+		INSERT INTO job_queue (exec_id, payload_type, payload, created_at)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id
 	`
 
-	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.Payload, job.CreatedAt)
+	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.PayloadType, job.Payload, job.CreatedAt)
 	return err
 }
 
-// Get retrieves and locks a job from the queue for processing
+// GetByPayloadType retrieves and locks a job of specific payload type from the queue
 // When the done channel is closed, the job is removed from the queue
-func (p *PostgresStorage) Get(ctx context.Context, done chan struct{}) (Job, error) {
+func (p *PostgresStorage) GetByPayloadType(ctx context.Context, payloadType string, done chan struct{}) (Job, error) {
 	tx, err := p.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return Job{}, err
 	}
 
-	// Select and lock the oldest pending job
+	// Select and lock the oldest pending job of this payload type
 	selectQuery := `
-		SELECT id, exec_id, payload, created_at
+		SELECT id, exec_id, payload_type, payload, created_at
 		FROM job_queue
+		WHERE payload_type = $1
 		ORDER BY created_at ASC
 		LIMIT 1
 		FOR UPDATE SKIP LOCKED
 	`
 
 	var job Job
-	err = tx.GetContext(ctx, &job, selectQuery)
+	err = tx.GetContext(ctx, &job, selectQuery, payloadType)
 	if err != nil {
 		tx.Rollback()
 		if err == sql.ErrNoRows {

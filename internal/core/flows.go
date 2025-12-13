@@ -279,7 +279,6 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		Workflow:          schedulerFlow,
 		Input:             input,
 		StartingActionIdx: actionIndex,
-		ExecID:            execID,
 		NamespaceID:       namespaceID,
 		TriggerType:       scheduler.TriggerTypeManual,
 		UserUUID:          userUUID,
@@ -305,7 +304,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	}
 
 	// Queue the task using the scheduler
-	_, err = c.scheduler.QueueTask(ctx, payload)
+	_, err = c.scheduler.QueueTask(ctx, scheduler.PayloadTypeFlowExecution, execID, payload)
 	if err != nil {
 		return "", err
 	}
@@ -654,7 +653,7 @@ func (c *Core) LoadFlows() error {
 		namespaceDir := filepath.Join(c.flowDirectory, entry.Name())
 		namespaceFlows, err := c.processNamespaceFlows(namespaceDir)
 		if err != nil {
-			log.Printf("could process flows from namespace %s: %v", entry.Name(), err)
+			log.Printf("could not process flows from namespace %s: %v", entry.Name(), err)
 			continue
 		}
 
@@ -871,5 +870,64 @@ func removeDuplicateSchedules(schedules []models.Schedule) []models.Schedule {
 		}
 	}
 
+	return result
+}
+
+// SyncScheduledFlowJobs loads scheduled flows from the database and converts them to scheduled jobs
+// This function can be used as a JobSyncerFn for the scheduler
+func (c *Core) SyncScheduledFlowJobs(ctx context.Context) ([]scheduler.ScheduledJob, error) {
+	flows, err := c.store.GetScheduledFlows(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make([]scheduler.ScheduledJob, 0, len(flows))
+	for _, flow := range flows {
+		namespace, err := c.store.GetNamespaceByUUID(ctx, flow.NamespaceUuid)
+		if err != nil {
+			log.Printf("failed to get namespace for flow %s: %v", flow.Name, err)
+			continue
+		}
+
+		// Load the flow using GetSchedulerFlow
+		schedulerFlow, err := c.GetSchedulerFlow(ctx, flow.Slug, flow.NamespaceUuid.String())
+		if err != nil {
+			log.Printf("failed to load flow %s: %v", flow.Slug, err)
+			continue
+		}
+
+		input := applyDefaultInputValues(schedulerFlow.Inputs)
+
+		payload := scheduler.FlowExecutionPayload{
+			Workflow:          schedulerFlow,
+			Input:             input,
+			StartingActionIdx: 0,
+			NamespaceID:       namespace.Uuid.String(),
+			TriggerType:       scheduler.TriggerTypeScheduled,
+			UserUUID:          SystemUserUUID,
+			FlowDirectory:     filepath.Dir(flow.FilePath),
+		}
+
+		jobs = append(jobs, scheduler.ScheduledJob{
+			ID:          fmt.Sprintf("%d_%s_%s", flow.ID, flow.Cron, flow.Timezone),
+			Name:        flow.Name,
+			Cron:        flow.Cron,
+			Timezone:    flow.Timezone,
+			PayloadType: scheduler.PayloadTypeFlowExecution,
+			Payload:     payload,
+		})
+	}
+
+	return jobs, nil
+}
+
+// applyDefaultInputValues creates an input map using default values from flow inputs
+func applyDefaultInputValues(inputs []scheduler.Input) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, input := range inputs {
+		if input.Default != "" {
+			result[input.Name] = input.Default
+		}
+	}
 	return result
 }

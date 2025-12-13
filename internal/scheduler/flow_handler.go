@@ -3,18 +3,19 @@ package scheduler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/cvhariharan/flowctl/internal/metrics"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/streamlogger"
 	"github.com/cvhariharan/flowctl/sdk/executor"
@@ -23,12 +24,91 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	ErrExecutionCancelled = errors.New("execution cancelled")
-)
+const PayloadTypeFlowExecution PayloadType = "flow_execution"
 
-// executeFlow executes a flow - adapted from FlowRunner.HandleFlowExecution
-func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayload) error {
+// FlowExecutionHandler handles flow execution jobs
+type FlowExecutionHandler struct {
+	store           repo.Store
+	secretsProvider SecretsProviderFn
+	logmanager      streamlogger.LogManager
+	logger          *slog.Logger
+	metrics         *metrics.Manager
+}
+
+// FlowHandlerConfig holds configuration for FlowExecutionHandler
+type FlowHandlerConfig struct {
+	Store           repo.Store
+	SecretsProvider SecretsProviderFn
+	LogManager      streamlogger.LogManager
+	Logger          *slog.Logger
+	Metrics         *metrics.Manager
+}
+
+// NewFlowExecutionHandler creates a new flow execution handler
+func NewFlowExecutionHandler(cfg FlowHandlerConfig) *FlowExecutionHandler {
+	return &FlowExecutionHandler{
+		store:           cfg.Store,
+		secretsProvider: cfg.SecretsProvider,
+		logmanager:      cfg.LogManager,
+		logger:          cfg.Logger,
+		metrics:         cfg.Metrics,
+	}
+}
+
+// SetSecretsProvider allows updating secrets provider after creation
+func (h *FlowExecutionHandler) SetSecretsProvider(sp SecretsProviderFn) {
+	h.secretsProvider = sp
+}
+
+// Type returns the payload type this handler processes
+func (h *FlowExecutionHandler) Type() PayloadType {
+	return PayloadTypeFlowExecution
+}
+
+// Handle processes a flow execution job
+func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
+	var payload FlowExecutionPayload
+	if err := json.Unmarshal(job.Payload, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal flow payload: %w", err)
+	}
+
+	// Create execution log for scheduled executions only (manual ones are created in core)
+	if payload.TriggerType == TriggerTypeScheduled {
+		if err := h.createExecutionLog(ctx, job.ExecID, payload); err != nil {
+			return fmt.Errorf("failed to create execution log: %w", err)
+		}
+	}
+
+	// Set status to Running
+	if err := h.setStatus(ctx, job.ExecID, repo.ExecutionStatusRunning, payload.NamespaceID, nil); err != nil {
+		return fmt.Errorf("could not update execution_log status: %w", err)
+	}
+
+	if h.metrics != nil {
+		h.metrics.IncExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
+	}
+
+	// Execute the flow
+	if err := h.executeFlow(ctx, job.ExecID, payload); err != nil {
+		h.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
+		if errors.Is(err, ErrPendingApproval) {
+			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+		}
+		if errors.Is(err, ErrExecutionCancelled) {
+			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+		}
+		return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, payload.Workflow.Meta.ID, err)
+	}
+
+	if h.metrics != nil {
+		h.metrics.DecExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
+	}
+
+	return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusCompleted, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+}
+
+// executeFlow executes a flow
+func (h *FlowExecutionHandler) executeFlow(ctx context.Context, execID string, payload FlowExecutionPayload) error {
 	if payload.StartingActionIdx < 0 {
 		payload.StartingActionIdx = 0
 	}
@@ -37,29 +117,29 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 	}
 
 	// Create temporary directory for artifacts shared across all actions in this flow
-	artifactDir := filepath.Join(os.TempDir(), fmt.Sprintf("artifacts-store-%s", payload.ExecID))
+	artifactDir := filepath.Join(os.TempDir(), fmt.Sprintf("artifacts-store-%s", execID))
 	if err := os.MkdirAll(artifactDir, 0700); err != nil {
 		return fmt.Errorf("failed to create artifact directory: %w", err)
 	}
-	s.logger.Debug("artifact directory creation", "dir", artifactDir)
+	h.logger.Debug("artifact directory creation", "dir", artifactDir)
 
 	// Copy files from flow directory to artifacts if flow directory is specified
 	if payload.FlowDirectory != "" {
-		if err := s.copyFlowFilesToArtifacts(payload.FlowDirectory, artifactDir); err != nil {
+		if err := h.copyFlowFilesToArtifacts(payload.FlowDirectory, artifactDir); err != nil {
 			return fmt.Errorf("failed to copy flow files to artifacts: %w", err)
 		}
 	}
 
-	streamID := payload.ExecID
+	streamID := execID
 
-	streamLogger, err := s.logmanager.NewLogger(streamID)
+	streamLogger, err := h.logmanager.NewLogger(streamID)
 	if err != nil {
 		return err
 	}
 	defer streamLogger.Close()
 
 	// Get flow-specific secrets
-	flowSecrets := s.getFlowSecrets(ctx, payload.Workflow.Meta.ID, payload.NamespaceID, payload.ExecID)
+	flowSecrets := h.getFlowSecrets(ctx, payload.Workflow.Meta.ID, payload.NamespaceID, execID)
 
 	// Initialize outputs map to accumulate results from all previous actions
 	outputs := make(map[string]any)
@@ -67,14 +147,14 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		action := payload.Workflow.Actions[i]
 
-		res, err := s.executeSingleAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets, outputs, payload.ExecID, payload.NamespaceID)
+		res, err := h.executeSingleAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets, outputs, execID, payload.NamespaceID)
 		if err != nil {
 			return err
 		}
 
-		s.logger.Debug("Action results", "results", res)
+		h.logger.Debug("Action results", "results", res)
 		processActionResults(res, outputs)
-		s.logger.Debug("outputs", "results", outputs)
+		h.logger.Debug("outputs", "results", outputs)
 	}
 
 	// Only remove the artifact store when all actions have been executed
@@ -84,14 +164,14 @@ func (s *Scheduler) executeFlow(ctx context.Context, payload FlowExecutionPayloa
 }
 
 // getFlowSecrets retrieves flow-specific secrets or returns an empty map if unavailable
-func (s *Scheduler) getFlowSecrets(ctx context.Context, flowID string, namespaceID string, execID string) map[string]string {
-	if s.secretsProvider == nil {
+func (h *FlowExecutionHandler) getFlowSecrets(ctx context.Context, flowID string, namespaceID string, execID string) map[string]string {
+	if h.secretsProvider == nil {
 		return make(map[string]string)
 	}
 
-	secrets, err := s.secretsProvider(ctx, flowID, namespaceID)
+	secrets, err := h.secretsProvider(ctx, flowID, namespaceID)
 	if err != nil {
-		s.logger.Error("failed to get flow secrets", "execID", execID, "error", err)
+		h.logger.Error("failed to get flow secrets", "execID", execID, "error", err)
 		return make(map[string]string)
 	}
 
@@ -99,7 +179,7 @@ func (s *Scheduler) getFlowSecrets(ctx context.Context, flowID string, namespace
 }
 
 // copyFlowFilesToArtifacts copies top-level files from the flow directory to the artifacts directory
-func (s *Scheduler) copyFlowFilesToArtifacts(flowDir string, artifactDir string) error {
+func (h *FlowExecutionHandler) copyFlowFilesToArtifacts(flowDir string, artifactDir string) error {
 	localArtifactDir := filepath.Join(artifactDir, "local")
 	if err := os.MkdirAll(localArtifactDir, 0755); err != nil {
 		return fmt.Errorf("failed to create local artifact directory: %w", err)
@@ -135,34 +215,34 @@ func (s *Scheduler) copyFlowFilesToArtifacts(flowDir string, artifactDir string)
 			return fmt.Errorf("failed to copy file %s to %s: %w", srcPath, destPath, err)
 		}
 
-		s.logger.Debug("copied flow file to artifacts", "src", srcPath, "dest", destPath)
+		h.logger.Debug("copied flow file to artifacts", "src", srcPath, "dest", destPath)
 	}
 
 	return nil
 }
 
 // executeSingleAction executes a single action within a flow, handling approval and error checkpointing
-func (s *Scheduler) executeSingleAction(ctx context.Context, action Action, srcDir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any, execID string, namespaceID string) (map[string]string, error) {
+func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action Action, srcDir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any, execID string, namespaceID string) (map[string]string, error) {
 	// Check for context cancellation
 	if ctx.Err() != nil {
 		if err := streamLogger.Checkpoint("", "", "execution cancelled", streamlogger.CancelledMessageType); err != nil {
-			s.logger.Error("failed to send cancellation message", "error", err)
+			h.logger.Error("failed to send cancellation message", "error", err)
 		}
 		return nil, ErrExecutionCancelled
 	}
 
 	// Check for approval requests
-	if err := s.checkApproval(ctx, execID, action, namespaceID); err != nil {
+	if err := h.checkApproval(ctx, execID, action, namespaceID); err != nil {
 		return nil, err
 	}
 
 	// Run the action
-	res, err := s.runAction(ctx, execID, action, srcDir, input, streamLogger, artifactDir, secrets, outputs)
+	res, err := h.runAction(ctx, execID, action, input, streamLogger, artifactDir, secrets, outputs)
 	if err != nil {
 		// Check if the error is due to context cancellation
 		if errors.Is(err, context.Canceled) {
 			if streamErr := streamLogger.Checkpoint(action.ID, "", "execution cancelled", streamlogger.CancelledMessageType); streamErr != nil {
-				s.logger.Error("failed to send cancelled message", "execID", execID, "actionID", action.ID, "error", streamErr)
+				h.logger.Error("failed to send cancelled message", "execID", execID, "actionID", action.ID, "error", streamErr)
 			}
 			return nil, ErrExecutionCancelled
 		}
@@ -198,7 +278,7 @@ func processActionResults(results map[string]string, outputs map[string]any) {
 }
 
 // executeOnNode executes an action on a single node and returns the results
-func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string) ExecResults {
+func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string) ExecResults {
 	nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
 
 	// Create a separate executor instance for each node
@@ -212,7 +292,7 @@ func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node,
 	// Ignore local node
 	if node.Name != "" {
 		if err := node.CheckConnectivity(); err != nil {
-			s.logger.Debug("node connectivity", "error", err)
+			h.logger.Debug("node connectivity", "error", err)
 			return ExecResults{
 				result: nil,
 				err:    fmt.Errorf("failed to connect to node %s", node.Name),
@@ -258,7 +338,7 @@ func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node,
 	}
 
 	// Push existing artifacts to this node's executor before execution
-	if err := s.pushArtifactsWithDriver(ctx, driver, artifactDir, execID); err != nil {
+	if err := h.pushArtifactsWithDriver(ctx, driver, artifactDir, execID); err != nil {
 		return ExecResults{
 			result: nil,
 			err:    fmt.Errorf("failed to push artifacts to node %s: %w", node.Name, err),
@@ -275,7 +355,7 @@ func (s *Scheduler) executeOnNode(ctx context.Context, execID string, node Node,
 
 	// Pull all artifacts from this node after execution
 	if err == nil {
-		if pullErr := s.pullArtifactsWithDriver(ctx, driver, artifactDir, execID, node.Name); pullErr != nil {
+		if pullErr := h.pullArtifactsWithDriver(ctx, driver, artifactDir, execID, node.Name); pullErr != nil {
 			err = fmt.Errorf("execution succeeded but failed to pull artifacts: %w", pullErr)
 		}
 	}
@@ -305,12 +385,12 @@ func prefixResultKeys(results map[string]string, nodeName string) map[string]str
 }
 
 // interpolateVariables processes action variables and replaces templated values with evaluated expressions
-func (s *Scheduler) interpolateVariables(action Action, input map[string]any, secrets map[string]string, outputs map[string]any) (map[string]any, error) {
+func (h *FlowExecutionHandler) interpolateVariables(action Action, input map[string]any, secrets map[string]string, outputs map[string]any) (map[string]any, error) {
 	// pattern to extract interpolated variables
 	pattern := `{{\s*([^}]+)\s*}}`
 	re := regexp.MustCompile(pattern)
 
-	s.logger.Debug("scheduler variables", "input", input)
+	h.logger.Debug("scheduler variables", "input", input)
 
 	inputVars := make(map[string]any)
 	for _, variable := range action.Variables {
@@ -348,14 +428,14 @@ func (s *Scheduler) interpolateVariables(action Action, input map[string]any, se
 }
 
 // runAction executes a single action
-func (s *Scheduler) runAction(ctx context.Context, execID string, action Action, srcdir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any) (map[string]string, error) {
+func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, action Action, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any) (map[string]string, error) {
 	streamLogger.SetActionID(action.ID)
 
-	jobCtx, cancel := context.WithTimeout(ctx, time.Hour)
+	jobCtx, cancel := context.WithTimeout(ctx, JobTimeout)
 	defer cancel()
 
 	// Interpolate variables
-	inputVars, err := s.interpolateVariables(action, input, secrets, outputs)
+	inputVars, err := h.interpolateVariables(action, input, secrets, outputs)
 	if err != nil {
 		return nil, err
 	}
@@ -376,7 +456,7 @@ func (s *Scheduler) runAction(ctx context.Context, execID string, action Action,
 		wg.Add(1)
 		go func(node Node) {
 			defer wg.Done()
-			result := s.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir)
+			result := h.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir)
 			resChan <- result
 		}(node)
 	}
@@ -402,9 +482,9 @@ func (s *Scheduler) runAction(ctx context.Context, execID string, action Action,
 
 // pushArtifactsWithDriver pushes files from the local artifact directory to the remote artifacts directory
 // Only pushes direct child files of top-level directories (one level deep)
-func (s *Scheduler) pushArtifactsWithDriver(ctx context.Context, driver executor.NodeDriver, artifactDir string, execID string) error {
+func (h *FlowExecutionHandler) pushArtifactsWithDriver(ctx context.Context, driver executor.NodeDriver, artifactDir string, execID string) error {
 	remoteArtifactsDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
-	s.logger.Debug("remote artifacts directory", "pushdir", remoteArtifactsDir)
+	h.logger.Debug("remote artifacts directory", "pushdir", remoteArtifactsDir)
 
 	// Read top-level entries in artifact directory
 	entries, err := os.ReadDir(artifactDir)
@@ -415,7 +495,7 @@ func (s *Scheduler) pushArtifactsWithDriver(ctx context.Context, driver executor
 	for _, entry := range entries {
 		if entry.IsDir() {
 			dirPath := filepath.Join(artifactDir, entry.Name())
-			s.logger.Debug("processing top-level directory", "pushdirentry", dirPath)
+			h.logger.Debug("processing top-level directory", "pushdirentry", dirPath)
 
 			childEntries, err := os.ReadDir(dirPath)
 			if err != nil {
@@ -424,11 +504,11 @@ func (s *Scheduler) pushArtifactsWithDriver(ctx context.Context, driver executor
 
 			for _, child := range childEntries {
 				if !child.IsDir() {
-					info, _ :=  child.Info()
-					s.logger.Debug("file size", "filesize", info.Size())
+					info, _ := child.Info()
+					h.logger.Debug("file size", "filesize", info.Size())
 					localPath := filepath.Join(dirPath, child.Name())
 					remotePath := driver.Join(remoteArtifactsDir, entry.Name(), child.Name())
-					s.logger.Debug("pushing artifact file", "localPath", localPath, "remotePath", remotePath)
+					h.logger.Debug("pushing artifact file", "localPath", localPath, "remotePath", remotePath)
 					if err := driver.Upload(ctx, localPath, remotePath); err != nil {
 						return fmt.Errorf("failed to push artifact %s: %w", localPath, err)
 					}
@@ -441,13 +521,13 @@ func (s *Scheduler) pushArtifactsWithDriver(ctx context.Context, driver executor
 }
 
 // pullArtifactsWithDriver downloads all files from the remote artifacts directory to the local artifact directory
-func (s *Scheduler) pullArtifactsWithDriver(ctx context.Context, driver executor.NodeDriver, artifactDir string, execID string, nodeName string) error {
+func (h *FlowExecutionHandler) pullArtifactsWithDriver(ctx context.Context, driver executor.NodeDriver, artifactDir string, execID string, nodeName string) error {
 	remoteArtifactsDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
-	s.logger.Debug("remote artifacts directory", "pulldir", remoteArtifactsDir)
+	h.logger.Debug("remote artifacts directory", "pulldir", remoteArtifactsDir)
 	files, err := driver.ListFiles(ctx, remoteArtifactsDir)
 	if err != nil {
 		// If the directory doesn't exist, there are no artifacts to pull
-		s.logger.Debug("no artifacts to pull", "remoteDir", remoteArtifactsDir, "error", err)
+		h.logger.Debug("no artifacts to pull", "remoteDir", remoteArtifactsDir, "error", err)
 		return nil
 	}
 
@@ -474,18 +554,15 @@ func (s *Scheduler) pullArtifactsWithDriver(ctx context.Context, driver executor
 	return nil
 }
 
-func (s *Scheduler) checkApproval(ctx context.Context, execID string, action Action, namespaceID string) error {
-	// use parent exec ID if available for approval requests
-	eID := execID
-
+func (h *FlowExecutionHandler) checkApproval(ctx context.Context, execID string, action Action, namespaceID string) error {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
 	// Set the current action ID
-	log.Println("current action ID: ", action.ID)
-	if _, err := s.store.UpdateExecutionActionID(ctx, repo.UpdateExecutionActionIDParams{
+	h.logger.Debug("current action", "actionID", action.ID)
+	if _, err := h.store.UpdateExecutionActionID(ctx, repo.UpdateExecutionActionIDParams{
 		CurrentActionID: sql.NullString{String: action.ID, Valid: action.ID != ""},
 		ExecID:          execID,
 		Uuid:            namespaceUUID,
@@ -498,8 +575,8 @@ func (s *Scheduler) checkApproval(ctx context.Context, execID string, action Act
 	}
 
 	// check if pending approval, exit if not approved
-	a, err := s.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
-		ExecID:   eID,
+	a, err := h.store.GetApprovalRequestForActionAndExec(ctx, repo.GetApprovalRequestForActionAndExecParams{
+		ExecID:   execID,
 		ActionID: action.ID,
 		Uuid:     namespaceUUID,
 	})
@@ -517,7 +594,7 @@ func (s *Scheduler) checkApproval(ctx context.Context, execID string, action Act
 	}
 
 	if a.Status == "" {
-		_, err = s.store.RequestApprovalTx(ctx, eID, namespaceUUID, repo.RequestApprovalParam{
+		_, err = h.store.RequestApprovalTx(ctx, execID, namespaceUUID, repo.RequestApprovalParam{
 			ID: action.ID,
 		})
 		if err != nil {
@@ -526,4 +603,86 @@ func (s *Scheduler) checkApproval(ctx context.Context, execID string, action Act
 	}
 
 	return ErrPendingApproval
+}
+
+// setStatus updates the execution status in the execution_log table
+func (h *FlowExecutionHandler) setStatus(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, err error) error {
+	var errMsg sql.NullString
+	if err != nil {
+		errMsg = sql.NullString{String: err.Error(), Valid: true}
+	}
+	namespaceUUID, parseErr := uuid.Parse(namespaceID)
+	if parseErr != nil {
+		return fmt.Errorf("invalid namespace ID: %w", parseErr)
+	}
+	_, updateErr := h.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
+		Status: status,
+		Error:  errMsg,
+		ExecID: execID,
+		Uuid:   namespaceUUID,
+	})
+	if updateErr != nil {
+		return fmt.Errorf("could not update error execution status: %w", updateErr)
+	}
+
+	return nil
+}
+
+// createExecutionLog creates an execution log entry for scheduled jobs
+func (h *FlowExecutionHandler) createExecutionLog(ctx context.Context, execID string, payload FlowExecutionPayload) error {
+	namespaceUUID, err := uuid.Parse(payload.NamespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	userUUID, err := uuid.Parse(payload.UserUUID)
+	if err != nil {
+		return fmt.Errorf("invalid user UUID: %w", err)
+	}
+
+	inputJSON, err := json.Marshal(payload.Input)
+	if err != nil {
+		return fmt.Errorf("failed to marshal input: %w", err)
+	}
+
+	triggerType := repo.TriggerTypeManual
+	if payload.TriggerType == TriggerTypeScheduled {
+		triggerType = repo.TriggerTypeScheduled
+	}
+
+	_, err = h.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
+		ExecID:      execID,
+		FlowID:      payload.Workflow.Meta.DBID,
+		Input:       inputJSON,
+		TriggerType: triggerType,
+		Uuid:        userUUID,
+		Uuid_2:      namespaceUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add execution log: %w", err)
+	}
+
+	return nil
+}
+
+// setStatusWithMetrics updates the execution status and tracks metrics
+func (h *FlowExecutionHandler) setStatusWithMetrics(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, flowID string, err error) error {
+	if err := h.setStatus(ctx, execID, status, namespaceID, err); err != nil {
+		return err
+	}
+
+	if h.metrics != nil {
+		switch status {
+		case repo.ExecutionStatusCompleted:
+			h.metrics.IncrementExecutionCount(namespaceID, flowID, "completed")
+		case repo.ExecutionStatusErrored:
+			h.metrics.IncrementExecutionCount(namespaceID, flowID, "errored")
+		case repo.ExecutionStatusCancelled:
+			h.metrics.IncrementExecutionCount(namespaceID, flowID, "cancelled")
+		case repo.ExecutionStatusPendingApproval:
+			h.metrics.IncExecutionsWaiting(namespaceID, flowID)
+		}
+	}
+
+	return nil
 }

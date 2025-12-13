@@ -2,8 +2,6 @@ package scheduler
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,15 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cvhariharan/flowctl/internal/metrics"
-	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler/storage"
-	"github.com/cvhariharan/flowctl/internal/streamlogger"
-	"github.com/google/uuid"
+)
+
+const (
+	TaskTicker     = 2 * time.Second
+	PeriodicTicker = 1 * time.Minute
+	JobTimeout     = time.Hour
 )
 
 type TaskScheduler interface {
-	QueueTask(ctx context.Context, payload FlowExecutionPayload) (string, error)
+	QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error)
 	CancelTask(ctx context.Context, execID string) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -27,37 +27,35 @@ type TaskScheduler interface {
 
 // Scheduler implements TaskScheduler
 type Scheduler struct {
-	store            repo.Store      // For flow metadata and cron schedules
-	jobStore         storage.Storage // For job queue
-	secretsProvider  SecretsProviderFn
-	flowLoader       FlowLoaderFn
-	logmanager       streamlogger.LogManager
-	metrics          *metrics.Manager
-	cancelFuncs      map[string]context.CancelFunc
-	scheduledFlows   map[string]repo.GetScheduledFlowsRow // Cache of scheduled flows
-	cancelMu         sync.RWMutex                         // Lock for cancelFuncs
-	scheduledMu      sync.RWMutex                         // Lock for scheduledFlows
-	taskTicker       *time.Ticker
-	periodicTicker   *time.Ticker
-	cronSyncTicker   *time.Ticker
-	cronSyncInterval time.Duration
-	stopCh           chan struct{}
-	stopped          bool
+	jobStore         storage.Storage
+	handlers         *handlerRegistry
+	queueConfig      QueueConfig
 	workerCount      int
-	logger           *slog.Logger
+	cronSyncInterval time.Duration
+	jobSyncer        JobSyncerFn
+
+	cancelFuncs   map[string]context.CancelFunc
+	cancelMu      sync.RWMutex
+	scheduledJobs map[string]ScheduledJob
+	scheduledMu   sync.RWMutex
+
+	taskTicker     *time.Ticker
+	periodicTicker *time.Ticker
+	cronSyncTicker *time.Ticker
+	stopCh         chan struct{}
+	stopped        bool
+	logger         *slog.Logger
 }
 
-// SchedulerBuilder provides a fluent interface for building schedulers
+// SchedulerBuilder provides an interface for building schedulers
 type SchedulerBuilder struct {
-	store            repo.Store
 	jobStore         storage.Storage
-	secretsProvider  SecretsProviderFn
-	flowLoader       FlowLoaderFn
-	logmanager       streamlogger.LogManager
-	metrics          *metrics.Manager
+	handlers         []Handler
+	queueConfig      QueueConfig
 	workerCount      int
-	logger           *slog.Logger
 	cronSyncInterval time.Duration
+	jobSyncer        JobSyncerFn
+	logger           *slog.Logger
 }
 
 // NewSchedulerBuilder creates a new scheduler builder
@@ -67,89 +65,83 @@ func NewSchedulerBuilder(logger *slog.Logger) *SchedulerBuilder {
 	}
 }
 
-// WithStore sets the store
-func (b *SchedulerBuilder) WithStore(store repo.Store) *SchedulerBuilder {
-	b.store = store
-	return b
-}
-
 // WithJobStore sets the job store
 func (b *SchedulerBuilder) WithJobStore(jobStore storage.Storage) *SchedulerBuilder {
 	b.jobStore = jobStore
 	return b
 }
 
-// WithSecretsProvider sets the secrets provider
-func (b *SchedulerBuilder) WithSecretsProvider(sp SecretsProviderFn) *SchedulerBuilder {
-	b.secretsProvider = sp
+// WithHandler adds a task handler
+func (b *SchedulerBuilder) WithHandler(h Handler) *SchedulerBuilder {
+	b.handlers = append(b.handlers, h)
 	return b
 }
 
-// WithFlowLoader sets the flow loader
-func (b *SchedulerBuilder) WithFlowLoader(fl FlowLoaderFn) *SchedulerBuilder {
-	b.flowLoader = fl
+// WithQueueConfig sets the queue configuration
+func (b *SchedulerBuilder) WithQueueConfig(cfg QueueConfig) *SchedulerBuilder {
+	b.queueConfig = cfg
 	return b
 }
 
-// WithLogManager sets the log manager
-func (b *SchedulerBuilder) WithLogManager(lm streamlogger.LogManager) *SchedulerBuilder {
-	b.logmanager = lm
-	return b
-}
-
+// WithWorkerCount sets the worker count
 func (b *SchedulerBuilder) WithWorkerCount(c int) *SchedulerBuilder {
 	b.workerCount = c
 	return b
 }
 
+// WithCronSyncInterval sets the cron sync interval
 func (b *SchedulerBuilder) WithCronSyncInterval(s time.Duration) *SchedulerBuilder {
 	b.cronSyncInterval = s
 	return b
 }
 
-func (b *SchedulerBuilder) WithMetrics(m *metrics.Manager) *SchedulerBuilder {
-	b.metrics = m
-	return b
-}
-
 // Build creates the scheduler instance
 func (b *SchedulerBuilder) Build() (*Scheduler, error) {
-	if b.workerCount == 0 {
-		b.workerCount = runtime.NumCPU()
+	if b.jobStore == nil {
+		return nil, fmt.Errorf("job store is required")
 	}
 
-	if b.logmanager == nil {
-		return nil, fmt.Errorf("logmanager cannot be nil")
+	workerCount := b.workerCount
+	if workerCount == 0 {
+		workerCount = runtime.NumCPU()
 	}
 
-	if b.cronSyncInterval == 0 {
-		b.cronSyncInterval = 5 * time.Minute
+	cronInterval := b.cronSyncInterval
+	if cronInterval == 0 {
+		cronInterval = 5 * time.Minute
 	}
 
 	return &Scheduler{
-		store:            b.store,
 		jobStore:         b.jobStore,
-		secretsProvider:  b.secretsProvider,
-		flowLoader:       b.flowLoader,
-		logmanager:       b.logmanager,
-		metrics:          b.metrics,
-		workerCount:      b.workerCount,
-		logger:           b.logger,
-		cronSyncInterval: b.cronSyncInterval,
+		handlers:         newHandlerRegistry(),
+		queueConfig:      b.queueConfig,
+		workerCount:      workerCount,
+		cronSyncInterval: cronInterval,
+		jobSyncer:        b.jobSyncer,
 		cancelFuncs:      make(map[string]context.CancelFunc),
-		scheduledFlows:   make(map[string]repo.GetScheduledFlowsRow),
+		scheduledJobs:    make(map[string]ScheduledJob),
 		stopCh:           make(chan struct{}),
+		logger:           b.logger,
 	}, nil
 }
 
-// SetSecretsProvider allows updating secrets provider after build
-func (s *Scheduler) SetSecretsProvider(sp SecretsProviderFn) {
-	s.secretsProvider = sp
+// SetJobSyncer sets the job syncer for cron-based scheduling
+func (s *Scheduler) SetJobSyncer(syncer JobSyncerFn) {
+	s.jobSyncer = syncer
 }
 
-// SetFlowLoader allows updating flow loader after build
-func (s *Scheduler) SetFlowLoader(fl FlowLoaderFn) {
-	s.flowLoader = fl
+// SetHandler registers a handler for a payload type
+func (s *Scheduler) SetHandler(h Handler) error {
+	return s.handlers.Register(h)
+}
+
+// SetQueueConfig sets the queue configuration
+func (s *Scheduler) SetQueueConfig(cfg QueueConfig) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid queue config: %w", err)
+	}
+	s.queueConfig = cfg
+	return nil
 }
 
 // Start begins the scheduler's task processing loops
@@ -164,16 +156,16 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return err
 	}
 
-	s.taskTicker = time.NewTicker(2 * time.Second)
+	s.taskTicker = time.NewTicker(TaskTicker)
 
 	// Check periodic tasks every minute
-	s.periodicTicker = time.NewTicker(1 * time.Minute)
+	s.periodicTicker = time.NewTicker(PeriodicTicker)
 
 	// Sync crons from DB every 5 minutes
 	s.cronSyncTicker = time.NewTicker(s.cronSyncInterval)
 
-	if err := s.syncScheduledFlows(ctx); err != nil {
-		s.logger.Error("failed to perform initial sync of scheduled flows", "error", err)
+	if err := s.syncScheduledJobs(ctx); err != nil {
+		s.logger.Error("failed to perform initial sync of scheduled jobs", "error", err)
 	}
 
 	go s.processLoop(ctx)
@@ -207,9 +199,9 @@ func (s *Scheduler) Stop(ctx context.Context) error {
 	return nil
 }
 
-// QueueTask queues an immediate task for execution
-func (s *Scheduler) QueueTask(ctx context.Context, payload FlowExecutionPayload) (string, error) {
-	job, err := storage.NewJob(payload.ExecID, payload)
+// QueueTask queues a task for execution with specified payload type
+func (s *Scheduler) QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error) {
+	job, err := storage.NewJob(execID, string(payloadType), payload)
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +211,7 @@ func (s *Scheduler) QueueTask(ctx context.Context, payload FlowExecutionPayload)
 		return "", err
 	}
 
-	return payload.ExecID, nil
+	return execID, nil
 }
 
 // CancelTask cancels a running or pending execution
@@ -253,8 +245,8 @@ func (s *Scheduler) processLoop(ctx context.Context) {
 				s.logger.Error("error checking periodic tasks", "error", err)
 			}
 		case <-s.cronSyncTicker.C:
-			if err := s.syncScheduledFlows(ctx); err != nil {
-				s.logger.Error("error syncing scheduled flows", "error", err)
+			if err := s.syncScheduledJobs(ctx); err != nil {
+				s.logger.Error("error syncing scheduled jobs", "error", err)
 			}
 		case <-s.stopCh:
 			return
@@ -264,164 +256,58 @@ func (s *Scheduler) processLoop(ctx context.Context) {
 	}
 }
 
-// processPendingTasks gets pending tasks and executes them
+// processPendingTasks gets pending tasks and executes them with weighted distribution
 func (s *Scheduler) processPendingTasks(ctx context.Context) error {
-	for i := 0; i < s.workerCount; i++ {
-		done := make(chan struct{})
-		job, err := s.jobStore.Get(ctx, done)
-		if err != nil {
-			if errors.Is(err, storage.ErrNoJobs) {
-				break
+	for _, qw := range s.queueConfig.Queues {
+		handler, ok := s.handlers.Get(qw.PayloadType)
+		if !ok {
+			continue
+		}
+
+		goroutineCount := s.queueConfig.GetWorkerCount(qw.PayloadType, s.workerCount)
+
+		for i := 0; i < goroutineCount; i++ {
+			done := make(chan struct{})
+			job, err := s.jobStore.GetByPayloadType(ctx, string(qw.PayloadType), done)
+			if err != nil {
+				if errors.Is(err, storage.ErrNoJobs) {
+					break
+				}
+				return err
 			}
-			return err
+
+			go func(done chan struct{}, j storage.Job, h Handler) {
+				defer close(done)
+
+				// Create cancellable context for this job
+				execCtx, cancel := context.WithCancel(ctx)
+
+				// Track cancellation function
+				s.cancelMu.Lock()
+				s.cancelFuncs[j.ExecID] = cancel
+				s.cancelMu.Unlock()
+
+				defer func() {
+					s.cancelMu.Lock()
+					delete(s.cancelFuncs, j.ExecID)
+					s.cancelMu.Unlock()
+				}()
+
+				handlerJob := Job{
+					ID:          j.ID,
+					ExecID:      j.ExecID,
+					PayloadType: PayloadType(j.PayloadType),
+					Payload:     j.Payload,
+					CreatedAt:   j.CreatedAt,
+				}
+
+				s.logger.Debug("starting job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID)
+				if err := h.Handle(execCtx, handlerJob); err != nil {
+					s.logger.Error("handler error", "type", j.PayloadType, "execID", j.ExecID, "error", err)
+				}
+				s.logger.Debug("completed job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID)
+			}(done, job, handler)
 		}
-
-		go func(done chan struct{}) {
-			defer close(done)
-			s.logger.Debug("starting job execution", "execID", job.ExecID, "jobID", job.ID)
-			if err := s.executeJob(ctx, job); err != nil {
-				s.logger.Error("error executing flow", "execID", job.ExecID, "error", err)
-			}
-			s.logger.Debug("completed job execution", "execID", job.ExecID, "jobID", job.ID)
-		}(done)
-	}
-
-	return nil
-}
-
-// executeJob executes a single job
-func (s *Scheduler) executeJob(ctx context.Context, job storage.Job) error {
-	var payload FlowExecutionPayload
-	if err := json.Unmarshal(job.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal job payload: %w", err)
-	}
-
-	execCtx, cancel := context.WithCancel(ctx)
-
-	// Track cancellation function
-	s.cancelMu.Lock()
-	s.cancelFuncs[job.ExecID] = cancel
-	s.cancelMu.Unlock()
-
-	// Track running execution metrics
-	if s.metrics != nil {
-		s.metrics.IncExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
-	}
-
-	defer func() {
-		s.cancelMu.Lock()
-		delete(s.cancelFuncs, job.ExecID)
-		s.cancelMu.Unlock()
-
-		// Decrement running execution metrics
-		if s.metrics != nil {
-			s.metrics.DecExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
-		}
-	}()
-
-	// Create execution log for scheduled executions only (manual ones are created in core)
-	if payload.TriggerType == TriggerTypeScheduled {
-		if err := s.createExecutionLog(ctx, payload); err != nil {
-			s.logger.Error("failed to create execution log for scheduled task", "error", err)
-		}
-	}
-
-	if err := s.setStatus(ctx, payload.ExecID, repo.ExecutionStatusRunning, payload.NamespaceID, nil); err != nil {
-		return fmt.Errorf("could not update execution_log status: %w", err)
-	}
-
-	if err := s.executeFlow(execCtx, payload); err != nil {
-		s.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
-		if errors.Is(err, ErrPendingApproval) {
-			return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
-		}
-		if errors.Is(err, ErrExecutionCancelled) {
-			return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
-		}
-		return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, payload.Workflow.Meta.ID, err)
-	}
-
-	return s.setStatusWithMetrics(ctx, payload.ExecID, repo.ExecutionStatusCompleted, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
-}
-
-// setStatus updates the execution status in the execution_log table
-func (s *Scheduler) setStatus(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, err error) error {
-	var errMsg sql.NullString
-	if err != nil {
-		errMsg = sql.NullString{String: err.Error(), Valid: true}
-	}
-	namespaceUUID, parseErr := uuid.Parse(namespaceID)
-	if parseErr != nil {
-		return fmt.Errorf("invalid namespace ID: %w", parseErr)
-	}
-	_, err = s.store.UpdateExecutionStatus(ctx, repo.UpdateExecutionStatusParams{
-		Status: status,
-		Error:  errMsg,
-		ExecID: execID,
-		Uuid:   namespaceUUID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not update error execution status: %w", err)
-	}
-
-	return nil
-}
-
-// setStatusWithMetrics updates the execution status and tracks metrics
-func (s *Scheduler) setStatusWithMetrics(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, flowID string, err error) error {
-	if err := s.setStatus(ctx, execID, status, namespaceID, err); err != nil {
-		return err
-	}
-
-	if s.metrics != nil {
-		switch status {
-		case repo.ExecutionStatusCompleted:
-			s.metrics.IncrementExecutionCount(namespaceID, flowID, "completed")
-		case repo.ExecutionStatusErrored:
-			s.metrics.IncrementExecutionCount(namespaceID, flowID, "errored")
-		case repo.ExecutionStatusCancelled:
-			s.metrics.IncrementExecutionCount(namespaceID, flowID, "cancelled")
-		case repo.ExecutionStatusPendingApproval:
-			s.metrics.IncExecutionsWaiting(namespaceID, flowID)
-		}
-	}
-
-	return nil
-}
-
-// createExecutionLog creates an execution log entry for executions
-func (s *Scheduler) createExecutionLog(ctx context.Context, payload FlowExecutionPayload) error {
-	namespaceUUID, err := uuid.Parse(payload.NamespaceID)
-	if err != nil {
-		return fmt.Errorf("invalid namespace UUID: %w", err)
-	}
-
-	userUUID, err := uuid.Parse(payload.UserUUID)
-	if err != nil {
-		return fmt.Errorf("invalid user UUID: %w", err)
-	}
-
-	inputB, err := json.Marshal(payload.Input)
-	if err != nil {
-		return fmt.Errorf("could not marshal input to json: %w", err)
-	}
-
-	// Convert trigger type
-	triggerType := repo.TriggerTypeManual
-	if payload.TriggerType == TriggerTypeScheduled {
-		triggerType = repo.TriggerTypeScheduled
-	}
-
-	_, err = s.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
-		ExecID:      payload.ExecID,
-		FlowID:      payload.Workflow.Meta.DBID,
-		Input:       inputB,
-		TriggerType: triggerType,
-		Uuid:        userUUID,
-		Uuid_2:      namespaceUUID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not add execution log entry: %w", err)
 	}
 
 	return nil

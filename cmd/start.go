@@ -96,7 +96,7 @@ func initializeSharedComponents() *SharedComponents {
 	slog.SetDefault(logger)
 
 	// Create the log directory and instantiate log manager
-	if err := os.MkdirAll(appConfig.Logger.Directory, 0644); err != nil {
+	if err := os.MkdirAll(appConfig.Logger.Directory, 0755); err != nil {
 		log.Fatalf("could not create log directory: %v", err)
 	}
 	fileLogManager := streamlogger.NewFileLogManager(streamlogger.FileLogManagerCfg{
@@ -153,29 +153,40 @@ func initializeSharedComponents() *SharedComponents {
 
 	// Build scheduler
 	sch, err := scheduler.NewSchedulerBuilder(logger.WithGroup("scheduler")).
-		WithStore(s).
 		WithJobStore(jobStore).
-		WithLogManager(fileLogManager).
-		WithMetrics(metricsManager).
 		WithWorkerCount(appConfig.Scheduler.WorkerCount).
 		WithCronSyncInterval(appConfig.Scheduler.CronSyncInterval).
 		Build()
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Create core with scheduler
 	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	co.LogManager = fileLogManager
 
-	// Set secrets provider and flow loader after core is created
-	// GetMergedSecretsForFlow merges namespace + flow secrets (flow overrides namespace)
-	sch.SetSecretsProvider(co.GetMergedSecretsForFlow)
-	sch.SetFlowLoader(co.GetSchedulerFlow)
+	// Create flow execution handler with core's secrets provider
+	flowHandler := scheduler.NewFlowExecutionHandler(scheduler.FlowHandlerConfig{
+		Store:           s,
+		SecretsProvider: co.GetMergedSecretsForFlow,
+		LogManager:      fileLogManager,
+		Logger:          logger.WithGroup("flow_handler"),
+		Metrics:         metricsManager,
+	})
+
+	// Set handler and queue config on scheduler
+	if err := sch.SetHandler(flowHandler); err != nil {
+		log.Fatal(err)
+	}
+	if err := sch.SetQueueConfig(scheduler.QueueConfig{Queues: []scheduler.QueueWeight{{PayloadType: scheduler.PayloadTypeFlowExecution, Weight: 100}}}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Set job syncer for cron scheduling
+	sch.SetJobSyncer(co.SyncScheduledFlowJobs)
 
 	return &SharedComponents{
 		DB:        db,
