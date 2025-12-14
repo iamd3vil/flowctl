@@ -68,6 +68,8 @@ token_url = ""
 cron_sync_interval = "5m0s"
 # (optional) Number of workers
 workers = 20
+# (optional) Timeout for flow execution. A running flow will be terminated after this duration. Default - 1 hour
+# flow_execution_timeout = "1h"
 
 [db]
 # (required) Database name

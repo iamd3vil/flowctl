@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cvhariharan/flowctl/internal/metrics"
 	"github.com/cvhariharan/flowctl/internal/repo"
@@ -28,30 +29,37 @@ const PayloadTypeFlowExecution PayloadType = "flow_execution"
 
 // FlowExecutionHandler handles flow execution jobs
 type FlowExecutionHandler struct {
-	store           repo.Store
-	secretsProvider SecretsProviderFn
-	logmanager      streamlogger.LogManager
-	logger          *slog.Logger
-	metrics         *metrics.Manager
+	store            repo.Store
+	secretsProvider  SecretsProviderFn
+	logmanager       streamlogger.LogManager
+	logger           *slog.Logger
+	executionTimeout time.Duration
+	metrics          *metrics.Manager
 }
 
 // FlowHandlerConfig holds configuration for FlowExecutionHandler
 type FlowHandlerConfig struct {
-	Store           repo.Store
-	SecretsProvider SecretsProviderFn
-	LogManager      streamlogger.LogManager
-	Logger          *slog.Logger
-	Metrics         *metrics.Manager
+	Store                repo.Store
+	SecretsProvider      SecretsProviderFn
+	LogManager           streamlogger.LogManager
+	Logger               *slog.Logger
+	Metrics              *metrics.Manager
+	FlowExecutionTimeout time.Duration
 }
 
 // NewFlowExecutionHandler creates a new flow execution handler
 func NewFlowExecutionHandler(cfg FlowHandlerConfig) *FlowExecutionHandler {
+	if cfg.FlowExecutionTimeout == 0 {
+		cfg.FlowExecutionTimeout = time.Hour
+	}
+
 	return &FlowExecutionHandler{
-		store:           cfg.Store,
-		secretsProvider: cfg.SecretsProvider,
-		logmanager:      cfg.LogManager,
-		logger:          cfg.Logger,
-		metrics:         cfg.Metrics,
+		store:            cfg.Store,
+		secretsProvider:  cfg.SecretsProvider,
+		logmanager:       cfg.LogManager,
+		logger:           cfg.Logger,
+		metrics:          cfg.Metrics,
+		executionTimeout: cfg.FlowExecutionTimeout,
 	}
 }
 
@@ -431,7 +439,7 @@ func (h *FlowExecutionHandler) interpolateVariables(action Action, input map[str
 func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, action Action, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any) (map[string]string, error) {
 	streamLogger.SetActionID(action.ID)
 
-	jobCtx, cancel := context.WithTimeout(ctx, JobTimeout)
+	jobCtx, cancel := context.WithTimeout(ctx, h.executionTimeout)
 	defer cancel()
 
 	// Interpolate variables

@@ -15,7 +15,6 @@ import (
 const (
 	TaskTicker     = 2 * time.Second
 	PeriodicTicker = 1 * time.Minute
-	JobTimeout     = time.Hour
 )
 
 type TaskScheduler interface {

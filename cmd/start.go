@@ -170,11 +170,12 @@ func initializeSharedComponents() *SharedComponents {
 
 	// Create flow execution handler with core's secrets provider
 	flowHandler := scheduler.NewFlowExecutionHandler(scheduler.FlowHandlerConfig{
-		Store:           s,
-		SecretsProvider: co.GetMergedSecretsForFlow,
-		LogManager:      fileLogManager,
-		Logger:          logger.WithGroup("flow_handler"),
-		Metrics:         metricsManager,
+		Store:                s,
+		SecretsProvider:      co.GetMergedSecretsForFlow,
+		LogManager:           fileLogManager,
+		Logger:               logger.WithGroup("flow_handler"),
+		Metrics:              metricsManager,
+		FlowExecutionTimeout: appConfig.Scheduler.FlowExecutionTimeout,
 	})
 
 	// Set handler and queue config on scheduler

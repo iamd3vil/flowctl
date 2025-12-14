@@ -33,15 +33,15 @@ type Metrics struct {
 }
 
 type DBConfig struct {
-	DSN        string `koanf:"dsn"`
-	DBName     string `koanf:"dbname"`
-	User       string `koanf:"user"`
-	Password   string `koanf:"password"`
-	Host       string `koanf:"host"`
-	Port       int    `koanf:"port"`
-	SSLMode    string `koanf:"sslmode"`
-	SSLCert    string `koanf:"sslcert"`
-	SSLKey     string `koanf:"sslkey"`
+	DSN         string `koanf:"dsn"`
+	DBName      string `koanf:"dbname"`
+	User        string `koanf:"user"`
+	Password    string `koanf:"password"`
+	Host        string `koanf:"host"`
+	Port        int    `koanf:"port"`
+	SSLMode     string `koanf:"sslmode"`
+	SSLCert     string `koanf:"sslcert"`
+	SSLKey      string `koanf:"sslkey"`
 	SSLRootCert string `koanf:"sslrootcert"`
 }
 
@@ -83,9 +83,10 @@ func (db DBConfig) ConnectionString() string {
 }
 
 type SchedulerConfig struct {
-	WorkerCount      int           `koanf:"workers"`
-	Backend          string        `koanf:"backend"`
-	CronSyncInterval time.Duration `koanf:"cron_sync_interval"`
+	WorkerCount          int           `koanf:"workers"`
+	Backend              string        `koanf:"backend"`
+	CronSyncInterval     time.Duration `koanf:"cron_sync_interval"`
+	FlowExecutionTimeout time.Duration `koanf:"flow_execution_timeout"`
 }
 
 type Logger struct {
@@ -189,8 +190,9 @@ func GetDefaultConfig() Config {
 			ClientSecret: "",
 		},
 		Scheduler: SchedulerConfig{
-			WorkerCount:      runtime.NumCPU(),
-			CronSyncInterval: 5 * time.Minute,
+			WorkerCount:          runtime.NumCPU(),
+			CronSyncInterval:     5 * time.Minute,
+			FlowExecutionTimeout: time.Hour,
 		},
 		Logger: Logger{
 			Backend:       "file",
