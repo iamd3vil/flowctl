@@ -1,0 +1,25 @@
+<html>
+    <body>
+        <h2>Flow Execution Update</h2>
+        <p>Flow <strong>{{.FlowName}}</strong> ({{.FlowID}}) {{.StatusMsg}}.</p>
+        <table>
+            <tr>
+                <td><strong>Execution ID:</strong></td>
+                <td>
+                    <a
+                        href="{{ .RootURL }}/view/{{ .Namespace }}/results/{{ .FlowID }}/{{ .ExecID }}"
+                        >{{.ExecID}}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Status:</strong></td>
+                <td>{{.Status}}</td>
+            </tr>
+        </table>
+        {{if .Error}}
+        <h3>Error Details</h3>
+        <pre>{{.Error}}</pre>
+        {{end}}
+    </body>
+</html>

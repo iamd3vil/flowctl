@@ -18,13 +18,14 @@ import (
 )
 
 type Config struct {
-	DB        DBConfig        `koanf:"db"`
-	App       AppConfig       `koanf:"app"`
-	Keystore  KeystoreConfig  `koanf:"keystore"`
-	OIDC      OIDCConfig      `koanf:"oidc"`
-	Scheduler SchedulerConfig `koanf:"scheduler"`
-	Logger    Logger          `koanf:"logger"`
-	Metrics   Metrics         `koanf:"metrics"`
+	DB         DBConfig         `koanf:"db"`
+	App        AppConfig        `koanf:"app"`
+	Keystore   KeystoreConfig   `koanf:"keystore"`
+	OIDC       OIDCConfig       `koanf:"oidc"`
+	Scheduler  SchedulerConfig  `koanf:"scheduler"`
+	Logger     Logger           `koanf:"logger"`
+	Metrics    Metrics          `koanf:"metrics"`
+	Messengers MessengersConfig `koanf:"messengers"`
 }
 
 type Metrics struct {
@@ -123,6 +124,22 @@ type OIDCConfig struct {
 	Label        string `koanf:"label"`
 }
 
+type MessengersConfig struct {
+	Email SMTPConfig `koanf:"email"`
+}
+
+type SMTPConfig struct {
+	Enabled     bool   `koanf:"enabled"`
+	Host        string `koanf:"host"`
+	Port        int    `koanf:"port"`
+	Username    string `koanf:"username"`
+	Password    string `koanf:"password"`
+	FromAddress string `koanf:"from_address"`
+	FromName    string `koanf:"from_name"`
+	MaxConns    int    `koanf:"max_conns"`
+	SSL         string `koanf:"ssl"` // none, tls, starttls
+}
+
 func Load(configPath string) (Config, error) {
 	k := koanf.New(".")
 
@@ -199,6 +216,15 @@ func GetDefaultConfig() Config {
 			Directory:     "/var/log/flowctl",
 			RetentionTime: 0,
 			ScanInterval:  1 * time.Hour,
+		},
+		Messengers: MessengersConfig{
+			Email: SMTPConfig{
+				Enabled:  false,
+				Host:     "localhost",
+				Port:     587,
+				MaxConns: 10,
+				SSL:      "none",
+			},
 		},
 	}
 }

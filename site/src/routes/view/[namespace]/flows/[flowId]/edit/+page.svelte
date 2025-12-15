@@ -6,6 +6,7 @@
     import FlowMetadata from "$lib/components/flow-create/FlowMetadata.svelte";
     import FlowInputs from "$lib/components/flow-create/FlowInputs.svelte";
     import FlowActions from "$lib/components/flow-create/FlowActions.svelte";
+    import FlowNotifications from "$lib/components/flow-create/FlowNotifications.svelte";
     import ValidationModal from "$lib/components/flow-create/ValidationModal.svelte";
     import Tabs from "$lib/components/shared/Tabs.svelte";
     import SecretsTab from "$lib/components/secrets/SecretsTab.svelte";
@@ -35,6 +36,7 @@
         },
         inputs: [] as any[],
         actions: [] as any[],
+        notifications: [] as any[],
     });
 
     // Modal states
@@ -59,6 +61,7 @@
         { id: "metadata", label: "General" },
         { id: "inputs", label: "Inputs" },
         { id: "actions", label: "Actions" },
+        { id: "notifications", label: "Notifications" },
         { id: "secrets", label: "Secrets" }, // Always enabled in edit mode
     ];
 
@@ -132,6 +135,17 @@
                 collapsed: false,
             }));
 
+            // Transform notifications
+            if (config.notify && Array.isArray(config.notify)) {
+                flow.notifications = config.notify.map((notification) => ({
+                    channel: notification.channel || "email",
+                    events: notification.events || [],
+                    receivers: notification.receivers || [],
+                }));
+            } else {
+                flow.notifications = [];
+            }
+
             // Load executor configs for all actions
             if (flow.actions.length > 0) {
                 await loadExecutorConfigs(flow.actions);
@@ -171,6 +185,14 @@
             artifacts: [],
             condition: "",
             collapsed: false,
+        });
+    }
+
+    function addNotification() {
+        flow.notifications.push({
+            channel: "email",
+            events: [],
+            receivers: [],
         });
     }
 
@@ -226,6 +248,13 @@
                                 : undefined,
                         }),
                     ),
+                notify: flow.notifications
+                    .filter((n) => n.channel && n.events.length > 0 && n.receivers.length > 0)
+                    .map((notification) => ({
+                        channel: notification.channel,
+                        events: notification.events,
+                        receivers: notification.receivers,
+                    })) || undefined,
             };
 
             await apiClient.flows.update(namespace, flowId, flowData);
@@ -319,6 +348,11 @@
                                     {addAction}
                                     {availableExecutors}
                                     bind:executorConfigs
+                                />
+                            {:else if activeTab === "notifications"}
+                                <FlowNotifications
+                                    bind:notifications={flow.notifications}
+                                    {addNotification}
                                 />
                             {:else if activeTab === "secrets"}
                                 <SecretsTab {namespace} {flowId} />

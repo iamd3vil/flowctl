@@ -192,6 +192,42 @@ func (q *Queries) GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID
 	return i, err
 }
 
+const getGroupMembersByName = `-- name: GetGroupMembersByName :many
+SELECT u.uuid, u.username
+FROM users u
+JOIN group_memberships gm ON u.id = gm.user_id
+JOIN groups g ON g.id = gm.group_id
+WHERE g.name = $1
+`
+
+type GetGroupMembersByNameRow struct {
+	Uuid     uuid.UUID `db:"uuid" json:"uuid"`
+	Username string    `db:"username" json:"username"`
+}
+
+func (q *Queries) GetGroupMembersByName(ctx context.Context, name string) ([]GetGroupMembersByNameRow, error) {
+	rows, err := q.db.QueryContext(ctx, getGroupMembersByName, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetGroupMembersByNameRow
+	for rows.Next() {
+		var i GetGroupMembersByNameRow
+		if err := rows.Scan(&i.Uuid, &i.Username); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchGroup = `-- name: SearchGroup :many
 WITH filtered AS (
     SELECT id, uuid, name, description, created_at, updated_at, users

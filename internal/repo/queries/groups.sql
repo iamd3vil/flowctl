@@ -56,3 +56,10 @@ SELECT * FROM groups WHERE name = $1;
 
 -- name: UpdateGroupByUUID :one
 UPDATE groups SET name = $1, description = $2 WHERE uuid = $3 RETURNING *;
+
+-- name: GetGroupMembersByName :many
+SELECT u.uuid, u.username
+FROM users u
+JOIN group_memberships gm ON u.id = gm.user_id
+JOIN groups g ON g.id = gm.group_id
+WHERE g.name = $1;

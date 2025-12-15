@@ -17,21 +17,22 @@ const (
 )
 
 type Core struct {
-	store       repo.Store
-	scheduler   scheduler.TaskScheduler
-	rwf         sync.RWMutex
-	flows       map[string]models.Flow
-	keeper      *secrets.Keeper
-	LogManager  streamlogger.LogManager
+	store      repo.Store
+	scheduler  scheduler.TaskScheduler
+	rwf        sync.RWMutex
+	flows      map[string]models.Flow
+	keeper     *secrets.Keeper
+	LogManager streamlogger.LogManager
 
 	// store the mapping between logID and flowID
 	logMap   map[string]string
 	enforcer *casbin.Enforcer
 
 	flowDirectory string
+	messengers    []string
 }
 
-func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, keeper *secrets.Keeper, enforcer *casbin.Enforcer) (*Core, error) {
+func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, keeper *secrets.Keeper, enforcer *casbin.Enforcer, messengerNames []string) (*Core, error) {
 	c := &Core{
 		store:         s,
 		scheduler:     sch,
@@ -40,6 +41,7 @@ func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, k
 		logMap:        make(map[string]string),
 		keeper:        keeper,
 		enforcer:      enforcer,
+		messengers:    messengerNames,
 	}
 
 	if err := c.LoadFlows(); err != nil {
@@ -55,4 +57,8 @@ func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, k
 	}
 
 	return c, nil
+}
+
+func (co *Core) GetMessengers(ctx context.Context) []string {
+	return co.messengers
 }

@@ -183,12 +183,28 @@ func (v Variable) Value() string {
 
 type Output map[string]any
 
+type NotifyEvent string
+
+const (
+	NotifyEventOnSuccess   NotifyEvent = "on_success"
+	NotifyEventOnFailure   NotifyEvent = "on_failure"
+	NotifyEventOnWaiting   NotifyEvent = "on_waiting"
+	NotifyEventOnCancelled NotifyEvent = "on_cancelled"
+)
+
+type Notify struct {
+	Channel   string        `yaml:"channel" json:"channel"`
+	Receivers []string      `yaml:"receivers" json:"receivers"`
+	Events    []NotifyEvent `yaml:"events" json:"events"`
+}
+
 type Flow struct {
 	Meta      Metadata     `yaml:"metadata" validate:"required"`
 	Inputs    []Input      `yaml:"inputs" validate:"required"`
 	Actions   []Action     `yaml:"actions" validate:"required"`
 	Outputs   []Output     `yaml:"outputs"`
 	Schedules []Scheduling `yaml:"scheduling"`
+	Notify    []Notify     `yaml:"notify"`
 }
 
 type FlowExecutionPayload struct {
@@ -205,6 +221,11 @@ type FlowExecutionPayload struct {
 type HookFn func(ctx context.Context, execID string, action Action, namespaceID string) error
 type SecretsProviderFn func(ctx context.Context, flowID string, namespaceID string) (map[string]string, error)
 type FlowLoaderFn func(ctx context.Context, flowSlug string, namespaceUUID string) (Flow, error)
+
+// TaskQueuer allows handlers to enqueue new tasks
+type TaskQueuer interface {
+	QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error)
+}
 
 // PayloadType identifies different types of jobs in the queue
 type PayloadType string

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ type FlowExecutionHandler struct {
 	logger           *slog.Logger
 	executionTimeout time.Duration
 	metrics          *metrics.Manager
+	taskQueuer       TaskQueuer
 }
 
 // FlowHandlerConfig holds configuration for FlowExecutionHandler
@@ -66,6 +68,11 @@ func NewFlowExecutionHandler(cfg FlowHandlerConfig) *FlowExecutionHandler {
 // SetSecretsProvider allows updating secrets provider after creation
 func (h *FlowExecutionHandler) SetSecretsProvider(sp SecretsProviderFn) {
 	h.secretsProvider = sp
+}
+
+// SetTaskQueuer allows setting the task queuer after creation
+func (h *FlowExecutionHandler) SetTaskQueuer(tq TaskQueuer) {
+	h.taskQueuer = tq
 }
 
 // Type returns the payload type this handler processes
@@ -100,19 +107,20 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 	if err := h.executeFlow(ctx, job.ExecID, payload); err != nil {
 		h.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
 		if errors.Is(err, ErrPendingApproval) {
-			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusPendingApproval, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusPendingApproval, payload, nil)
 		}
 		if errors.Is(err, ErrExecutionCancelled) {
-			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusCancelled, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+			// If execution is cancelled, the context will also be cancelled, so use background context
+			return h.setStatusWithMetrics(context.Background(), job.ExecID, repo.ExecutionStatusCancelled, payload, nil)
 		}
-		return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusErrored, payload.NamespaceID, payload.Workflow.Meta.ID, err)
+		return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusErrored, payload, err)
 	}
 
 	if h.metrics != nil {
 		h.metrics.DecExecutionsRunning(payload.NamespaceID, payload.Workflow.Meta.ID)
 	}
 
-	return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusCompleted, payload.NamespaceID, payload.Workflow.Meta.ID, nil)
+	return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusCompleted, payload, nil)
 }
 
 // executeFlow executes a flow
@@ -674,10 +682,13 @@ func (h *FlowExecutionHandler) createExecutionLog(ctx context.Context, execID st
 }
 
 // setStatusWithMetrics updates the execution status and tracks metrics
-func (h *FlowExecutionHandler) setStatusWithMetrics(ctx context.Context, execID string, status repo.ExecutionStatus, namespaceID string, flowID string, err error) error {
-	if err := h.setStatus(ctx, execID, status, namespaceID, err); err != nil {
+func (h *FlowExecutionHandler) setStatusWithMetrics(ctx context.Context, execID string, status repo.ExecutionStatus, payload FlowExecutionPayload, execErr error) error {
+	if err := h.setStatus(ctx, execID, status, payload.NamespaceID, execErr); err != nil {
 		return err
 	}
+
+	flowID := payload.Workflow.Meta.ID
+	namespaceID := payload.NamespaceID
 
 	if h.metrics != nil {
 		switch status {
@@ -692,5 +703,65 @@ func (h *FlowExecutionHandler) setStatusWithMetrics(ctx context.Context, execID 
 		}
 	}
 
+	// Enqueue notifications if configured
+	h.logger.Debug("notification event", "status", status)
+	h.enqueueNotifications(ctx, execID, status, payload, execErr)
+
 	return nil
+}
+
+// enqueueNotifications queues notification jobs for matching notify configurations
+func (h *FlowExecutionHandler) enqueueNotifications(ctx context.Context, execID string, status repo.ExecutionStatus, payload FlowExecutionPayload, execErr error) {
+	if h.taskQueuer == nil || len(payload.Workflow.Notify) == 0 {
+		return
+	}
+
+	// Map execution status to notify event
+	var event NotifyEvent
+	switch status {
+	case repo.ExecutionStatusCompleted:
+		event = NotifyEventOnSuccess
+	case repo.ExecutionStatusErrored:
+		event = NotifyEventOnFailure
+	case repo.ExecutionStatusCancelled:
+		event = NotifyEventOnCancelled
+	case repo.ExecutionStatusPendingApproval:
+		event = NotifyEventOnWaiting
+	default:
+		return
+	}
+
+	h.logger.Debug("notification event", "event", event, "status", status)
+
+	// Find matching notify configurations
+	for _, notify := range payload.Workflow.Notify {
+		if !slices.Contains(notify.Events, event) {
+			continue
+		}
+
+		var errMsg string
+		if execErr != nil {
+			errMsg = execErr.Error()
+		}
+
+		notifyPayload := NotificationPayload{
+			FlowID:      payload.Workflow.Meta.ID,
+			FlowName:    payload.Workflow.Meta.Name,
+			ExecID:      execID,
+			Status:      string(status),
+			Error:       errMsg,
+			Receivers:   notify.Receivers,
+			NamespaceID: payload.NamespaceID,
+			Channel:     notify.Channel,
+		}
+
+		// Generate a unique exec ID for the notification job
+		notifyExecID := fmt.Sprintf("notify-%s-%s", execID, notify.Channel)
+
+		if _, err := h.taskQueuer.QueueTask(ctx, PayloadTypeNotification, notifyExecID, notifyPayload); err != nil {
+			h.logger.Error("failed to queue notification", "execID", execID, "channel", notify.Channel, "error", err)
+		} else {
+			h.logger.Debug("notification queued", "execID", execID, "channel", notify.Channel, "event", event)
+		}
+	}
 }

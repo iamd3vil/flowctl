@@ -73,6 +73,7 @@ type Querier interface {
 	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
+	GetGroupMembersByName(ctx context.Context, name string) ([]GetGroupMembersByNameRow, error)
 	GetInputForExecByUUID(ctx context.Context, arg GetInputForExecByUUIDParams) (json.RawMessage, error)
 	GetNamespaceByName(ctx context.Context, name string) (Namespace, error)
 	GetNamespaceByUUID(ctx context.Context, argUuid uuid.UUID) (Namespace, error)

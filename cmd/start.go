@@ -12,9 +12,11 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
+	"github.com/cvhariharan/flowctl/internal/config"
 	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/handlers"
+	"github.com/cvhariharan/flowctl/internal/messengers"
 	"github.com/cvhariharan/flowctl/internal/metrics"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
@@ -65,12 +67,13 @@ func init() {
 
 // SharedComponents holds components that are shared between server and worker
 type SharedComponents struct {
-	DB        *sqlx.DB
-	Core      *core.Core
-	Scheduler *scheduler.Scheduler
-	Metrics   *metrics.Manager
-	Logger    *slog.Logger
-	Keeper    *secrets.Keeper
+	DB         *sqlx.DB
+	Core       *core.Core
+	Scheduler  *scheduler.Scheduler
+	Metrics    *metrics.Manager
+	Logger     *slog.Logger
+	Keeper     *secrets.Keeper
+	Messengers map[string]messengers.Messenger
 }
 
 // Cleanup cleans up all shared resources
@@ -81,6 +84,30 @@ func (s *SharedComponents) Cleanup() {
 	if s.Keeper != nil {
 		s.Keeper.Close()
 	}
+	for _, m := range s.Messengers {
+		if m != nil {
+			m.Close()
+		}
+	}
+}
+
+// initMessengers creates and returns all enabled messengers as a map keyed by channel name
+func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) (map[string]messengers.Messenger, []string) {
+	m := make(map[string]messengers.Messenger)
+	names := make([]string, 0)
+
+	if cfg.Email.Enabled {
+		emailMessenger, err := messengers.NewEmailMessenger(cfg.Email, logger.WithGroup("email_messenger"))
+		if err != nil {
+			logger.Error("failed to create email messenger", "error", err)
+		} else {
+			m["email"] = emailMessenger
+			names = append(names, "email")
+			logger.Info("email messenger initialized")
+		}
+	}
+
+	return m, names
 }
 
 // initializeSharedComponents sets up all shared components (DB, scheduler, core, etc.)
@@ -161,8 +188,11 @@ func initializeSharedComponents() *SharedComponents {
 		log.Fatal(err)
 	}
 
+	// Initialize messengers
+	messengersMap, messengerNames := initMessengers(appConfig.Messengers, logger)
+
 	// Create core with scheduler
-	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer)
+	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer, messengerNames)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -182,20 +212,48 @@ func initializeSharedComponents() *SharedComponents {
 	if err := sch.SetHandler(flowHandler); err != nil {
 		log.Fatal(err)
 	}
-	if err := sch.SetQueueConfig(scheduler.QueueConfig{Queues: []scheduler.QueueWeight{{PayloadType: scheduler.PayloadTypeFlowExecution, Weight: 100}}}); err != nil {
+
+	queueWeights := []scheduler.QueueWeight{
+		{PayloadType: scheduler.PayloadTypeFlowExecution, Weight: 100},
+	}
+
+	if len(messengersMap) > 0 {
+		// Create and register notification handler
+		notificationHandler, err := scheduler.NewNotificationHandler(messengersMap, s, logger.WithGroup("notification_handler"), appConfig.App.RootURL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := sch.SetHandler(notificationHandler); err != nil {
+			log.Fatal(err)
+		}
+
+		// Update queue weights to include notifications
+		queueWeights = []scheduler.QueueWeight{
+			{PayloadType: scheduler.PayloadTypeFlowExecution, Weight: 90},
+			{PayloadType: scheduler.PayloadTypeNotification, Weight: 10},
+		}
+
+		logger.Info("notifications enabled", "channels", len(messengersMap))
+	}
+
+	if err := sch.SetQueueConfig(scheduler.QueueConfig{Queues: queueWeights}); err != nil {
 		log.Fatal(err)
 	}
+
+	// Set task queuer on flow handler for notification enqueueing
+	flowHandler.SetTaskQueuer(sch)
 
 	// Set job syncer for cron scheduling
 	sch.SetJobSyncer(co.SyncScheduledFlowJobs)
 
 	return &SharedComponents{
-		DB:        db,
-		Core:      co,
-		Scheduler: sch,
-		Metrics:   metricsManager,
-		Logger:    logger,
-		Keeper:    keeper,
+		DB:         db,
+		Core:       co,
+		Scheduler:  sch,
+		Metrics:    metricsManager,
+		Logger:     logger,
+		Keeper:     keeper,
+		Messengers: messengersMap,
 	}
 }
 
@@ -233,6 +291,8 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	e.HTTPErrorHandler = h.ErrorHandler
 
 	api := e.Group("/api/v1", h.Authenticate)
+
+	api.GET("/messengers", h.HandleGetMessengers)
 
 	api.GET("/users", h.HandleUserPagination, h.AuthorizeNamespaceAdmins())
 	api.GET("/users/profile", h.HandleGetUserProfile)
