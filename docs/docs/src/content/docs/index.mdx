@@ -145,6 +145,7 @@ This uses the [gocloud](https://gocloud.dev/howto/secrets/) package which suppor
   client_id = "your-client-id"
   client_secret = "your-client-secret"
   issuer = "https://your-oidc-provider.com/"
+  label = "Sign in with OIDC"
 ```
 
 <Aside>
@@ -157,13 +158,17 @@ Configure OpenID Connect for single sign-on:
 - **`client_id`**: OAuth2 client ID from your OIDC provider
 - **`client_secret`**: OAuth2 client secret
 - **`issuer`**: OIDC provider's issuer URL
+- **`label`**: Label for the SSO button
 
 ### Metrics
+
 ```toml
 enabled = true
 path = "/metrics"
 ```
+
 Export Prometheus metrics
+
 - **`enabled`**: (default: `false`) Enable or disable metrics export
 - **`path`**: (default: `/metrics`) URL path where metrics will be exposed
 

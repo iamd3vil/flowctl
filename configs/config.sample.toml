@@ -62,6 +62,8 @@ issuer = ""
 redirect_url = ""
 # (optional) Token URL of the OIDC provider
 token_url = ""
+# (optional) Sign in label
+label = ""
 
 [scheduler]
 # (required) Any updates to flow schedules is synced from DB in cron_sync_interval
