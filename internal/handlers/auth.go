@@ -23,11 +23,10 @@ const (
 	RedirectAfterLogin = "/"
 )
 
-
 // isSafeRedirect determines if the redirect URL is safe
 // Must start with '/' but not with '//' or '/\'.
 func isSafeRedirect(u string) bool {
-    return len(u) > 0 && u[0] == '/' && (len(u) == 1 || (u[1] != '/' && u[1] != '\\'))
+	return len(u) > 0 && u[0] == '/' && (len(u) == 1 || (u[1] != '/' && u[1] != '\\'))
 }
 
 func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
@@ -37,7 +36,7 @@ func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
 	}
 
 	if len(authconfig.Scopes) == 0 {
-		authconfig.Scopes = []string{oidc.ScopeOpenID, "profile", "email", "groups"}
+		authconfig.Scopes = []string{oidc.ScopeOpenID, "profile", "email"}
 	}
 
 	redirectURL, err := url.JoinPath(h.config.App.RootURL, RedirectPath)
