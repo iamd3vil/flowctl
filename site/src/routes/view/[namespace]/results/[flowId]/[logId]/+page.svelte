@@ -64,6 +64,52 @@
     let hasReceivedMessages = $state(false);
     let manuallyClosed = $state(false);
 
+    // Message batching for performance
+    let messageBuffer: Array<{
+        action_id: string;
+        message_type: string;
+        node_id: string;
+        value: string;
+        timestamp: string;
+    }> = [];
+    let logOutputBuffer: string[] = [];
+    let rafId: number | null = null;
+
+    const flushMessageBuffer = () => {
+        rafId = null;
+        if (messageBuffer.length === 0 && logOutputBuffer.length === 0) return;
+
+        if (messageBuffer.length > 0) {
+            const newMessages = [...messageBuffer];
+            messageBuffer = [];
+            logMessages = logMessages.concat(newMessages);
+        }
+
+        if (logOutputBuffer.length > 0) {
+            const newOutput = logOutputBuffer.join("");
+            logOutputBuffer = [];
+            logOutput = logOutput + newOutput;
+        }
+    };
+
+    const scheduleFlush = () => {
+        if (rafId === null) {
+            rafId = requestAnimationFrame(flushMessageBuffer);
+        }
+    };
+
+    const addLogMessage = (msg: {
+        action_id: string;
+        message_type: string;
+        node_id: string;
+        value: string;
+        timestamp: string;
+    }) => {
+        messageBuffer.push(msg);
+        logOutputBuffer.push((msg.value || "") + "\n");
+        scheduleFlush();
+    };
+
     // Polling for execution status updates
     let statusPollingInterval: NodeJS.Timeout | null = null;
 
@@ -251,8 +297,7 @@
 
         switch (msg.message_type) {
             case "log":
-                logOutput += (msg.value || "") + "\n";
-                logMessages.push({
+                addLogMessage({
                     action_id: msg.action_id || "",
                     message_type: msg.message_type,
                     node_id: msg.node_id || "",
@@ -262,12 +307,9 @@
                 break;
             case "result":
                 results = { ...results, ...(msg.results || {}) };
-                // Don't mark action as completed here - async logs may still be streaming
-                // Actions are marked as completed when the next action starts (lines 237-244)
-                // or when the flow completes (via status polling)
                 break;
             case "error":
-                // Check if the error indicates cancellation
+                flushMessageBuffer();
                 if (msg.value && msg.value.includes("cancelled")) {
                     status = "cancelled";
                 } else {
@@ -290,12 +332,14 @@
                 stopStatusPolling();
                 break;
             case "approval":
+                flushMessageBuffer();
                 approvalID = msg.value;
                 showApproval = true;
                 status = "awaiting_approval";
-                stopStatusPolling(); // Approval state is stable, no need to poll aggressively
+                stopStatusPolling();
                 break;
             case "completed":
+                flushMessageBuffer();
                 status = "completed";
                 if (eventSource) {
                     eventSource.close();
@@ -305,16 +349,16 @@
                 updateExecutionStatus();
                 break;
             case "cancelled":
+                flushMessageBuffer();
                 status = "cancelled";
-                logOutput +=
-                    (msg.value || "Flow execution was cancelled") + "\n";
-                logMessages.push({
+                addLogMessage({
                     action_id: msg.action_id || "",
                     message_type: msg.message_type,
                     node_id: msg.node_id || "",
                     value: msg.value || "Flow execution was cancelled",
                     timestamp: msg.timestamp || "",
                 });
+                flushMessageBuffer();
                 if (eventSource) {
                     eventSource.close();
                     eventSource = null;
@@ -322,8 +366,7 @@
                 stopStatusPolling();
                 break;
             default:
-                logOutput += (msg.value || "") + "\n";
-                logMessages.push({
+                addLogMessage({
                     action_id: msg.action_id || "",
                     message_type: msg.message_type,
                     node_id: msg.node_id || "",
@@ -459,6 +502,11 @@
             eventSource.close();
         }
         stopStatusPolling();
+        if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+        flushMessageBuffer();
     });
 </script>
 
