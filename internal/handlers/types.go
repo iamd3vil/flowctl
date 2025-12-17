@@ -325,6 +325,45 @@ type Schedule struct {
 	Timezone string `json:"timezone"`
 }
 
+// Notify represents notification configuration for flow events
+type Notify struct {
+	Channel   string   `json:"channel" validate:"required,oneof=email"`
+	Receivers []string `json:"receivers" validate:"required,min=1,dive,notification_receiver"`
+	Events    []string `json:"events" validate:"required,dive,oneof=on_success on_failure on_waiting on_cancelled"`
+}
+
+func convertNotifyToNotifyReq(notify []models.Notify) []Notify {
+	resp := make([]Notify, len(notify))
+	for i, n := range notify {
+		events := make([]string, len(n.Events))
+		for j, e := range n.Events {
+			events[j] = string(e)
+		}
+		resp[i] = Notify{
+			Channel:   n.Channel,
+			Receivers: n.Receivers,
+			Events:    events,
+		}
+	}
+	return resp
+}
+
+func convertNotifyReqToNotify(notify []Notify) []models.Notify {
+	resp := make([]models.Notify, len(notify))
+	for i, n := range notify {
+		events := make([]models.NotifyEvent, len(n.Events))
+		for j, e := range n.Events {
+			events[j] = models.NotifyEvent(e)
+		}
+		resp[i] = models.Notify{
+			Channel:   n.Channel,
+			Receivers: n.Receivers,
+			Events:    events,
+		}
+	}
+	return resp
+}
+
 // Flow list response type
 type FlowListItem struct {
 	ID          string     `json:"id"`
@@ -584,15 +623,17 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 }
 
 type FlowCreateReq struct {
-	Meta    FlowMetaReq     `json:"metadata" validate:"required"`
-	Inputs  []FlowInputReq  `json:"inputs" validate:"required,dive"`
-	Actions []FlowActionReq `json:"actions" validate:"required,dive"`
+	Meta          FlowMetaReq     `json:"metadata" validate:"required"`
+	Inputs        []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions       []FlowActionReq `json:"actions" validate:"required,dive"`
+	Notifications []Notify        `json:"notify" validate:"omitempty,dive"`
 }
 
 type FlowMetaReq struct {
 	Name         string     `json:"name" validate:"required,min=2,max=150,alphanum_whitespace"`
 	Description  string     `json:"description" validate:"max=255"`
 	Schedules    []Schedule `json:"schedules" validate:"omitempty,dive"`
+	Notify       []Notify   `json:"notify" validate:"omitempty,dive"`
 	AllowOverlap bool       `json:"allow_overlap"`
 }
 
@@ -635,6 +676,7 @@ type ExecutionGetReq struct {
 
 type FlowUpdateReq struct {
 	Schedules    []Schedule      `json:"schedules" validate:"omitempty,dive"`
+	Notify       []Notify        `json:"notify" validate:"omitempty,dive"`
 	AllowOverlap bool            `json:"allow_overlap"`
 	Description  string          `json:"description" validate:"max=255"`
 	Inputs       []FlowInputReq  `json:"inputs" validate:"required,dive"`
@@ -796,4 +838,8 @@ func coreNamespaceSecretToNamespaceSecretResp(secret models.NamespaceSecret) Nam
 type FlowCancellationResp struct {
 	Message string `json:"message"`
 	ExecID  string `json:"execID"`
+}
+
+type MessengersResp struct {
+	Messengers []string `json:"messengers"`
 }

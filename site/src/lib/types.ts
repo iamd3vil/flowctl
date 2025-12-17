@@ -47,6 +47,12 @@ export interface Schedule {
   timezone: string;
 }
 
+export interface Notify {
+  channel: string;
+  receivers: string[];
+  events: string[];
+}
+
 export interface Flow {
   metadata: FlowMeta;
   inputs: FlowInput[];
@@ -403,6 +409,7 @@ export interface FlowCreateReq {
   inputs: FlowInputReq[];
   actions: FlowActionReq[];
   outputs?: Record<string, any>[];
+  notify?: Notify[];
 }
 
 export interface FlowMetaReq {

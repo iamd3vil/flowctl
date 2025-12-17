@@ -59,6 +59,7 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 	validate := validator.New()
 	validate.RegisterValidation("alphanum_underscore", models.AlphanumericUnderscore)
 	validate.RegisterValidation("alphanum_whitespace", models.AlphanumericSpace)
+	validate.RegisterValidation("notification_receiver", models.ValidNotificationReceiver)
 
 	sessMgr := simplesessions.New(simplesessions.Options{
 		EnableAutoCreate: false,
@@ -101,28 +102,11 @@ func (h *Handler) HandlePing(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-// func showErrorPage(c echo.Context, code int, message string) error {
-// 	return ui.ErrorPage(code, message).Render(c.Request().Context(), c.Response().Writer)
-// }
-
-// func ErrorHandler(err error, c echo.Context) {
-// 	if c.Response().Committed {
-// 		return
-// 	}
-
-// 	code := http.StatusInternalServerError
-// 	errMsg := "error processing the request"
-// 	if he, ok := err.(*echo.HTTPError); ok {
-// 		code = he.Code
-// 		errMsg = he.Message.(string)
-// 	}
-
-// 	c.Logger().Error(err)
-
-// 	if err := showErrorPage(c, code, errMsg); err != nil {
-// 		c.Logger().Error(err)
-// 	}
-// }
+func (h *Handler) HandleGetMessengers(c echo.Context) error {
+	return c.JSON(http.StatusOK, MessengersResp{
+		Messengers: h.co.GetMessengers(c.Request().Context()),
+	})
+}
 
 func formatValidationErrors(err error) string {
 	if err == nil {

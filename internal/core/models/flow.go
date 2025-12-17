@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/expr-lang/expr"
@@ -41,6 +42,21 @@ type Input struct {
 type Schedule struct {
 	Cron     string `yaml:"cron" huml:"cron" json:"cron" validate:"required,cron"`
 	Timezone string `yaml:"timezone" huml:"timezone" json:"timezone" validate:"required,timezone"`
+}
+
+type NotifyEvent string
+
+const (
+	NotifyEventOnSuccess   NotifyEvent = "on_success"
+	NotifyEventOnFailure   NotifyEvent = "on_failure"
+	NotifyEventOnWaiting   NotifyEvent = "on_waiting"
+	NotifyEventOnCancelled NotifyEvent = "on_cancelled"
+)
+
+type Notify struct {
+	Channel   string        `yaml:"channel" huml:"channel" json:"channel" validate:"required,oneof=email"`
+	Receivers []string      `yaml:"receivers" huml:"receivers" json:"receivers" validate:"required,min=1,dive,notification_receiver"`
+	Events    []NotifyEvent `yaml:"events" huml:"events" json:"events" validate:"required,dive,oneof=on_success on_failure on_waiting on_cancelled"`
 }
 
 type Action struct {
@@ -133,6 +149,7 @@ type Flow struct {
 	Actions   []Action   `yaml:"actions" huml:"actions" validate:"required,dive"`
 	Outputs   []Output   `yaml:"outputs" huml:"outputs"`
 	Schedules []Schedule `yaml:"schedules" huml:"schedules" validate:"omitempty,dive"`
+	Notify    []Notify   `yaml:"notify" huml:"notify" json:"notify" validate:"omitempty,dive"`
 }
 
 func AlphanumericUnderscore(fl validator.FieldLevel) bool {
@@ -149,10 +166,34 @@ func AlphanumericSpace(fl validator.FieldLevel) bool {
 	return regex.MatchString(value)
 }
 
+// ValidNotificationReceiver validates notification receiver format
+// Receivers must be either a valid email address or group reference "group:name"
+func ValidNotificationReceiver(fl validator.FieldLevel) bool {
+	receiver := fl.Field().String()
+
+	// Check for control characters that could enable injection attacks
+	if strings.ContainsAny(receiver, "\r\n\x00") {
+		return false
+	}
+
+	if groupName, ok := strings.CutPrefix(receiver, "group:"); ok {
+		return len(groupName) > 0 && len(groupName) <= 100
+	}
+
+	// Validate as email if not group
+	if len(receiver) < 3 || len(receiver) > 254 {
+		return false
+	}
+
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9.!#$%&'*+/=?^_` + "`" + `{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$`)
+	return emailRegex.MatchString(receiver)
+}
+
 func (f Flow) Validate() error {
 	validate := validator.New()
 
 	validate.RegisterValidation("alphanum_underscore", AlphanumericUnderscore)
+	validate.RegisterValidation("notification_receiver", ValidNotificationReceiver)
 
 	actionsIDs := make(map[string]int)
 	for _, action := range f.Actions {
@@ -442,6 +483,20 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 		})
 	}
 
+	// Convert notify configurations
+	var notify []scheduler.Notify
+	for _, n := range f.Notify {
+		var events []scheduler.NotifyEvent
+		for _, e := range n.Events {
+			events = append(events, scheduler.NotifyEvent(e))
+		}
+		notify = append(notify, scheduler.Notify{
+			Channel:   n.Channel,
+			Receivers: n.Receivers,
+			Events:    events,
+		})
+	}
+
 	return scheduler.Flow{
 		Meta: scheduler.Metadata{
 			ID:          f.Meta.ID,
@@ -455,5 +510,6 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 		Actions:   actions,
 		Outputs:   outputs,
 		Schedules: schedules,
+		Notify:    notify,
 	}, nil
 }

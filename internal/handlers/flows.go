@@ -555,6 +555,7 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 		},
 		Inputs:    convertFlowInputsReqToInputs(req.Inputs),
 		Actions:   convertFlowActionsReqToActions(req.Actions),
+		Notify:    convertNotifyReqToNotify(req.Notifications),
 		Schedules: schedules,
 	}
 
@@ -604,6 +605,7 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 		Meta:      updatedMeta,
 		Inputs:    convertFlowInputsReqToInputs(req.Inputs),
 		Actions:   convertFlowActionsReqToActions(req.Actions),
+		Notify:    convertNotifyReqToNotify(req.Notify),
 		Schedules: schedules,
 	}
 
@@ -660,8 +662,9 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 			Schedules:    schedules,
 			AllowOverlap: f.Meta.AllowOverlap,
 		},
-		Inputs:  convertFlowInputsToInputsReq(f.Inputs),
-		Actions: convertFlowActionsToActionsReq(f.Actions),
+		Inputs:        convertFlowInputsToInputsReq(f.Inputs),
+		Actions:       convertFlowActionsToActionsReq(f.Actions),
+		Notifications: convertNotifyToNotifyReq(f.Notify),
 	})
 }
 
