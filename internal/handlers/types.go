@@ -603,10 +603,14 @@ type ExecutionSummary struct {
 	CurrentActionID string          `json:"current_action_id"`
 	CreatedAt       string          `json:"started_at"`
 	CompletedAt     string          `json:"completed_at"`
-	Duration        string          `json:"duration"`
 }
 
 func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) ExecutionSummary {
+	completedAt := ""
+	if !e.CompletedAt.IsZero() {
+		completedAt = e.CompletedAt.Format(TimeFormat)
+	}
+
 	return ExecutionSummary{
 		ID:              e.ExecID,
 		FlowName:        e.FlowName,
@@ -617,8 +621,7 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 		TriggeredBy:     e.TriggeredByName,
 		CurrentActionID: e.CurrentActionID,
 		CreatedAt:       e.CreatedAt.Format(TimeFormat),
-		CompletedAt:     e.CompletedAt.Format(TimeFormat),
-		Duration:        e.Duration(),
+		CompletedAt:     completedAt,
 	}
 }
 

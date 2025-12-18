@@ -98,7 +98,7 @@
 			key: 'duration',
 			header: 'Duration',
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm text-gray-600">${execution.duration || formatDuration(execution.started_at, execution.completed_at)}</div>
+				<div class="text-sm text-gray-600">${formatDuration(execution.started_at, execution.completed_at)}</div>
 			`
 		},
 		{
@@ -165,12 +165,11 @@
 		fetchExecutions('', currentPage);
 	}
 
-	function formatDuration(startedAt: string, completedAt: string): string {
+	function formatDuration(startedAt: string, completedAt?: string): string {
 		if (!startedAt) return 'Unknown';
-		if (!completedAt) return 'Running...';
 
 		const start = new Date(startedAt);
-		const end = new Date(completedAt);
+		const end = completedAt ? new Date(completedAt) : new Date();
 		const durationMs = end.getTime() - start.getTime();
 
 		if (durationMs < 1000) return '<1s';

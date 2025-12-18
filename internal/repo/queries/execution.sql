@@ -28,7 +28,11 @@ WITH namespace_lookup AS (
     FROM execution_log
     WHERE execution_log.exec_id = $3 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
-UPDATE execution_log SET status=$1, error=$2, updated_at=NOW()
+UPDATE execution_log SET
+    status=$1,
+    error=$2,
+    updated_at=NOW(),
+    completed_at = CASE WHEN $1 IN ('completed'::execution_status, 'errored'::execution_status, 'cancelled'::execution_status) THEN NOW() ELSE completed_at END
 WHERE execution_log.exec_id = $3
   AND version = (SELECT version FROM latest_version)
   AND namespace_id = (SELECT id FROM namespace_lookup)

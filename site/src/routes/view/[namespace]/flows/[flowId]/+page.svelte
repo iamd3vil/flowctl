@@ -80,10 +80,9 @@
 
   const formatDuration = (startedAt: string, completedAt?: string) => {
     if (!startedAt) return 'Unknown';
-    if (!completedAt) return 'Running...';
 
     const start = new Date(startedAt);
-    const end = new Date(completedAt);
+    const end = completedAt ? new Date(completedAt) : new Date();
     const durationMs = end.getTime() - start.getTime();
 
     if (durationMs < 1000) return '<1s';
@@ -131,7 +130,7 @@
     {
       key: 'duration',
       header: 'Duration',
-      render: (value, row) => `<div class="text-sm text-gray-600">${value || formatDuration(row.started_at, row.completed_at)}</div>`
+      render: (_value, row) => `<div class="text-sm text-gray-600">${formatDuration(row.started_at, row.completed_at)}</div>`
     },
     {
       key: 'status',

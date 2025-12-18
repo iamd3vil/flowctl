@@ -372,6 +372,7 @@ type ExecutionLog struct {
 	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
 	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
 }
 
 type Flow struct {
