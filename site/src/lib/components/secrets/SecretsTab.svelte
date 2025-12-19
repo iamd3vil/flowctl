@@ -231,9 +231,10 @@
 {#if showDeleteModal}
 	<DeleteModal
 		title="Delete Secret"
-		message="Are you sure you want to delete this secret? This action cannot be undone and may break flow executions that depend on it."
+		itemName={selectedSecret?.key || 'secret'}
+		description="This may break flow executions that depend on it."
 		onConfirm={handleDelete}
-		onCancel={() => { showDeleteModal = false; }}
+		onClose={() => { showDeleteModal = false; }}
 	/>
 {/if}
 
