@@ -106,6 +106,7 @@
                         <select
                             bind:value={notification.channel}
                             disabled={loadingMessengers}
+                            required
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                         >
                             <option value="">
