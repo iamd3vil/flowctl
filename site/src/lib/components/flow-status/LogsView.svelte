@@ -202,12 +202,6 @@
                     {/each}
                 </div>
             </div>
-            {#if isRunning && showCursor}
-                <div class="sticky bottom-0 bg-gray-900">
-                    <span class={cursorClasses.cursor}>█</span>
-                    <span class="animate-pulse {cursorClasses.blink}">_</span>
-                </div>
-            {/if}
         {:else if logs.length > 0}
             <div class="whitespace-pre-wrap break-words">
                 {processedRawLogs}
