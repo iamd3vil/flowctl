@@ -54,6 +54,7 @@
 
     // Tab state
     let activeTab = $state("metadata");
+    let formElement: HTMLFormElement;
 
     const tabs = [
         { id: "metadata", label: "General" },
@@ -101,7 +102,7 @@
 
     function addNotification() {
         flow.notifications.push({
-            channel: "email",
+            channel: "",
             events: [],
             receivers: [],
         });
@@ -164,12 +165,12 @@
                         }),
                     ),
                 notify: flow.notifications
-                    .filter((n) => n.channel && n.events.length > 0 && n.receivers.length > 0)
+                    .filter((n) => n.channel)
                     .map((notification) => ({
                         channel: notification.channel,
-                        events: notification.events,
-                        receivers: notification.receivers,
-                    })) || undefined,
+                        events: notification.events || [],
+                        receivers: notification.receivers || [],
+                    })),
             };
 
             const result = await apiClient.flows.create(namespace, flowData);
@@ -227,7 +228,7 @@
                     </div>
 
                     <!-- Tab Content -->
-                    <div class="p-6">
+                    <form bind:this={formElement} class="p-6">
                         {#if activeTab === "metadata"}
                             <FlowMetadata
                                 bind:metadata={flow.metadata}
@@ -251,7 +252,7 @@
                         {:else if activeTab === "secrets"}
                             <SecretsTab {namespace} disabled={true} />
                         {/if}
-                    </div>
+                    </form>
 
                     <!-- Action Buttons -->
                     <div
@@ -266,7 +267,11 @@
                         </button>
                         <button
                             type="button"
-                            onclick={saveFlow}
+                            onclick={() => {
+                                if (formElement?.reportValidity()) {
+                                    saveFlow();
+                                }
+                            }}
                             disabled={saving}
                             class="px-6 py-2 text-sm font-medium cursor-pointer text-white bg-primary-500 border border-transparent rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

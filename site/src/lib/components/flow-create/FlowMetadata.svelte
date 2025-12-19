@@ -96,6 +96,7 @@
                     : ''}"
                 placeholder="My Flow Name"
                 disabled={updatemode}
+                required
             />
         </div>
         <div>

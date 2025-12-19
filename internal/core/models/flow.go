@@ -56,7 +56,7 @@ const (
 type Notify struct {
 	Channel   string        `yaml:"channel" huml:"channel" json:"channel" validate:"required,oneof=email"`
 	Receivers []string      `yaml:"receivers" huml:"receivers" json:"receivers" validate:"required,min=1,dive,notification_receiver"`
-	Events    []NotifyEvent `yaml:"events" huml:"events" json:"events" validate:"required,dive,oneof=on_success on_failure on_waiting on_cancelled"`
+	Events    []NotifyEvent `yaml:"events" huml:"events" json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
 }
 
 type Action struct {

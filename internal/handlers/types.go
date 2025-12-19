@@ -329,7 +329,7 @@ type Schedule struct {
 type Notify struct {
 	Channel   string   `json:"channel" validate:"required,oneof=email"`
 	Receivers []string `json:"receivers" validate:"required,min=1,dive,notification_receiver"`
-	Events    []string `json:"events" validate:"required,dive,oneof=on_success on_failure on_waiting on_cancelled"`
+	Events    []string `json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
 }
 
 func convertNotifyToNotifyReq(notify []models.Notify) []Notify {

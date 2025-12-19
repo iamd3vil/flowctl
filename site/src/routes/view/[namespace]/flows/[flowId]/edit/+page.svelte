@@ -56,6 +56,7 @@
 
     // Tab state
     let activeTab = $state("metadata");
+    let formElement: HTMLFormElement;
 
     const tabs = [
         { id: "metadata", label: "General" },
@@ -249,12 +250,12 @@
                         }),
                     ),
                 notify: flow.notifications
-                    .filter((n) => n.channel && n.events.length > 0 && n.receivers.length > 0)
+                    .filter((n) => n.channel)
                     .map((notification) => ({
                         channel: notification.channel,
-                        events: notification.events,
-                        receivers: notification.receivers,
-                    })) || undefined,
+                        events: notification.events || [],
+                        receivers: notification.receivers || [],
+                    })),
             };
 
             await apiClient.flows.update(namespace, flowId, flowData);
@@ -329,7 +330,7 @@
                         </div>
 
                         <!-- Tab Content -->
-                        <div class="p-6">
+                        <form bind:this={formElement} class="p-6">
                             {#if activeTab === "metadata"}
                                 <FlowMetadata
                                     bind:metadata={flow.metadata}
@@ -357,7 +358,7 @@
                             {:else if activeTab === "secrets"}
                                 <SecretsTab {namespace} {flowId} />
                             {/if}
-                        </div>
+                        </form>
 
                         <!-- Action Buttons (only show on non-secrets tabs) -->
                         {#if activeTab !== "secrets"}
@@ -376,7 +377,11 @@
                                 </button>
                                 <button
                                     type="button"
-                                    onclick={updateFlow}
+                                    onclick={() => {
+                                        if (formElement?.reportValidity()) {
+                                            updateFlow();
+                                        }
+                                    }}
                                     disabled={saving}
                                     class="px-6 py-2 cursor-pointer text-sm font-medium text-white bg-primary-500 border border-transparent rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >

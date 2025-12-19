@@ -289,6 +289,7 @@
                                         )}
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                     placeholder="Action Display Name"
+                                    required
                                 />
                             </div>
                         </div>
@@ -303,6 +304,7 @@
                                     bind:value={action.executor}
                                     onchange={() => onExecutorChange(action)}
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                    required
                                 >
                                     <option value="">Select Executor</option>
                                     {#each availableExecutors as executor}
