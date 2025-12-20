@@ -23,6 +23,7 @@ import (
 	"github.com/cvhariharan/flowctl/sdk/executor"
 	"github.com/expr-lang/expr"
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 	"gopkg.in/yaml.v3"
 )
 
@@ -154,6 +155,13 @@ func (h *FlowExecutionHandler) executeFlow(ctx context.Context, execID string, p
 	}
 	defer streamLogger.Close()
 
+	// Initialize action_retries for all actions in the flow for new executions only
+	if !payload.Resumed {
+		if err := h.initializeActionRetries(ctx, execID, payload.Workflow.Actions, payload.NamespaceID); err != nil {
+			h.logger.Warn("failed to initialize action retries", "error", err)
+		}
+	}
+
 	// Get flow-specific secrets
 	flowSecrets := h.getFlowSecrets(ctx, payload.Workflow.Meta.ID, payload.NamespaceID, execID)
 
@@ -176,6 +184,39 @@ func (h *FlowExecutionHandler) executeFlow(ctx context.Context, execID string, p
 	// Only remove the artifact store when all actions have been executed
 	// This is to account for approval actions that could be run later
 	os.RemoveAll(artifactDir)
+	return nil
+}
+
+// initializeActionRetries initializes the action_retries map with all actions set to 0
+func (h *FlowExecutionHandler) initializeActionRetries(ctx context.Context, execID string, actions []Action, namespaceID string) error {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	// Build map of all actions initialized to 0
+	actionRetries := make(map[string]int32)
+	for _, action := range actions {
+		actionRetries[action.ID] = 0
+	}
+
+	retriesJSON, err := json.Marshal(actionRetries)
+	if err != nil {
+		return fmt.Errorf("failed to marshal action retries: %w", err)
+	}
+
+	if err := h.store.UpdateExecutionActionRetries(ctx, repo.UpdateExecutionActionRetriesParams{
+		ExecID: execID,
+		ActionRetries: pqtype.NullRawMessage{
+			RawMessage: retriesJSON,
+			Valid:      true,
+		},
+		Uuid: namespaceUUID,
+	}); err != nil {
+		return fmt.Errorf("failed to initialize action retries: %w", err)
+	}
+
+	h.logger.Debug("initialized action retries", "execID", execID, "actions", len(actions))
 	return nil
 }
 
@@ -251,6 +292,24 @@ func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action A
 	if err := h.checkApproval(ctx, execID, action, namespaceID); err != nil {
 		return nil, err
 	}
+
+	// Increment retry count for this action
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	row, err := h.store.IncrementActionRetry(ctx, repo.IncrementActionRetryParams{
+		ExecID:   execID,
+		Column2: action.ID,
+		Uuid:     namespaceUUID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to increment retry count for action %s: %w", action.ID, err)
+	}
+
+	streamLogger.SetRetry(row.RetryCount)
+	h.logger.Debug("action retry count", "action", action.ID, "retry", row.RetryCount)
 
 	// Run the action
 	res, err := h.runAction(ctx, execID, action, input, streamLogger, artifactDir, secrets, outputs)

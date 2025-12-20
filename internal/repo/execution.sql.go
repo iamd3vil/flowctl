@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const addExecutionLog = `-- name: AddExecutionLog :one
@@ -23,6 +24,12 @@ WITH user_lookup AS (
     SELECT COALESCE(MAX(version), -1) + 1 as version
     FROM execution_log
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
+), prev_action_retries AS (
+    SELECT action_retries
+    FROM execution_log
+    WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
+    ORDER BY version DESC
+    LIMIT 1
 )
 INSERT INTO execution_log (
     exec_id,
@@ -31,10 +38,12 @@ INSERT INTO execution_log (
     input,
     trigger_type,
     triggered_by,
-    namespace_id
+    namespace_id,
+    action_retries
 ) VALUES (
-    $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup)
-) RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at
+    $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup),
+    COALESCE((SELECT action_retries FROM prev_action_retries), '{}')
+) RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries
 `
 
 type AddExecutionLogParams struct {
@@ -71,6 +80,7 @@ func (q *Queries) AddExecutionLog(ctx context.Context, arg AddExecutionLogParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 	)
 	return i, err
 }
@@ -86,7 +96,7 @@ latest_versions AS (
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
     GROUP BY exec_id
 )
-SELECT exists (SELECT id, el.exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, lv.exec_id, max_version FROM execution_log el INNER JOIN latest_versions lv on el.exec_id = lv.exec_id
+SELECT exists (SELECT id, el.exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries, lv.exec_id, max_version FROM execution_log el INNER JOIN latest_versions lv on el.exec_id = lv.exec_id
 WHERE flow_id = (SELECT id FROM flows WHERE flows.slug = $1 AND flows.namespace_id = (SELECT id FROM namespace_lookup) AND flows.is_active = TRUE) AND
 namespace_id = (SELECT id FROM namespace_lookup) AND
 (status = 'running' or status = 'pending_approval' or status = 'pending') AND
@@ -118,7 +128,7 @@ latest_versions AS (
     GROUP BY exec_id
 ),
 filtered AS (
-    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, u.name, u.username, u.uuid as triggered_by_uuid,
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries, u.name, u.username, u.uuid as triggered_by_uuid,
            CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
            f.name as flow_name,
            f.slug as flow_slug
@@ -133,7 +143,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
     ORDER BY created_at DESC
     LIMIT $2 OFFSET $3
 ),
@@ -141,7 +151,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.action_retries, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -154,28 +164,29 @@ type GetAllExecutionsPaginatedParams struct {
 }
 
 type GetAllExecutionsPaginatedRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
-	PageCount       int64           `db:"page_count" json:"page_count"`
-	TotalCount      int64           `db:"total_count" json:"total_count"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
+	PageCount       int64                 `db:"page_count" json:"page_count"`
+	TotalCount      int64                 `db:"total_count" json:"total_count"`
 }
 
 func (q *Queries) GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecutionsPaginatedParams) ([]GetAllExecutionsPaginatedRow, error) {
@@ -202,6 +213,7 @@ func (q *Queries) GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecu
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.ActionRetries,
 			&i.Name,
 			&i.Username,
 			&i.TriggeredByUuid,
@@ -224,6 +236,32 @@ func (q *Queries) GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecu
 	return items, nil
 }
 
+const getExecutionActionRetries = `-- name: GetExecutionActionRetries :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+SELECT el.action_retries FROM execution_log el
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup)
+`
+
+type GetExecutionActionRetriesParams struct {
+	ExecID string    `db:"exec_id" json:"exec_id"`
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) GetExecutionActionRetries(ctx context.Context, arg GetExecutionActionRetriesParams) (pqtype.NullRawMessage, error) {
+	row := q.db.QueryRowContext(ctx, getExecutionActionRetries, arg.ExecID, arg.Uuid)
+	var action_retries pqtype.NullRawMessage
+	err := row.Scan(&action_retries)
+	return action_retries, err
+}
+
 const getExecutionByExecID = `-- name: GetExecutionByExecID :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
@@ -233,7 +271,7 @@ WITH namespace_lookup AS (
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
 )
 SELECT
-    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at,
+    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries,
     u.name,
     u.username,
     u.uuid AS triggered_by_uuid,
@@ -259,26 +297,27 @@ type GetExecutionByExecIDParams struct {
 }
 
 type GetExecutionByExecIDRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
 }
 
 func (q *Queries) GetExecutionByExecID(ctx context.Context, arg GetExecutionByExecIDParams) (GetExecutionByExecIDRow, error) {
@@ -299,6 +338,7 @@ func (q *Queries) GetExecutionByExecID(ctx context.Context, arg GetExecutionByEx
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 		&i.Name,
 		&i.Username,
 		&i.TriggeredByUuid,
@@ -319,7 +359,7 @@ WITH namespace_lookup AS (
     WHERE el2.exec_id = $1 AND f2.namespace_id = (SELECT id FROM namespace_lookup) AND f2.is_active = TRUE
 )
 SELECT
-    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at,
+    el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries,
     u.name,
     u.username,
     u.uuid AS triggered_by_uuid,
@@ -345,26 +385,27 @@ type GetExecutionByExecIDWithNamespaceParams struct {
 }
 
 type GetExecutionByExecIDWithNamespaceRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
 }
 
 func (q *Queries) GetExecutionByExecIDWithNamespace(ctx context.Context, arg GetExecutionByExecIDWithNamespaceParams) (GetExecutionByExecIDWithNamespaceRow, error) {
@@ -385,6 +426,7 @@ func (q *Queries) GetExecutionByExecIDWithNamespace(ctx context.Context, arg Get
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 		&i.Name,
 		&i.Username,
 		&i.TriggeredByUuid,
@@ -399,7 +441,7 @@ const getExecutionByID = `-- name: GetExecutionByID :one
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 )
-SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, u.name, u.username, u.uuid as triggered_by_uuid,
+SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries, u.name, u.username, u.uuid as triggered_by_uuid,
        CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
        f.name as flow_name,
        f.slug as flow_slug
@@ -415,26 +457,27 @@ type GetExecutionByIDParams struct {
 }
 
 type GetExecutionByIDRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
 }
 
 func (q *Queries) GetExecutionByID(ctx context.Context, arg GetExecutionByIDParams) (GetExecutionByIDRow, error) {
@@ -455,6 +498,7 @@ func (q *Queries) GetExecutionByID(ctx context.Context, arg GetExecutionByIDPara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 		&i.Name,
 		&i.Username,
 		&i.TriggeredByUuid,
@@ -471,7 +515,7 @@ WITH user_lookup AS (
 ), namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $3
 )
-SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, u.name, u.username, u.uuid as triggered_by_uuid,
+SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries, u.name, u.username, u.uuid as triggered_by_uuid,
        CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
        f.name as flow_name,
        f.slug as flow_slug
@@ -491,26 +535,27 @@ type GetExecutionsByFlowParams struct {
 }
 
 type GetExecutionsByFlowRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
 }
 
 func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]GetExecutionsByFlowRow, error) {
@@ -537,6 +582,7 @@ func (q *Queries) GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFl
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.ActionRetries,
 			&i.Name,
 			&i.Username,
 			&i.TriggeredByUuid,
@@ -571,7 +617,7 @@ latest_versions AS (
     GROUP BY exec_id
 ),
 filtered AS (
-    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, u.name, u.username, u.uuid as triggered_by_uuid,
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries, u.name, u.username, u.uuid as triggered_by_uuid,
            CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
            f.name as flow_name,
            f.slug as flow_slug
@@ -587,7 +633,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
     ORDER BY created_at DESC
     LIMIT $3 OFFSET $4
 ),
@@ -595,7 +641,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.action_retries, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -609,28 +655,29 @@ type GetExecutionsByFlowPaginatedParams struct {
 }
 
 type GetExecutionsByFlowPaginatedRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
-	PageCount       int64           `db:"page_count" json:"page_count"`
-	TotalCount      int64           `db:"total_count" json:"total_count"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
+	PageCount       int64                 `db:"page_count" json:"page_count"`
+	TotalCount      int64                 `db:"total_count" json:"total_count"`
 }
 
 func (q *Queries) GetExecutionsByFlowPaginated(ctx context.Context, arg GetExecutionsByFlowPaginatedParams) ([]GetExecutionsByFlowPaginatedRow, error) {
@@ -662,6 +709,7 @@ func (q *Queries) GetExecutionsByFlowPaginated(ctx context.Context, arg GetExecu
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.ActionRetries,
 			&i.Name,
 			&i.Username,
 			&i.TriggeredByUuid,
@@ -789,6 +837,48 @@ func (q *Queries) GetInputForExecByUUID(ctx context.Context, arg GetInputForExec
 	return input, err
 }
 
+const incrementActionRetry = `-- name: IncrementActionRetry :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log el
+SET
+    action_retries = jsonb_set(
+        COALESCE(action_retries, '{}'::jsonb),
+        ARRAY[$2],
+        to_jsonb((COALESCE(action_retries->>$2, '0')::int + 1))
+    ),
+    updated_at = NOW()
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup)
+RETURNING
+    action_retries,
+    (action_retries->>$2)::int as retry_count
+`
+
+type IncrementActionRetryParams struct {
+	ExecID  string      `db:"exec_id" json:"exec_id"`
+	Column2 interface{} `db:"column_2" json:"column_2"`
+	Uuid    uuid.UUID   `db:"uuid" json:"uuid"`
+}
+
+type IncrementActionRetryRow struct {
+	ActionRetries pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	RetryCount    int32                 `db:"retry_count" json:"retry_count"`
+}
+
+func (q *Queries) IncrementActionRetry(ctx context.Context, arg IncrementActionRetryParams) (IncrementActionRetryRow, error) {
+	row := q.db.QueryRowContext(ctx, incrementActionRetry, arg.ExecID, arg.Column2, arg.Uuid)
+	var i IncrementActionRetryRow
+	err := row.Scan(&i.ActionRetries, &i.RetryCount)
+	return i, err
+}
+
 const searchExecutionsPaginated = `-- name: SearchExecutionsPaginated :many
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $1
@@ -802,7 +892,7 @@ latest_versions AS (
     GROUP BY exec_id
 ),
 filtered AS (
-    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, u.name, u.username, u.uuid as triggered_by_uuid,
+    SELECT el.id, el.exec_id, el.flow_id, el.version, el.input, el.error, el.current_action_id, el.status, el.trigger_type, el.triggered_by, el.namespace_id, el.created_at, el.updated_at, el.completed_at, el.action_retries, u.name, u.username, u.uuid as triggered_by_uuid,
            CONCAT(u.name, ' <', u.username, '>')::TEXT as triggered_by_name,
            f.name as flow_name,
            f.slug as flow_slug
@@ -825,7 +915,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
+    SELECT id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries, name, username, triggered_by_uuid, triggered_by_name, flow_name, flow_slug FROM filtered
     ORDER BY created_at DESC
     LIMIT $3 OFFSET $4
 ),
@@ -833,7 +923,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
+    p.id, p.exec_id, p.flow_id, p.version, p.input, p.error, p.current_action_id, p.status, p.trigger_type, p.triggered_by, p.namespace_id, p.created_at, p.updated_at, p.completed_at, p.action_retries, p.name, p.username, p.triggered_by_uuid, p.triggered_by_name, p.flow_name, p.flow_slug,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -847,28 +937,29 @@ type SearchExecutionsPaginatedParams struct {
 }
 
 type SearchExecutionsPaginatedRow struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
-	Name            string          `db:"name" json:"name"`
-	Username        string          `db:"username" json:"username"`
-	TriggeredByUuid uuid.UUID       `db:"triggered_by_uuid" json:"triggered_by_uuid"`
-	TriggeredByName string          `db:"triggered_by_name" json:"triggered_by_name"`
-	FlowName        string          `db:"flow_name" json:"flow_name"`
-	FlowSlug        string          `db:"flow_slug" json:"flow_slug"`
-	PageCount       int64           `db:"page_count" json:"page_count"`
-	TotalCount      int64           `db:"total_count" json:"total_count"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Name            string                `db:"name" json:"name"`
+	Username        string                `db:"username" json:"username"`
+	TriggeredByUuid uuid.UUID             `db:"triggered_by_uuid" json:"triggered_by_uuid"`
+	TriggeredByName string                `db:"triggered_by_name" json:"triggered_by_name"`
+	FlowName        string                `db:"flow_name" json:"flow_name"`
+	FlowSlug        string                `db:"flow_slug" json:"flow_slug"`
+	PageCount       int64                 `db:"page_count" json:"page_count"`
+	TotalCount      int64                 `db:"total_count" json:"total_count"`
 }
 
 func (q *Queries) SearchExecutionsPaginated(ctx context.Context, arg SearchExecutionsPaginatedParams) ([]SearchExecutionsPaginatedRow, error) {
@@ -900,6 +991,7 @@ func (q *Queries) SearchExecutionsPaginated(ctx context.Context, arg SearchExecu
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.ActionRetries,
 			&i.Name,
 			&i.Username,
 			&i.TriggeredByUuid,
@@ -934,7 +1026,7 @@ UPDATE execution_log SET current_action_id=$1, updated_at=NOW()
 WHERE execution_log.exec_id = $2
   AND version = (SELECT version FROM latest_version)
   AND namespace_id = (SELECT id FROM namespace_lookup)
-RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at
+RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries
 `
 
 type UpdateExecutionActionIDParams struct {
@@ -961,8 +1053,35 @@ func (q *Queries) UpdateExecutionActionID(ctx context.Context, arg UpdateExecuti
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 	)
 	return i, err
+}
+
+const updateExecutionActionRetries = `-- name: UpdateExecutionActionRetries :exec
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log el
+SET action_retries = $2, updated_at = NOW()
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup)
+`
+
+type UpdateExecutionActionRetriesParams struct {
+	ExecID        string                `db:"exec_id" json:"exec_id"`
+	ActionRetries pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	Uuid          uuid.UUID             `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) UpdateExecutionActionRetries(ctx context.Context, arg UpdateExecutionActionRetriesParams) error {
+	_, err := q.db.ExecContext(ctx, updateExecutionActionRetries, arg.ExecID, arg.ActionRetries, arg.Uuid)
+	return err
 }
 
 const updateExecutionStatus = `-- name: UpdateExecutionStatus :one
@@ -981,7 +1100,7 @@ UPDATE execution_log SET
 WHERE execution_log.exec_id = $3
   AND version = (SELECT version FROM latest_version)
   AND namespace_id = (SELECT id FROM namespace_lookup)
-RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at
+RETURNING id, exec_id, flow_id, version, input, error, current_action_id, status, trigger_type, triggered_by, namespace_id, created_at, updated_at, completed_at, action_retries
 `
 
 type UpdateExecutionStatusParams struct {
@@ -1014,6 +1133,7 @@ func (q *Queries) UpdateExecutionStatus(ctx context.Context, arg UpdateExecution
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ActionRetries,
 	)
 	return i, err
 }

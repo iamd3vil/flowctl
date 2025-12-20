@@ -695,3 +695,27 @@ func (h *Handler) HandleCancelExecution(c echo.Context) error {
 		ExecID:  execID,
 	})
 }
+
+func (h *Handler) HandleRetryExecution(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	execID := c.Param("execID")
+	if execID == "" {
+		return wrapError(ErrRequiredFieldMissing, "execution ID is required", nil, nil)
+	}
+
+	user, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
+	}
+
+	err = h.co.RetryFlowExecution(c.Request().Context(), execID, user.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, err.Error(), err, nil)
+	}
+
+	return c.NoContent(http.StatusCreated)
+}

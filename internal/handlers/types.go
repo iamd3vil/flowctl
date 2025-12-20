@@ -603,6 +603,7 @@ type ExecutionSummary struct {
 	CurrentActionID string          `json:"current_action_id"`
 	CreatedAt       string          `json:"started_at"`
 	CompletedAt     string          `json:"completed_at"`
+	ActionRetries   map[string]int  `json:"action_retries,omitempty"`
 }
 
 func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) ExecutionSummary {
@@ -622,6 +623,7 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 		CurrentActionID: e.CurrentActionID,
 		CreatedAt:       e.CreatedAt.Format(TimeFormat),
 		CompletedAt:     completedAt,
+		ActionRetries:   e.ActionRetries,
 	}
 }
 

@@ -3,14 +3,11 @@
     import { goto } from "$app/navigation";
     import Header from "$lib/components/shared/Header.svelte";
     import StatusBadge from "$lib/components/shared/StatusBadge.svelte";
-    import Alert from "$lib/components/flow-status/Alert.svelte";
     import ActionsList from "$lib/components/flow-status/ActionsList.svelte";
     import LogsView from "$lib/components/flow-status/LogsView.svelte";
     import FlowInfoCard from "$lib/components/flow-status/FlowInfoCard.svelte";
     import ExecutionOutputTable from "$lib/components/flow-status/ExecutionOutputTable.svelte";
-    import EmptyState from "$lib/components/flow-status/EmptyState.svelte";
     import JsonDisplay from "$lib/components/shared/JsonDisplay.svelte";
-    import type { PageData } from "./$types";
     import type { FlowMetaResp, ExecutionSummary } from "$lib/types";
     import { apiClient, ApiError } from "$lib/apiClient";
     import {
@@ -20,7 +17,7 @@
         showWarning,
     } from "$lib/utils/errorHandling";
     import { formatDateTime } from "$lib/utils";
-    import { IconPlayerStop, IconReload } from "@tabler/icons-svelte";
+    import { IconPlayerStop, IconRefresh, IconRepeat } from "@tabler/icons-svelte";
 
     let {
         data,
@@ -63,6 +60,10 @@
     let eventSource: EventSource | null = null;
     let hasReceivedMessages = $state(false);
     let manuallyClosed = $state(false);
+
+    // Retry state
+    let isRetrying = $state(false);
+    let retryPollingInterval: ReturnType<typeof setInterval> | null = null;
 
     // Message batching for performance
     let messageBuffer: Array<{
@@ -463,6 +464,94 @@
         goto(`/view/${namespace}/flows/${flowId}?rerun_from=${logId}`);
     };
 
+    const handleRetry = async () => {
+        if (isRetrying) return;
+
+        try {
+            isRetrying = true;
+
+            // Close current SSE connection to stop old logs
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+
+            // Stop current status polling
+            stopStatusPolling();
+
+            // Capture current retry counts before calling retry
+            const preRetryState = await apiClient.executions.getById(namespace, logId);
+            const preRetryCount = preRetryState.action_retries?.[preRetryState.current_action_id] || 0;
+
+            await apiClient.executions.retry(namespace, logId);
+            showInfo("Execution Retry", "Retrying execution...");
+            startRetryPolling(preRetryState.current_action_id, preRetryCount);
+
+        } catch (error) {
+            isRetrying = false;
+            handleInlineError(error, "Unable to Retry Execution");
+        }
+    };
+
+    const startRetryPolling = (actionId: string, baselineRetryCount: number) => {
+        let pollAttempts = 0;
+        const maxPollAttempts = 15; // 30 seconds
+
+        // Poll every 2 seconds
+        retryPollingInterval = setInterval(async () => {
+            pollAttempts++;
+            try {
+                const currentState = await apiClient.executions.getById(namespace, logId);
+
+                if (pollAttempts >= maxPollAttempts) {
+                    stopRetryPolling();
+                    isRetrying = false;
+                    handleInlineError(
+                        new Error("Retry timeout"),
+                        "Retry timed out - execution may still be queued"
+                    );
+                    return;
+                }
+
+                // Check if retry count for the action has increased
+                const currentRetryCount = currentState.action_retries?.[actionId] || 0;
+                const hasRetried = currentRetryCount > baselineRetryCount;
+
+                if (hasRetried) {
+                    stopRetryPolling();
+
+                    logMessages = [];
+                    logOutput = "";
+                    results = {};
+                    completedActions = [];
+                    failedActionIndex = -1;
+                    currentActionIndex = -1;
+                    showApproval = false;
+                    approvalID = null;
+                    hasReceivedMessages = false;
+                    manuallyClosed = false;
+
+                    updateStatusFromSummary(currentState);
+                    connectSSE();
+                    startStatusPolling();
+
+                    isRetrying = false;
+
+                    showSuccess("Execution Started", "Execution has started successfully");
+                }
+            } catch (error) {
+                console.error("Retry polling error:", error);
+            }
+        }, 2000);
+    };
+
+    const stopRetryPolling = () => {
+        if (retryPollingInterval) {
+            clearInterval(retryPollingInterval);
+            retryPollingInterval = null;
+        }
+    };
+
     // Initialize component
     onMount(() => {
         if (data.executionSummary) {
@@ -502,6 +591,7 @@
             eventSource.close();
         }
         stopStatusPolling();
+        stopRetryPolling();
         if (rafId !== null) {
             cancelAnimationFrame(rafId);
             rafId = null;
@@ -538,11 +628,23 @@
                           },
                       ]
                     : []),
+                ...(status === "errored" || status === "cancelled"
+                    ? [
+                          {
+                              label: isRetrying ? "Retrying..." : "Retry",
+                              onClick: handleRetry,
+                              variant: "primary" as const,
+                              icon: IconRefresh,
+                              tooltip: "Retry execution from the failed action",
+                          },
+                      ]
+                    : []),
                 {
                     label: "Rerun",
                     onClick: handleRerun,
-                    variant: "primary" as const,
-                    icon: IconReload,
+                    variant: "secondary" as const,
+                    icon: IconRepeat,
+                    tooltip: "Create a new execution with same inputs"
                 },
             ]}
         >

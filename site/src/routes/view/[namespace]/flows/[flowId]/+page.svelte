@@ -5,7 +5,6 @@
   import Table from '$lib/components/shared/Table.svelte';
   import Header from '$lib/components/shared/Header.svelte';
   import StatusBadge from '$lib/components/shared/StatusBadge.svelte';
-  import ExecutionIdCell from '$lib/components/shared/ExecutionIdCell.svelte';
   import Tabs from '$lib/components/shared/Tabs.svelte';
   import Pagination from '$lib/components/shared/Pagination.svelte';
   import FlowHero from '$lib/components/flows/FlowHero.svelte';
