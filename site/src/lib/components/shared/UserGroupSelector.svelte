@@ -21,31 +21,25 @@
   let showDropdown = $state(false);
   let loading = $state(false);
 
-  async function searchSubjects() {
-    if (!searchQuery.trim()) {
-      searchResults = [];
-      showDropdown = false;
-      return;
-    }
-
+  async function loadSubjects() {
     loading = true;
+    showDropdown = true;
     try {
       if (type === 'user') {
         const response = await apiClient.users.list({
           filter: searchQuery,
-          count_per_page: 10
+          count_per_page: 20
         });
         searchResults = response.users || [];
       } else {
         const response = await apiClient.groups.list({
           filter: searchQuery,
-          count_per_page: 10
+          count_per_page: 20
         });
         searchResults = response.groups || [];
       }
-      showDropdown = searchResults.length > 0;
     } catch (error) {
-      handleInlineError(error, type === 'user' ? 'Unable to Search Users' : 'Unable to Search Groups');
+      handleInlineError(error, type === 'user' ? 'Unable to Load Users' : 'Unable to Load Groups');
       searchResults = [];
       showDropdown = false;
     } finally {
@@ -53,10 +47,19 @@
     }
   }
 
+  async function handleFocus() {
+    if (searchResults.length === 0) {
+      await loadSubjects();
+    } else {
+      showDropdown = true;
+    }
+  }
+
   function selectSubject(subject: User | Group) {
     selectedSubject = subject;
-    searchQuery = 'name' in subject ? subject.name : subject.username;
+    searchQuery = '';
     showDropdown = false;
+    searchResults = [];
   }
 
   function clearSelection() {
@@ -80,15 +83,15 @@
   }
 </script>
 
-<svelte:window on:click={handleOutsideClick} />
+<svelte:window onclick={handleOutsideClick} />
 
 <div class="user-group-selector">
   <div class="relative">
     <input
       type="text"
       bind:value={searchQuery}
-      on:input={searchSubjects}
-      on:focus={() => showDropdown = searchResults.length > 0}
+      oninput={loadSubjects}
+      onfocus={handleFocus}
       {placeholder}
       class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5 pr-10"
       autocomplete="off"
@@ -109,31 +112,35 @@
     {/if}
     
     <!-- Dropdown -->
-    {#if showDropdown && searchResults.length > 0}
+    {#if showDropdown}
       <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-        {#each searchResults as subject}
-          <div 
-            class="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-            on:click={() => selectSubject(subject)}
-            role="button"
-            tabindex="0"
-            on:keydown={(e) => e.key === 'Enter' && selectSubject(subject)}
-          >
-            <div class="flex items-center">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-primary-50">
-                {#if type === 'user'}
-                  <IconUser class="w-4 h-4 text-primary-600" />
-                {:else}
-                  <IconUsers class="w-4 h-4 text-primary-600" />
-                {/if}
+        {#if searchResults.length > 0}
+          {#each searchResults as subject}
+            <button
+              type="button"
+              class="w-full px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-left"
+              onclick={() => selectSubject(subject)}
+            >
+              <div class="flex items-center">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-primary-50">
+                  {#if type === 'user'}
+                    <IconUser class="w-4 h-4 text-primary-600" />
+                  {:else}
+                    <IconUsers class="w-4 h-4 text-primary-600" />
+                  {/if}
+                </div>
+                <div>
+                  <div class="text-sm font-medium text-gray-900">{'name' in subject ? subject.name : subject.username}</div>
+                  <div class="text-xs text-gray-500">{subject.id}</div>
+                </div>
               </div>
-              <div>
-                <div class="text-sm font-medium text-gray-900">{'name' in subject ? subject.name : subject.username}</div>
-                <div class="text-xs text-gray-500">{subject.id}</div>
-              </div>
-            </div>
+            </button>
+          {/each}
+        {:else if !loading}
+          <div class="px-4 py-3 text-sm text-gray-500 text-center">
+            {type === 'user' ? 'No users found' : 'No groups found'}
           </div>
-        {/each}
+        {/if}
       </div>
     {/if}
   </div>
@@ -155,7 +162,7 @@
             <div class="text-xs text-gray-500">{selectedSubject.id}</div>
           </div>
         </div>
-        <button type="button" on:click={clearSelection} class="text-gray-400 hover:text-gray-600" {disabled}>
+        <button type="button" onclick={clearSelection} class="text-gray-400 hover:text-gray-600" {disabled}>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
