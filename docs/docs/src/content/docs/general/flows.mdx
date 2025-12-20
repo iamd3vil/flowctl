@@ -12,12 +12,13 @@ Flows are the core automation units in flowctl. A flow is a sequence of actions 
 
 ## Flow Structure
 
-Every flow consists of four main sections:
+Every flow consists of five main sections:
 
 1. **Metadata** - Flow identification and configuration
 2. **Inputs** - Parameters that users provide when triggering the flow
 3. **Actions** - The actual tasks to execute
 4. **Schedules** - List of cron schedules
+5. **Notifications** - Event-based notifications to users or groups
 
 ## Basic Flow Example
 
@@ -426,6 +427,87 @@ If the output is from a remote node, access it as:
 ```yaml
 variables:
   - key_value: "{{ outputs.RemoteNodeName.KEY }}"
+```
+
+## Notifications
+
+Configure notifications to alert users or groups when specific flow events occur.
+
+### Notification Configuration
+
+```yaml
+metadata:
+  id: deployment_flow
+  name: Production Deployment
+  description: Deploy application to production
+
+notify:
+  - channel: email
+    receivers:
+      - admin@example.com
+      - group:devops-team
+    events:
+      - on_failure
+      - on_waiting
+```
+
+![Notification setup from UI](../../../assets/images/notifications.png)
+
+### Notification Channels
+
+Currently, flowctl supports email notifications:
+
+- **email** - Send notifications via email to individual users or groups
+
+### Notification Events
+
+You can configure notifications for the following events:
+
+| Event          | Description                                     |
+| -------------- | ----------------------------------------------- |
+| `on_success`   | Triggered when the flow completes successfully  |
+| `on_failure`   | Triggered when the flow encounters an error     |
+| `on_waiting`   | Triggered when the flow is waiting for approval |
+| `on_cancelled` | Triggered when the flow execution is cancelled  |
+
+### Receivers
+
+Notifications can be sent to:
+
+1. **Individual Users** - Specify user email addresses directly. Users active in flowctl and external users are supported.
+
+   ```yaml
+   receivers:
+     - user1@example.com
+     - user2@example.com
+   ```
+
+2. **Groups** - Reference groups using the `group:` prefix:
+   ```yaml
+   receivers:
+     - group:devops
+     - group:tech
+   ```
+
+### Multiple Notification Configurations
+
+You can configure multiple notification rules for different events:
+
+```yaml
+notify:
+  # Alert tech team for failures
+  - channel: email
+    receivers:
+      - group:tech
+    events:
+      - on_failure
+
+  # Alert reviewers when approval is needed
+  - channel: email
+    receivers:
+      - group:reviewers
+    events:
+      - on_waiting
 ```
 
 ## Next Steps

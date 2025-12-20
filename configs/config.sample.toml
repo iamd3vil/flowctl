@@ -102,3 +102,25 @@ dsn = ""
 [metrics]
 enabled = true
 path = "/metrics"
+
+# Email notifications via SMTP
+# Required for flow notifications to work
+[messengers.email]
+# (required) Enable or disable email notifications
+enabled = false
+# (required) SMTP server hostname
+host = "localhost"
+# (required) SMTP server port (587 for STARTTLS, 465 for TLS, 25 for plain)
+port = 587
+# (optional) SMTP authentication username
+username = ""
+# (optional) SMTP authentication password
+password = ""
+# (required) Email address that notifications will be sent from
+from_address = "flowctl@example.com"
+# (optional) Display name for the sender
+from_name = "Flowctl Notifications"
+# (optional) Maximum number of concurrent SMTP connections
+max_conns = 10
+# (required) SSL/TLS mode: none, tls (implicit TLS), or starttls (explicit TLS)
+ssl = "none"

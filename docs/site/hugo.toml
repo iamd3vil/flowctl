@@ -55,6 +55,12 @@ theme = 'flowctl'
   alt = 'flows list'
 
 [[params.features]]
+  title = 'Notifications'
+  description = 'Track execution events with notifications'
+  image = 'images/notifications.png'
+  alt = 'execution notifications'
+
+[[params.features]]
   title = 'Wait for Approvals'
   description = 'Actions in a flow can wait for approvals from a reviewer'
   image = 'images/approval-waiting.png'
