@@ -301,7 +301,7 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	api.DELETE("/users/:userID", h.HandleDeleteUser, h.AuthorizeForRole("superuser"))
 	api.PUT("/users/:userID", h.HandleUpdateUser, h.AuthorizeForRole("superuser"))
 
-	api.GET("/groups", h.HandleGroupPagination, h.AuthorizeForRole("superuser"))
+	api.GET("/groups", h.HandleGroupPagination, h.AuthorizeNamespaceAdmins())
 	api.GET("/groups/:groupID", h.HandleGetGroup, h.AuthorizeForRole("superuser"))
 	api.PUT("/groups/:groupID", h.HandleUpdateGroup, h.AuthorizeForRole("superuser"))
 	api.POST("/groups", h.HandleCreateGroup, h.AuthorizeForRole("superuser"))
