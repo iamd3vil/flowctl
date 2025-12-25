@@ -97,15 +97,18 @@ func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string
 		// Wait until logger exists with timeout
 		timeout := time.After(ExecutionLogPendingTimeout)
 
+		// If exec already executed, go to streamloop directly
 		exec, err := c.GetExecutionSummaryByExecID(ctx, execID, namespaceID)
 		if err == nil {
 			if exec.Status == models.ExecutionStatusCompleted ||
 				exec.Status == models.ExecutionStatusErrored ||
-				exec.Status == models.ExecutionStatusCancelled {
+				exec.Status == models.ExecutionStatusCancelled ||
+				exec.Status == models.ExecutionStatusPendingApproval {
 				goto streamLoop
 			}
 		}
 
+		// Wait until timeout for running flows
 		for {
 			select {
 			case <-ctx.Done():
@@ -142,45 +145,6 @@ func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string
 	return ch, nil
 }
 
-func (c *Core) checkErrors(ctx context.Context, execID string, namespaceID string) (chan models.StreamMessage, error) {
-	ch := make(chan models.StreamMessage)
-
-	go func(ch chan models.StreamMessage) {
-		defer close(ch)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				namespaceUUID, err := uuid.Parse(namespaceID)
-				if err != nil {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: fmt.Errorf("invalid namespace UUID: %w", err).Error()}
-					return
-				}
-				exec, err := c.store.GetExecutionByExecID(ctx, repo.GetExecutionByExecIDParams{
-					ExecID: execID,
-					Uuid:   namespaceUUID,
-				})
-				if err != nil {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: fmt.Errorf("error reading task status: %w", err).Error()}
-					return
-				}
-
-				if exec.Error.Valid {
-					ch <- models.StreamMessage{MType: models.ErrMessageType, Val: exec.Error.String}
-				}
-
-				if exec.Status == "completed" || exec.Status == "errored" {
-					return
-				}
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}(ch)
-
-	return ch, nil
-}
-
 func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespaceID string) (chan models.StreamMessage, error) {
 	ch := make(chan models.StreamMessage)
 
@@ -209,6 +173,7 @@ func (c *Core) checkApprovalRequests(ctx context.Context, execID string, namespa
 			switch a.Status {
 			case "pending":
 				ch <- models.StreamMessage{MType: models.ApprovalMessageType, Val: a.UUID}
+			case "approved":
 				return
 			case "rejected":
 				ch <- models.StreamMessage{MType: models.ErrMessageType, Val: "approval request has been rejected"}

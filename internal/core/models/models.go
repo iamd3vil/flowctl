@@ -131,10 +131,11 @@ func (ec *ExecutionCheckpoint) UnmarshalBinary(data []byte) error {
 type ExecutionStatus string
 
 const (
-	ExecutionStatusCancelled ExecutionStatus = "cancelled"
-	ExecutionStatusPending   ExecutionStatus = "pending"
-	ExecutionStatusCompleted ExecutionStatus = "completed"
-	ExecutionStatusErrored   ExecutionStatus = "errored"
+	ExecutionStatusCancelled       ExecutionStatus = "cancelled"
+	ExecutionStatusPending         ExecutionStatus = "pending"
+	ExecutionStatusPendingApproval ExecutionStatus = "pending_approval"
+	ExecutionStatusCompleted       ExecutionStatus = "completed"
+	ExecutionStatusErrored         ExecutionStatus = "errored"
 )
 
 type ExecutionSummary struct {
