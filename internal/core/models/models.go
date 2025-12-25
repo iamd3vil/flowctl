@@ -149,6 +149,7 @@ type ExecutionSummary struct {
 	CurrentActionID string
 	CreatedAt       time.Time
 	CompletedAt     time.Time
+	ActionRetries   map[string]int
 }
 
 func (e ExecutionSummary) Duration() string {

@@ -18,6 +18,34 @@ const (
 	ExecutionLogPendingTimeout = 30 * time.Second
 )
 
+// getActionRetries loads the action retries map for an execution
+func (c *Core) getActionRetries(ctx context.Context, execID string, namespaceID string) map[string]int32 {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		log.Printf("invalid namespace UUID for exec %s: %v", execID, err)
+		return make(map[string]int32)
+	}
+
+	actionRetriesRaw, err := c.store.GetExecutionActionRetries(ctx, repo.GetExecutionActionRetriesParams{
+		ExecID: execID,
+		Uuid:   namespaceUUID,
+	})
+	if err != nil {
+		log.Printf("failed to get action retries for exec %s, using empty map: %v", execID, err)
+		return make(map[string]int32)
+	}
+
+	actionRetries := make(map[string]int32)
+	if actionRetriesRaw.Valid && len(actionRetriesRaw.RawMessage) > 0 {
+		if err := json.Unmarshal(actionRetriesRaw.RawMessage, &actionRetries); err != nil {
+			log.Printf("failed to parse action retries for exec %s, using empty map: %v", execID, err)
+			return make(map[string]int32)
+		}
+	}
+
+	return actionRetries
+}
+
 // StreamLogs reads values from a stream from the beginning and returns a channel to which
 // all the messages are sent. logID is the ID sent to the NewFlowExecution task
 func (c *Core) StreamLogs(ctx context.Context, logID string, namespaceID string) (chan models.StreamMessage, error) {
@@ -93,7 +121,8 @@ func (c *Core) streamLogs(ctx context.Context, execID string, namespaceID string
 		}
 
 	streamLoop:
-		logCh, err := c.LogManager.StreamLogs(ctx, execID)
+		actionRetries := c.getActionRetries(ctx, execID, namespaceID)
+		logCh, err := c.LogManager.StreamLogs(ctx, execID, actionRetries)
 		if err != nil {
 			log.Println(err)
 			return

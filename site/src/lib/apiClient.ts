@@ -373,6 +373,10 @@ export const apiClient = {
       baseFetch<{message: string; execID: string}>(`/api/v1/${namespace}/flows/executions/${execId}/cancel`, {
         method: 'POST',
       }),
+    retry: (namespace: string, execId: string) =>
+      baseFetch<void>(`/api/v1/${namespace}/flows/executions/${execId}/retry`, {
+        method: 'POST',
+      }),
   },
 
   // Executors

@@ -273,6 +273,7 @@ export interface ExecutionSummary {
   started_at: string;
   completed_at: string;
   duration: string;
+  action_retries?: Record<string, number>;
 }
 
 // Pagination types

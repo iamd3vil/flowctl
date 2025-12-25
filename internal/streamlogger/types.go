@@ -12,6 +12,8 @@ type Logger interface {
 	GetID() string
 	// SetActionID is a global value that is used in Write calls
 	SetActionID(id string)
+	// SetRetry sets the retry count for the current action
+	SetRetry(retry int32)
 	// Checkpoint is an underlying function to log different message types. Used by Write calls too. If the id is set, it will
 	// override the global action ID
 	Checkpoint(id string, nodeID string, val interface{}, mtype MessageType) error
@@ -23,7 +25,7 @@ type Logger interface {
 type LogManager interface {
 	NewLogger(id string) (Logger, error)
 	LoggerExists(execID string) bool
-	StreamLogs(ctx context.Context, execID string) (<-chan string, error)
+	StreamLogs(ctx context.Context, execID string, actionRetries map[string]int32) (<-chan string, error)
 	Run(ctx context.Context, logger *slog.Logger) error
 }
 
@@ -43,6 +45,7 @@ type StreamMessage struct {
 	NodeID    string      `json:"node_id"`
 	Val       string      `json:"value"`
 	Timestamp string      `json:"timestamp"`
+	Retry     int32       `json:"retry"`
 }
 
 // NodeContextLogger wraps a Logger to provide node context for concurrent execution
@@ -77,6 +80,11 @@ func (n *NodeContextLogger) GetID() string {
 // SetActionID updates the action ID for this node context.
 func (n *NodeContextLogger) SetActionID(id string) {
 	n.actionID = id
+}
+
+// SetRetry delegates to the underlying logger.
+func (n *NodeContextLogger) SetRetry(retry int32) {
+	n.logger.SetRetry(retry)
 }
 
 // Checkpoint delegates to the underlying logger with node context.

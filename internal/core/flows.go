@@ -156,7 +156,7 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		}
 	}
 
-	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID)
+	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID, false)
 	if err != nil {
 		return "", err
 	}
@@ -165,7 +165,7 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 }
 
 // ResumeFlowExecution moves the task to a resume queue for further processing.
-func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID string, userUUID string, namespaceID string) error {
+func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID string, userUUID string, namespaceID string, retry bool) error {
 	exec, err := c.GetExecutionByExecID(ctx, execID, namespaceID)
 	if err != nil {
 		return fmt.Errorf("could not get exec %s: %w", execID, err)
@@ -181,11 +181,30 @@ func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID 
 		return err
 	}
 
-	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID, namespaceID); err != nil {
+	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID, namespaceID, retry); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// RetryFlowExecution retries a failed or cancelled execution from the point of failure.
+// It automatically detects the retry point from CurrentActionID and resumes execution from there.
+func (c *Core) RetryFlowExecution(ctx context.Context, execID string, userUUID string, namespaceID string) error {
+	exec, err := c.GetExecutionSummaryByExecID(ctx, execID, namespaceID)
+	if err != nil {
+		return fmt.Errorf("could not get exec %s: %w", execID, err)
+	}
+
+	if exec.Status != models.ExecutionStatus(repo.ExecutionStatusErrored) && exec.Status != models.ExecutionStatus(repo.ExecutionStatusCancelled) {
+		return fmt.Errorf("execution must be in errored or cancelled state to retry, current status: %s", exec.Status)
+	}
+
+	if exec.CurrentActionID == "" {
+		return fmt.Errorf("cannot determine retry point - no current action ID")
+	}
+
+	return c.ResumeFlowExecution(ctx, execID, exec.CurrentActionID, userUUID, namespaceID, true)
 }
 
 // GetNodesByNames retrieves nodes by their names and returns a slice of models.Node
@@ -243,7 +262,7 @@ func (c *Core) GetNodesByNames(ctx context.Context, nodeNames []string, namespac
 }
 
 // queueFlow adds a flow to the execution queue. If the actionIndex is not zero, it is moved to a resume queue.
-func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int, userUUID string, namespaceID string) (string, error) {
+func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int, userUUID string, namespaceID string, retry bool) (string, error) {
 	// If execID is empty, it is a new flow execution
 	if execID == "" {
 		execID = uuid.NewString()
@@ -283,6 +302,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		TriggerType:       scheduler.TriggerTypeManual,
 		UserUUID:          userUUID,
 		FlowDirectory:     filepath.Dir(fl.FilePath),
+		Resumed:           retry,
 	}
 
 	// Create execution log for manual flows before queuing (needed for immediate API calls)
@@ -352,6 +372,13 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 	var pageCount, totalCount int64
 
 	for _, v := range execs {
+		actionRetries := make(map[string]int)
+		if v.ActionRetries.Valid {
+			if err := json.Unmarshal(v.ActionRetries.RawMessage, &actionRetries); err != nil {
+				log.Printf("failed to unmarshal action_retries: %v", err)
+			}
+		}
+
 		m = append(m, models.ExecutionSummary{
 			ExecID:          v.ExecID,
 			FlowName:        v.FlowName,
@@ -363,6 +390,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
 			CurrentActionID: v.CurrentActionID.String,
+			ActionRetries:   actionRetries,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -391,6 +419,13 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 	var pageCount, totalCount int64
 
 	for _, v := range execs {
+		actionRetries := make(map[string]int)
+		if v.ActionRetries.Valid {
+			if err := json.Unmarshal(v.ActionRetries.RawMessage, &actionRetries); err != nil {
+				log.Printf("failed to unmarshal action_retries: %v", err)
+			}
+		}
+
 		m = append(m, models.ExecutionSummary{
 			ExecID:          v.ExecID,
 			FlowName:        v.FlowName,
@@ -402,6 +437,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 			TriggeredByName: v.TriggeredByName,
 			TriggeredByID:   v.TriggeredByUuid.String(),
 			CurrentActionID: v.CurrentActionID.String,
+			ActionRetries:   actionRetries,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -423,6 +459,15 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 		return models.ExecutionSummary{}, fmt.Errorf("could not get exec %s by exec id: %w", execID, err)
 	}
 
+	// Parse action_retries JSONB
+	actionRetries := make(map[string]int)
+	if e.ActionRetries.Valid {
+		if err := json.Unmarshal(e.ActionRetries.RawMessage, &actionRetries); err != nil {
+			// Log error but don't fail - this is non-critical
+			log.Printf("failed to unmarshal action_retries for exec %s: %v", execID, err)
+		}
+	}
+
 	return models.ExecutionSummary{
 		ExecID:          execID,
 		Input:           e.Input,
@@ -435,6 +480,7 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 		TriggeredByName: e.TriggeredByName,
 		TriggeredByID:   e.TriggeredByUuid.String(),
 		CurrentActionID: e.CurrentActionID.String,
+		ActionRetries:   actionRetries,
 	}, nil
 }
 

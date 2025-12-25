@@ -27,10 +27,6 @@ func TestFileLogger_BasicOperations(t *testing.T) {
 
 	actionID := "action-456"
 	logger.SetActionID(actionID)
-	fl := logger.(*FileLogger)
-	if fl.ActionID != actionID {
-		t.Errorf("ActionID = %s, want %s", fl.ActionID, actionID)
-	}
 	testData := "test log data\n"
 	n, err := logger.Write([]byte(testData))
 	if err != nil {
@@ -61,6 +57,9 @@ func TestFileLogger_BasicOperations(t *testing.T) {
 	}
 	if sm.MType != LogMessageType {
 		t.Errorf("stream message type = %v, want %v", sm.MType, LogMessageType)
+	}
+	if sm.ActionID != actionID {
+		t.Errorf("stream message ActionID = %q, want %q", sm.ActionID, actionID)
 	}
 }
 
@@ -460,7 +459,7 @@ func TestFileLogManager_StreamLogs_ArchivedOnly(t *testing.T) {
 
 	// Now stream the logs
 	ctx := context.Background()
-	logCh, err := manager.StreamLogs(ctx, execID)
+	logCh, err := manager.StreamLogs(ctx, execID, make(map[string]int32))
 	if err != nil {
 		t.Fatalf("StreamLogs() error = %v", err)
 	}
@@ -519,7 +518,7 @@ func TestFileLogManager_StreamLogs_ActiveLogger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logCh, err := manager.StreamLogs(ctx, execID)
+	logCh, err := manager.StreamLogs(ctx, execID, make(map[string]int32))
 	if err != nil {
 		t.Fatalf("StreamLogs() error = %v", err)
 	}
@@ -579,7 +578,7 @@ func TestFileLogManager_StreamLogs_MultipleRotatedFiles(t *testing.T) {
 
 	// Stream all logs
 	ctx := context.Background()
-	logCh, err := manager.StreamLogs(ctx, execID)
+	logCh, err := manager.StreamLogs(ctx, execID, make(map[string]int32))
 	if err != nil {
 		t.Fatalf("StreamLogs() error = %v", err)
 	}
@@ -633,7 +632,7 @@ func TestFileLogManager_StreamLogs_ContextCancellation(t *testing.T) {
 	// Create context that will be cancelled
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logCh, err := manager.StreamLogs(ctx, execID)
+	logCh, err := manager.StreamLogs(ctx, execID, make(map[string]int32))
 	if err != nil {
 		t.Fatalf("StreamLogs() error = %v", err)
 	}
@@ -674,7 +673,7 @@ func TestFileLogManager_StreamLogs_NonExistentExecID(t *testing.T) {
 	manager := NewFileLogManager(cfg).(*FileLogManager)
 
 	ctx := context.Background()
-	logCh, err := manager.StreamLogs(ctx, "non-existent-exec")
+	logCh, err := manager.StreamLogs(ctx, "non-existent-exec", make(map[string]int32))
 	if err != nil {
 		t.Fatalf("StreamLogs() error = %v", err)
 	}

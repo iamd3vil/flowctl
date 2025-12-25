@@ -32,6 +32,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.6.0
 	github.com/spf13/cobra v1.9.1
+	github.com/sqlc-dev/pqtype v0.3.0
 	github.com/zerodha/simplesessions/stores/postgres/v3 v3.0.0
 	github.com/zerodha/simplesessions/v3 v3.0.0
 	gocloud.dev v0.43.0

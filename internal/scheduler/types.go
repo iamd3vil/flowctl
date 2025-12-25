@@ -215,6 +215,9 @@ type FlowExecutionPayload struct {
 	TriggerType       TriggerType
 	UserUUID          string
 	FlowDirectory     string
+
+	// Resumed should be set to true if resuming an existing execution (after approval or retry)
+	Resumed bool
 }
 
 // Hook function types for flow execution

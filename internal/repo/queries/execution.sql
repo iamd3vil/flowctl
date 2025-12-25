@@ -7,6 +7,12 @@ WITH user_lookup AS (
     SELECT COALESCE(MAX(version), -1) + 1 as version
     FROM execution_log
     WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
+), prev_action_retries AS (
+    SELECT action_retries
+    FROM execution_log
+    WHERE exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
+    ORDER BY version DESC
+    LIMIT 1
 )
 INSERT INTO execution_log (
     exec_id,
@@ -15,9 +21,11 @@ INSERT INTO execution_log (
     input,
     trigger_type,
     triggered_by,
-    namespace_id
+    namespace_id,
+    action_retries
 ) VALUES (
-    $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup)
+    $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup),
+    COALESCE((SELECT action_retries FROM prev_action_retries), '{}')
 ) RETURNING *;
 
 -- name: UpdateExecutionStatus :one
@@ -335,3 +343,53 @@ WHERE flow_id = (SELECT id FROM flows WHERE flows.slug = $1 AND flows.namespace_
 namespace_id = (SELECT id FROM namespace_lookup) AND
 (status = 'running' or status = 'pending_approval' or status = 'pending') AND
 version = lv.max_version);
+
+-- name: GetExecutionActionRetries :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+SELECT el.action_retries FROM execution_log el
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup);
+
+-- name: UpdateExecutionActionRetries :exec
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log el
+SET action_retries = $2, updated_at = NOW()
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup);
+
+-- name: IncrementActionRetry :one
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $3
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log el
+    WHERE el.exec_id = $1 AND el.namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log el
+SET
+    action_retries = jsonb_set(
+        COALESCE(action_retries, '{}'::jsonb),
+        ARRAY[$2],
+        to_jsonb((COALESCE(action_retries->>$2, '0')::int + 1))
+    ),
+    updated_at = NOW()
+WHERE el.exec_id = $1
+  AND el.version = (SELECT version FROM latest_version)
+  AND el.namespace_id = (SELECT id FROM namespace_lookup)
+RETURNING
+    action_retries,
+    (action_retries->>$2)::int as retry_count;

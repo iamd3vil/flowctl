@@ -118,7 +118,8 @@ func (f *FileLogManager) LoggerExists(execID string) bool {
 }
 
 // StreamLogs creates and returns a channel that streams log lines for the given exec ID
-func (f *FileLogManager) StreamLogs(ctx context.Context, execID string) (<-chan string, error) {
+// It filters logs to show only the highest retry attempt for each action
+func (f *FileLogManager) StreamLogs(ctx context.Context, execID string, actionRetries map[string]int32) (<-chan string, error) {
 	logCh := make(chan string, 100)
 
 	f.loggerMut.RLock()
@@ -135,12 +136,12 @@ func (f *FileLogManager) StreamLogs(ctx context.Context, execID string) (<-chan 
 			var err error
 			if exists {
 				if fl, ok := logger.(*FileLogger); ok && !fl.IsClosed() {
-					err = f.streamRealtimeLogs(ctx, execID, fl, logCh)
+					err = f.streamRealtimeLogs(ctx, execID, fl, actionRetries, logCh)
 				} else {
-					err = f.streamAllLogs(ctx, execID, logCh)
+					err = f.streamAllLogs(ctx, execID, actionRetries, logCh)
 				}
 			} else {
-				err = f.streamAllLogs(ctx, execID, logCh)
+				err = f.streamAllLogs(ctx, execID, actionRetries, logCh)
 			}
 
 			if err != nil {
@@ -154,7 +155,8 @@ func (f *FileLogManager) StreamLogs(ctx context.Context, execID string) (<-chan 
 
 // streamAllLogs streams log lines from all log files for the given exec ID.
 // This is used for executions that are not currently running.
-func (f *FileLogManager) streamAllLogs(ctx context.Context, execID string, logCh chan<- string) error {
+// It filters logs to show only the highest retry attempt for each action.
+func (f *FileLogManager) streamAllLogs(ctx context.Context, execID string, actionRetries map[string]int32, logCh chan<- string) error {
 	entries, err := os.ReadDir(f.cfg.LogDir)
 	if err != nil {
 		return fmt.Errorf("failed to read log directory: %w", err)
@@ -183,14 +185,14 @@ func (f *FileLogManager) streamAllLogs(ctx context.Context, execID string, logCh
 		return indexI < indexJ
 	})
 
-	// Stream from each file in order
+	// Stream from each file in order with retry filtering
 	for _, filename := range logFiles {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 			filePath := filepath.Join(f.cfg.LogDir, filename)
-			if err := f.streamFromFile(ctx, filePath, logCh); err != nil {
+			if err := f.streamFromFile(ctx, filePath, actionRetries, logCh); err != nil {
 				return fmt.Errorf("failed to stream from file %s: %w", filename, err)
 			}
 		}
@@ -201,8 +203,9 @@ func (f *FileLogManager) streamAllLogs(ctx context.Context, execID string, logCh
 
 // streamRealtimeLogs streams all archived logs plus active logs from the current file
 // This is used for currently running executions.
-func (f *FileLogManager) streamRealtimeLogs(ctx context.Context, execID string, fl *FileLogger, logCh chan<- string) error {
-	// First stream all archived logs
+// It filters logs to show only the highest retry attempt for each action.
+func (f *FileLogManager) streamRealtimeLogs(ctx context.Context, execID string, fl *FileLogger, actionRetries map[string]int32, logCh chan<- string) error {
+	// First stream all archived logs with retry filtering
 	nextIndex := fl.nextFileIndex.Load()
 	for i := int32(0); i < nextIndex-1; i++ {
 		select {
@@ -213,7 +216,7 @@ func (f *FileLogManager) streamRealtimeLogs(ctx context.Context, execID string, 
 			filePath := filepath.Join(f.cfg.LogDir, filename)
 
 			if _, err := os.Stat(filePath); err == nil {
-				if err := f.streamFromFile(ctx, filePath, logCh); err != nil {
+				if err := f.streamFromFile(ctx, filePath, actionRetries, logCh); err != nil {
 					return fmt.Errorf("failed to stream from archived file %s: %w", filename, err)
 				}
 			}
@@ -223,11 +226,11 @@ func (f *FileLogManager) streamRealtimeLogs(ctx context.Context, execID string, 
 	activeFilename := fmt.Sprintf("%s.%d", execID, nextIndex-1)
 	activeFilePath := filepath.Join(f.cfg.LogDir, activeFilename)
 
-	return f.followActiveFile(ctx, activeFilePath, fl.syncCh, logCh)
+	return f.followActiveFile(ctx, activeFilePath, fl.syncCh, actionRetries, logCh)
 }
 
-// streamFromFile reads all lines from a file and sends them to the channel
-func (f *FileLogManager) streamFromFile(ctx context.Context, filePath string, logCh chan<- string) error {
+// streamFromFile reads all lines from a file and filters by retry attempt
+func (f *FileLogManager) streamFromFile(ctx context.Context, filePath string, actionRetries map[string]int32, logCh chan<- string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -239,15 +242,42 @@ func (f *FileLogManager) streamFromFile(ctx context.Context, filePath string, lo
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case logCh <- scanner.Text():
+		default:
+			line := scanner.Text()
+			if f.shouldStreamLogLine(line, actionRetries) {
+				logCh <- line
+			}
 		}
 	}
 
 	return scanner.Err()
 }
 
-// followActiveFile reads from a file and follows it like tail -f, stopping when syncCh is closed
-func (f *FileLogManager) followActiveFile(ctx context.Context, filePath string, syncCh <-chan struct{}, logCh chan<- string) error {
+// shouldStreamLogLine checks if a log line should be streamed based on retry filtering
+func (f *FileLogManager) shouldStreamLogLine(line string, actionRetries map[string]int32) bool {
+	var msg StreamMessage
+	if err := json.Unmarshal([]byte(line), &msg); err != nil {
+		// If we can't parse, stream the line anyway (backward compatibility)
+		return true
+	}
+
+	// Backwards compatibility: if retry field is 0 (not present in old logs), treat as 1
+	logRetry := msg.Retry
+	if logRetry == 0 {
+		logRetry = 1
+	}
+
+	// Show only logs from the highest retry attempt for each action
+	maxRetry, exists := actionRetries[msg.ActionID]
+	if !exists {
+		maxRetry = 1 // Default to 1 since we always increment before execution
+	}
+
+	return logRetry == maxRetry
+}
+
+// followActiveFile follows an active file and filters by retry attempt
+func (f *FileLogManager) followActiveFile(ctx context.Context, filePath string, syncCh <-chan struct{}, actionRetries map[string]int32, logCh chan<- string) error {
 	tailConfig := tail.Config{
 		Follow:    true,
 		ReOpen:    true,
@@ -266,13 +296,17 @@ func (f *FileLogManager) followActiveFile(ctx context.Context, filePath string, 
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-syncCh:
-			// logger is closed, drain remaining lines
+			// logger is closed, drain remaining lines with filtering
 			for line := range t.Lines {
-				logCh <- line.Text
+				if f.shouldStreamLogLine(line.Text, actionRetries) {
+					logCh <- line.Text
+				}
 			}
 			return nil
 		case line := <-t.Lines:
-			logCh <- line.Text
+			if f.shouldStreamLogLine(line.Text, actionRetries) {
+				logCh <- line.Text
+			}
 		}
 	}
 }
@@ -376,8 +410,10 @@ func (f *FileLogManager) deleteFiles(ctx context.Context, files []string, l *slo
 type FileLogger struct {
 	// ExecID is the execution ID of the associated flow
 	ExecID string
-	// ActionID is used to track the current action, this is a global value and cannot be used concurrently
-	ActionID string
+	// actionID is used to track the current action
+	actionID atomic.Value
+	// Retry is the retry count for the current action
+	Retry atomic.Int32
 	// buffer stores the messages from executions
 	buffer    *bytes.Buffer
 	bufferMut sync.RWMutex
@@ -407,6 +443,8 @@ func newFileLogger(execID string, logDirPath string, syncInterval time.Duration,
 		buffer:      new(bytes.Buffer),
 		maxSize:     maxSize,
 	}
+
+	fl.actionID.Store("")
 
 	if err := fl.rotateFile(); err != nil {
 		return nil, err
@@ -456,13 +494,19 @@ func (fl *FileLogger) GetID() string {
 	return fl.ExecID
 }
 
-// SetActionID sets the action ID, this is a global value and should not be used concurrently
+// SetActionID sets the action ID
 func (fl *FileLogger) SetActionID(id string) {
-	fl.ActionID = id
+	fl.actionID.Store(id)
+}
+
+// SetRetry sets the retry count for the current action
+func (fl *FileLogger) SetRetry(retry int32) {
+	fl.Retry.Store(retry)
 }
 
 func (fl *FileLogger) Write(p []byte) (int, error) {
-	if err := fl.Checkpoint(fl.ActionID, "", p, LogMessageType); err != nil {
+	currentActionID := fl.actionID.Load().(string)
+	if err := fl.Checkpoint(currentActionID, "", p, LogMessageType); err != nil {
 		return 0, err
 	}
 	return len(p), nil
@@ -471,12 +515,14 @@ func (fl *FileLogger) Write(p []byte) (int, error) {
 // Checkpoint can be used to set checkpoints for an action on a node like resuls, logs, errors etc.
 func (fl *FileLogger) Checkpoint(id string, nodeID string, val interface{}, mtype MessageType) error {
 	var sm StreamMessage
-	sm.ActionID = fl.ActionID
-	if id != "" {
+	if id == "" {
+		sm.ActionID = fl.actionID.Load().(string)
+	} else {
 		sm.ActionID = id
 	}
 	sm.NodeID = nodeID
 	sm.Timestamp = time.Now().Format(time.RFC3339)
+	sm.Retry = fl.Retry.Load()
 	switch mtype {
 	case ErrMessageType:
 		e, ok := val.(string)

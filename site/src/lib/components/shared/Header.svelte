@@ -13,7 +13,7 @@
     children
   }: {
     breadcrumbs?: (string | BreadcrumbItem)[],
-    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' | 'ghost', icon?: ComponentType }>,
+    actions?: Array<{ label: string, onClick: () => void, variant?: 'primary' | 'secondary' | 'danger' | 'ghost', icon?: ComponentType, tooltip?: string }>,
     children?: any
   } = $props();
 
@@ -68,6 +68,7 @@
       {#each actions as action}
         <button
           onclick={action.onClick}
+          title={action.tooltip || ''}
           class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : action.variant === 'danger' ? 'bg-danger-500 text-white hover:bg-danger-600' : action.variant === 'ghost' ? 'text-primary-500 hover:text-primary-600 font-medium' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
         >
           {#if action.icon}

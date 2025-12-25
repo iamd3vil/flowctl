@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type ApprovalStatus string
@@ -359,20 +360,21 @@ type CronSchedule struct {
 }
 
 type ExecutionLog struct {
-	ID              int32           `db:"id" json:"id"`
-	ExecID          string          `db:"exec_id" json:"exec_id"`
-	FlowID          int32           `db:"flow_id" json:"flow_id"`
-	Version         int32           `db:"version" json:"version"`
-	Input           json.RawMessage `db:"input" json:"input"`
-	Error           sql.NullString  `db:"error" json:"error"`
-	CurrentActionID sql.NullString  `db:"current_action_id" json:"current_action_id"`
-	Status          ExecutionStatus `db:"status" json:"status"`
-	TriggerType     TriggerType     `db:"trigger_type" json:"trigger_type"`
-	TriggeredBy     int32           `db:"triggered_by" json:"triggered_by"`
-	NamespaceID     int32           `db:"namespace_id" json:"namespace_id"`
-	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
-	CompletedAt     sql.NullTime    `db:"completed_at" json:"completed_at"`
+	ID              int32                 `db:"id" json:"id"`
+	ExecID          string                `db:"exec_id" json:"exec_id"`
+	FlowID          int32                 `db:"flow_id" json:"flow_id"`
+	Version         int32                 `db:"version" json:"version"`
+	Input           json.RawMessage       `db:"input" json:"input"`
+	Error           sql.NullString        `db:"error" json:"error"`
+	CurrentActionID sql.NullString        `db:"current_action_id" json:"current_action_id"`
+	Status          ExecutionStatus       `db:"status" json:"status"`
+	TriggerType     TriggerType           `db:"trigger_type" json:"trigger_type"`
+	TriggeredBy     int32                 `db:"triggered_by" json:"triggered_by"`
+	NamespaceID     int32                 `db:"namespace_id" json:"namespace_id"`
+	CreatedAt       time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
+	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
+	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
 }
 
 type Flow struct {

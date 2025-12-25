@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type Querier interface {
@@ -59,6 +60,7 @@ type Querier interface {
 	GetCronSchedulesByFlowID(ctx context.Context, flowID int32) ([]CronSchedule, error)
 	// Used internally for execution - returns all secrets for a namespace
 	GetDecryptedNamespaceSecrets(ctx context.Context, argUuid uuid.UUID) ([]GetDecryptedNamespaceSecretsRow, error)
+	GetExecutionActionRetries(ctx context.Context, arg GetExecutionActionRetriesParams) (pqtype.NullRawMessage, error)
 	GetExecutionByExecID(ctx context.Context, arg GetExecutionByExecIDParams) (GetExecutionByExecIDRow, error)
 	GetExecutionByExecIDWithNamespace(ctx context.Context, arg GetExecutionByExecIDWithNamespaceParams) (GetExecutionByExecIDWithNamespaceRow, error)
 	GetExecutionByID(ctx context.Context, arg GetExecutionByIDParams) (GetExecutionByIDRow, error)
@@ -93,6 +95,7 @@ type Querier interface {
 	GetUserGroups(ctx context.Context, argUuid uuid.UUID) ([]Group, error)
 	GetUserNamespacesWithRoles(ctx context.Context, argUuid uuid.UUID) ([]GetUserNamespacesWithRolesRow, error)
 	GetUsersByRole(ctx context.Context, role UserRoleType) ([]User, error)
+	IncrementActionRetry(ctx context.Context, arg IncrementActionRetryParams) (IncrementActionRetryRow, error)
 	ListFlowSecrets(ctx context.Context, arg ListFlowSecretsParams) ([]ListFlowSecretsRow, error)
 	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
 	ListFlowsPaginated(ctx context.Context, arg ListFlowsPaginatedParams) ([]ListFlowsPaginatedRow, error)
@@ -112,6 +115,7 @@ type Querier interface {
 	UpdateApprovalStatusByUUID(ctx context.Context, arg UpdateApprovalStatusByUUIDParams) (UpdateApprovalStatusByUUIDRow, error)
 	UpdateCredential(ctx context.Context, arg UpdateCredentialParams) (Credential, error)
 	UpdateExecutionActionID(ctx context.Context, arg UpdateExecutionActionIDParams) (ExecutionLog, error)
+	UpdateExecutionActionRetries(ctx context.Context, arg UpdateExecutionActionRetriesParams) error
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
 	UpdateFlowSecret(ctx context.Context, arg UpdateFlowSecretParams) (FlowSecret, error)

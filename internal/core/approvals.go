@@ -79,7 +79,7 @@ func (c *Core) ApproveOrRejectAction(ctx context.Context, approvalUUID, decidedB
 
 	// If approved, move to resume queue
 	if status == models.ApprovalStatusApproved {
-		if err := c.ResumeFlowExecution(ctx, result.ExecID, approval.ActionID, decidedBy, namespaceID); err != nil {
+		if err := c.ResumeFlowExecution(ctx, result.ExecID, approval.ActionID, decidedBy, namespaceID, true); err != nil {
 			return fmt.Errorf("could not resume task %s: %w", result.ExecID, err)
 		}
 	}
