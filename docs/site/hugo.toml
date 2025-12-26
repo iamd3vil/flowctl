@@ -67,6 +67,12 @@ theme = 'flowctl'
   alt = 'run flow'
 
 [[params.features]]
+  title = 'Retry failed actions'
+  description = 'Retry errored executions from failed actions'
+  image = 'images/retry.png'
+  alt = 'retry'
+
+[[params.features]]
   title = 'Real-time Results'
   description = 'Action results can be chained and used in subsequent actions'
   image = 'images/outputs.png'
