@@ -1,0 +1,1 @@
+ALTER TABLE execution_log ADD COLUMN started_at TIMESTAMP WITH TIME ZONE;

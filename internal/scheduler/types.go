@@ -248,6 +248,7 @@ type Job struct {
 	PayloadType PayloadType
 	Payload     []byte
 	CreatedAt   time.Time
+	ScheduledAt time.Time
 }
 
 // QueueWeight defines weight for a payload type

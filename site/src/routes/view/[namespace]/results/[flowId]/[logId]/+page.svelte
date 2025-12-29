@@ -16,7 +16,7 @@
         showSuccess,
         showWarning,
     } from "$lib/utils/errorHandling";
-    import { formatDateTime } from "$lib/utils";
+    import { formatDateTime, getStartTime } from "$lib/utils";
     import { IconPlayerStop, IconRefresh, IconRepeat } from "@tabler/icons-svelte";
 
     let {
@@ -552,11 +552,17 @@
         }
     };
 
+    let scheduledTime = $state("");
+
     // Initialize component
     onMount(() => {
         if (data.executionSummary) {
             updateStatusFromSummary(data.executionSummary);
-            startTime = formatDateTime(data.executionSummary.started_at);
+            const execStartTime = getStartTime(data.executionSummary);
+            startTime = formatDateTime(execStartTime);
+            if (data.executionSummary.scheduled_at) {
+                scheduledTime = formatDateTime(data.executionSummary.scheduled_at);
+            }
             flowName =
                 data.executionSummary.flow_name ||
                 data.flowMeta?.meta?.name ||
@@ -663,6 +669,9 @@
                     flowName={flowName || "Loading..."}
                     {startTime}
                     executionId={logId}
+                    scheduledAt={scheduledTime}
+                    triggerType={data.executionSummary?.trigger_type}
+                    triggeredBy={data.executionSummary?.triggered_by}
                 />
 
                 <!-- Flow Input -->

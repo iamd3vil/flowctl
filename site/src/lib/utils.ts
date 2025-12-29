@@ -128,3 +128,12 @@ export function formatTime(dateString: string | null | undefined, fallback: stri
     return fallback;
   }
 }
+
+/**
+ * Gets the start time from an execution object, falling back to created_at if started_at is not available
+ * @param execution - Object with started_at and created_at properties
+ * @returns The start time string
+ */
+export function getStartTime(execution: { started_at?: string; created_at: string }): string {
+  return execution.started_at || execution.created_at;
+}

@@ -106,9 +106,15 @@ export interface FlowAction {
   on: string[];
 }
 
+export interface ScheduledExecution {
+  exec_id: string;
+  scheduled_at: string;
+}
+
 export interface FlowMetaResp {
   meta: FlowMeta;
   actions: FlowAction[];
+  scheduled_executions: ScheduledExecution[];
 }
 
 export interface FlowListResponse {
@@ -270,9 +276,11 @@ export interface ExecutionSummary {
   input?: any;
   triggered_by: string;
   current_action_id: string;
+  created_at: string;
   started_at: string;
   completed_at: string;
   duration: string;
+  scheduled_at?: string;
   action_retries?: Record<string, number>;
 }
 

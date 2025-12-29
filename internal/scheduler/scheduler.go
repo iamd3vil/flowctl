@@ -19,6 +19,7 @@ const (
 
 type TaskScheduler interface {
 	QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error)
+	QueueScheduledTask(ctx context.Context, payloadType PayloadType, execID string, payload any, scheduledAt time.Time) (string, error)
 	CancelTask(ctx context.Context, execID string) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -213,6 +214,26 @@ func (s *Scheduler) QueueTask(ctx context.Context, payloadType PayloadType, exec
 	return execID, nil
 }
 
+// QueueScheduledTask queues a task for delayed execution at the specified time
+func (s *Scheduler) QueueScheduledTask(ctx context.Context, payloadType PayloadType, execID string, payload any, scheduledAt time.Time) (string, error) {
+	if scheduledAt.Before(time.Now()) {
+		return "", fmt.Errorf("scheduled_at must be in the future")
+	}
+
+	job, err := storage.NewScheduledJob(execID, string(payloadType), payload, scheduledAt)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.jobStore.Put(ctx, job)
+	if err != nil {
+		return "", err
+	}
+
+	s.logger.Info("queued scheduled task", "execID", execID, "scheduledAt", scheduledAt)
+	return execID, nil
+}
+
 // CancelTask cancels a running or pending execution
 func (s *Scheduler) CancelTask(ctx context.Context, execID string) error {
 	s.cancelMu.Lock()
@@ -298,6 +319,7 @@ func (s *Scheduler) processPendingTasks(ctx context.Context) error {
 					PayloadType: PayloadType(j.PayloadType),
 					Payload:     j.Payload,
 					CreatedAt:   j.CreatedAt,
+					ScheduledAt: j.ScheduledAt,
 				}
 
 				s.logger.Debug("starting job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID)

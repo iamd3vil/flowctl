@@ -139,6 +139,19 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
 	}
 
+	// Parse scheduled_at query param if provided
+	var scheduledAt *time.Time
+	if scheduledAtStr := c.QueryParam("scheduled_at"); scheduledAtStr != "" {
+		t, err := time.Parse(time.RFC3339, scheduledAtStr)
+		if err != nil {
+			return wrapError(ErrValidationFailed, "invalid scheduled_at format, expected RFC3339", err, nil)
+		}
+		if t.Before(time.Now()) {
+			return wrapError(ErrValidationFailed, "scheduled_at must be in the future", nil, nil)
+		}
+		scheduledAt = &t
+	}
+
 	f, err := h.co.GetFlowByID(c.Param("flow"), namespace)
 	if err != nil {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
@@ -166,13 +179,19 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	}
 
 	// Add to queue
-	execID, err := h.co.QueueFlowExecution(c.Request().Context(), f, req, user.ID, namespace)
+	execID, err := h.co.QueueFlowExecution(c.Request().Context(), f, req, user.ID, namespace, scheduledAt)
 	if err != nil {
 		return wrapError(ErrOperationFailed, fmt.Sprintf("could not trigger flow: %v", err), err, nil)
 	}
-	return c.JSON(http.StatusOK, FlowTriggerResp{
+
+	resp := FlowTriggerResp{
 		ExecID: execID,
-	})
+	}
+	if scheduledAt != nil {
+		scheduledAtStr := scheduledAt.Format(TimeFormat)
+		resp.ScheduledAt = &scheduledAtStr
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 func (h *Handler) HandleLogStreaming(c echo.Context) error {
@@ -512,11 +531,29 @@ func (h *Handler) HandleGetFlowMeta(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "flow not found", err, nil)
 	}
 
+	// Get scheduled executions for this flow
+	scheduledExecs, err := h.co.GetScheduledExecutionsByFlow(c.Request().Context(), flow.Meta.DBID, namespace)
+	if err != nil {
+		h.logger.Error("failed to get scheduled executions", "error", err)
+		scheduledExecs = []models.ScheduledExecution{}
+	}
+
 	meta := coreFlowMetatoFlowMeta(flow.Meta, flow.Schedules)
 	actions := coreFlowActionstoFlowActions(flow.Actions)
+
+	// Transform scheduled executions
+	scheduledExecutionItems := make([]ScheduledExecution, len(scheduledExecs))
+	for i, exec := range scheduledExecs {
+		scheduledExecutionItems[i] = ScheduledExecution{
+			ExecID:      exec.ExecID,
+			ScheduledAt: exec.ScheduledAt.Format(TimeFormat),
+		}
+	}
+
 	return c.JSON(http.StatusOK, FlowMetaResp{
-		Metadata: meta,
-		Actions:  actions,
+		Metadata:            meta,
+		Actions:             actions,
+		ScheduledExecutions: scheduledExecutionItems,
 	})
 }
 

@@ -14,6 +14,7 @@ type Job struct {
 	PayloadType string    `json:"payload_type" db:"payload_type"`
 	Payload     []byte    `json:"payload" db:"payload"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ScheduledAt time.Time `json:"scheduled_at" db:"scheduled_at"`
 }
 
 var (
@@ -55,5 +56,23 @@ func NewJob(execID string, payloadType string, payload any) (Job, error) {
 		PayloadType: payloadType,
 		Payload:     payloadBytes,
 		CreatedAt:   time.Now(),
+	}, nil
+}
+
+// NewScheduledJob creates a new job scheduled for execution at the specified time.
+// The scheduledAt time is truncated to minute precision.
+func NewScheduledJob(execID string, payloadType string, payload any, scheduledAt time.Time) (Job, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return Job{}, err
+	}
+
+	truncatedTime := scheduledAt.Truncate(time.Minute)
+	return Job{
+		ExecID:      execID,
+		PayloadType: payloadType,
+		Payload:     payloadBytes,
+		CreatedAt:   time.Now(),
+		ScheduledAt: truncatedTime,
 	}, nil
 }

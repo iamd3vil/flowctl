@@ -2,22 +2,27 @@
   import { goto } from '$app/navigation';
   import type { FlowInput } from '$lib/types';
   import { ApiError } from '$lib/apiClient';
-  import { handleInlineError } from '$lib/utils/errorHandling';
+  import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
+  import { IconClock, IconPlayerPlay } from '@tabler/icons-svelte';
 
   let {
     inputs,
     namespace,
     flowId,
-    executionInput = null
+    executionInput = null,
+    onScheduled
   }: {
     inputs: FlowInput[],
     namespace: string,
     flowId: string,
-    executionInput?: Record<string, any> | null
+    executionInput?: Record<string, any> | null,
+    onScheduled?: () => void
   } = $props();
 
   let loading = $state(false);
   let errors = $state<Record<string, string>>({});
+  let scheduleEnabled = $state(false);
+  let scheduledAt = $state('');
 
   const mergedInputs = $derived(
     inputs.map(input => {
@@ -28,6 +33,19 @@
     })
   );
 
+  // Get minimum datetime (now + 1 minute) in local time format for datetime-local input
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
+  // Convert local datetime to RFC3339 format
+  const toRFC3339 = (localDateTime: string): string => {
+    const date = new Date(localDateTime);
+    return date.toISOString();
+  };
+
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
     loading = true;
@@ -36,8 +54,15 @@
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
 
+    // Build URL with scheduled_at query param if scheduling is enabled
+    let url = `/api/v1/${namespace}/trigger/${flowId}`;
+    if (scheduleEnabled && scheduledAt) {
+      const scheduledAtRFC3339 = toRFC3339(scheduledAt);
+      url += `?scheduled_at=${encodeURIComponent(scheduledAtRFC3339)}`;
+    }
+
     try {
-      const response = await fetch(`/api/v1/${namespace}/trigger/${flowId}`, {
+      const response = await fetch(url, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -57,8 +82,17 @@
         }
       } else {
         const data = await response.json();
-        // Success - redirect to results page
-        goto(`/view/${namespace}/results/${flowId}/${data.exec_id}`);
+        // If scheduled, show success message and stay on page
+        if (data.scheduled_at) {
+          const scheduledDate = new Date(data.scheduled_at);
+          showSuccess('Flow Scheduled', `Flow will run at ${scheduledDate.toLocaleString()}`);
+          scheduleEnabled = false;
+          scheduledAt = '';
+          onScheduled?.();
+        } else {
+          // Immediate execution - redirect to results page
+          goto(`/view/${namespace}/results/${flowId}/${data.exec_id}`);
+        }
       }
     } catch (error) {
       handleInlineError(error, 'Unable to Start Flow');
@@ -180,6 +214,45 @@
       </div>
     {/each}
 
+    <!-- Schedule option -->
+    <div class="pt-4 border-t border-gray-200">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <IconClock class="w-5 h-5 text-gray-500" />
+          <span class="text-sm font-medium text-gray-700">Schedule for later</span>
+        </div>
+        <button
+          type="button"
+          onclick={() => scheduleEnabled = !scheduleEnabled}
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {scheduleEnabled ? 'bg-primary-500' : 'bg-gray-200'}"
+          role="switch"
+          aria-checked={scheduleEnabled}
+        >
+          <span
+            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {scheduleEnabled ? 'translate-x-5' : 'translate-x-0'}"
+          ></span>
+        </button>
+      </div>
+
+      {#if scheduleEnabled}
+        <div class="mt-4">
+          <label for="scheduled_at" class="block text-sm font-medium text-gray-700 mb-2">
+            Run at
+            <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            id="scheduled_at"
+            bind:value={scheduledAt}
+            min={getMinDateTime()}
+            required={scheduleEnabled}
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+          <p class="text-sm text-gray-500 mt-1">The flow will be queued and executed at the specified time</p>
+        </div>
+      {/if}
+    </div>
+
     <div class="flex gap-3 pt-6 border-t border-gray-200">
       <button
         type="button"
@@ -190,7 +263,7 @@
       </button>
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || (scheduleEnabled && !scheduledAt)}
         class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 cursor-pointer"
       >
         {#if loading}
@@ -198,13 +271,13 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          Starting Flow...
+          {scheduleEnabled ? 'Scheduling...' : 'Starting Flow...'}
+        {:else if scheduleEnabled}
+          <IconClock class="w-5 h-5" />
+          Schedule
         {:else}
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Run
+          <IconPlayerPlay class="w-5 h-5" />
+          Run Now
         {/if}
       </button>
     </div>

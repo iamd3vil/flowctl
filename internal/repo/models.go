@@ -375,6 +375,8 @@ type ExecutionLog struct {
 	UpdatedAt       time.Time             `db:"updated_at" json:"updated_at"`
 	CompletedAt     sql.NullTime          `db:"completed_at" json:"completed_at"`
 	ActionRetries   pqtype.NullRawMessage `db:"action_retries" json:"action_retries"`
+	ScheduledAt     sql.NullTime          `db:"scheduled_at" json:"scheduled_at"`
+	StartedAt       sql.NullTime          `db:"started_at" json:"started_at"`
 }
 
 type Flow struct {

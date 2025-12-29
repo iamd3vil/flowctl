@@ -22,10 +22,12 @@ INSERT INTO execution_log (
     trigger_type,
     triggered_by,
     namespace_id,
-    action_retries
+    action_retries,
+    scheduled_at
 ) VALUES (
     $1, $2, (SELECT version FROM next_version), $3, $6, (SELECT id FROM user_lookup), (SELECT id FROM namespace_lookup),
-    COALESCE((SELECT action_retries FROM prev_action_retries), '{}')
+    COALESCE((SELECT action_retries FROM prev_action_retries), '{}'),
+    $7
 ) RETURNING *;
 
 -- name: UpdateExecutionStatus :one
@@ -218,6 +220,7 @@ filtered AS (
     WHERE f.id = $1
       AND f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
+      AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -259,6 +262,7 @@ filtered AS (
     INNER JOIN latest_versions lv ON el.exec_id = lv.exec_id AND el.version = lv.max_version
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
+      AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -300,6 +304,7 @@ filtered AS (
     INNER JOIN latest_versions lv ON el.exec_id = lv.exec_id AND el.version = lv.max_version
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
+      AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
       AND (
         $2 = '' OR
         f.name ILIKE '%' || $2 || '%' OR
@@ -393,3 +398,41 @@ WHERE el.exec_id = $1
 RETURNING
     action_retries,
     (action_retries->>$2)::int as retry_count;
+
+-- name: GetScheduledExecutionsByFlow :many
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+),
+latest_versions AS (
+    SELECT exec_id, MAX(version) as max_version
+    FROM execution_log el
+    WHERE el.flow_id = $1
+    GROUP BY exec_id
+)
+SELECT el.exec_id, el.scheduled_at
+FROM execution_log el
+INNER JOIN latest_versions lv ON el.exec_id = lv.exec_id AND el.version = lv.max_version
+INNER JOIN flows f ON el.flow_id = f.id
+WHERE el.flow_id = $1
+  AND f.namespace_id = (SELECT id FROM namespace_lookup)
+  AND f.is_active = TRUE
+  AND el.scheduled_at IS NOT NULL
+  AND el.scheduled_at > NOW()
+  AND el.status = 'pending'
+ORDER BY el.scheduled_at ASC;
+
+-- name: UpdateExecutionStartedAt :exec
+WITH namespace_lookup AS (
+    SELECT id FROM namespaces WHERE namespaces.uuid = $2
+), latest_version AS (
+    SELECT MAX(version) as version
+    FROM execution_log
+    WHERE execution_log.exec_id = $1 AND namespace_id = (SELECT id FROM namespace_lookup)
+)
+UPDATE execution_log SET
+    started_at = NOW(),
+    updated_at = NOW()
+WHERE execution_log.exec_id = $1
+  AND version = (SELECT version FROM latest_version)
+  AND namespace_id = (SELECT id FROM namespace_lookup)
+  AND started_at IS NULL;

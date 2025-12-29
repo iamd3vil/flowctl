@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
@@ -55,6 +56,31 @@ func (c *Core) GetFlowByID(id string, namespaceID string) (models.Flow, error) {
 	}
 
 	return f, nil
+}
+
+func (c *Core) GetScheduledExecutionsByFlow(ctx context.Context, flowID int32, namespaceID string) ([]models.ScheduledExecution, error) {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	execs, err := c.store.GetScheduledExecutionsByFlow(ctx, repo.GetScheduledExecutionsByFlowParams{
+		FlowID: flowID,
+		Uuid:   namespaceUUID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not get scheduled executions for flow %d: %w", flowID, err)
+	}
+
+	scheduledExecs := make([]models.ScheduledExecution, 0, len(execs))
+	for _, exec := range execs {
+		scheduledExecs = append(scheduledExecs, models.ScheduledExecution{
+			ExecID:      exec.ExecID,
+			ScheduledAt: exec.ScheduledAt.Time,
+		})
+	}
+
+	return scheduledExecs, nil
 }
 
 func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit, offset int) ([]models.Flow, int64, int64, error) {
@@ -138,7 +164,8 @@ func (c *Core) GetFlowFromLogID(logID string, namespaceID string) (models.Flow, 
 
 // QueueFlowExecution adds a flow in the execution queue. The ID returned is the execution queue ID.
 // Exec ID should be universally unique, this is used to create the log stream and identify each execution
-func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string, namespaceID string) (string, error) {
+// If scheduledAt is provided, the flow will be scheduled to run at that time instead of immediately.
+func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string, namespaceID string, scheduledAt *time.Time) (string, error) {
 	if !f.Meta.AllowOverlap {
 		namespaceUUID, err := uuid.Parse(namespaceID)
 		if err != nil {
@@ -156,7 +183,7 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		}
 	}
 
-	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID, false)
+	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID, false, scheduledAt)
 	if err != nil {
 		return "", err
 	}
@@ -181,7 +208,7 @@ func (c *Core) ResumeFlowExecution(ctx context.Context, execID string, actionID 
 		return err
 	}
 
-	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID, namespaceID, retry); err != nil {
+	if _, err := c.queueFlow(ctx, f, exec.Input, execID, actionIndex, userUUID, namespaceID, retry, nil); err != nil {
 		return err
 	}
 
@@ -262,7 +289,8 @@ func (c *Core) GetNodesByNames(ctx context.Context, nodeNames []string, namespac
 }
 
 // queueFlow adds a flow to the execution queue. If the actionIndex is not zero, it is moved to a resume queue.
-func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int, userUUID string, namespaceID string, retry bool) (string, error) {
+// If scheduledAt is provided, the flow will be scheduled to run at that time instead of immediately.
+func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int, userUUID string, namespaceID string, retry bool, scheduledAt *time.Time) (string, error) {
 	// If execID is empty, it is a new flow execution
 	if execID == "" {
 		execID = uuid.NewString()
@@ -293,13 +321,21 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		return "", fmt.Errorf("error converting flow to scheduler model: %w", err)
 	}
 
+	// Determine trigger type based on scheduledAt parameter
+	triggerType := scheduler.TriggerTypeManual
+	dbTriggerType := repo.TriggerTypeManual
+	if scheduledAt != nil {
+		triggerType = scheduler.TriggerTypeScheduled
+		dbTriggerType = repo.TriggerTypeScheduled
+	}
+
 	// Create flow execution payload for scheduler
 	payload := scheduler.FlowExecutionPayload{
 		Workflow:          schedulerFlow,
 		Input:             input,
 		StartingActionIdx: actionIndex,
 		NamespaceID:       namespaceID,
-		TriggerType:       scheduler.TriggerTypeManual,
+		TriggerType:       triggerType,
 		UserUUID:          userUUID,
 		FlowDirectory:     filepath.Dir(fl.FilePath),
 		Resumed:           retry,
@@ -311,20 +347,31 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 		return "", fmt.Errorf("could not marshal input to json: %w", err)
 	}
 
+	// Convert scheduledAt to sql.NullTime for database
+	var scheduledAtDB sql.NullTime
+	if scheduledAt != nil {
+		scheduledAtDB = sql.NullTime{Time: *scheduledAt, Valid: true}
+	}
+
 	_, err = c.store.AddExecutionLog(ctx, repo.AddExecutionLogParams{
 		ExecID:      execID,
 		FlowID:      f.Meta.DBID,
 		Input:       inputB,
-		TriggerType: repo.TriggerTypeManual,
+		TriggerType: dbTriggerType,
 		Uuid:        userID,
 		Uuid_2:      namespaceUUID,
+		ScheduledAt: scheduledAtDB,
 	})
 	if err != nil {
 		return "", fmt.Errorf("could not add entry to execution log: %w", err)
 	}
 
 	// Queue the task using the scheduler
-	_, err = c.scheduler.QueueTask(ctx, scheduler.PayloadTypeFlowExecution, execID, payload)
+	if scheduledAt != nil {
+		_, err = c.scheduler.QueueScheduledTask(ctx, scheduler.PayloadTypeFlowExecution, execID, payload, *scheduledAt)
+	} else {
+		_, err = c.scheduler.QueueTask(ctx, scheduler.PayloadTypeFlowExecution, execID, payload)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -384,6 +431,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 			FlowName:        v.FlowName,
 			FlowID:          v.FlowSlug,
 			CreatedAt:       v.CreatedAt,
+			StartedAt:       v.StartedAt.Time,
 			CompletedAt:     v.CompletedAt.Time,
 			TriggerType:     string(v.TriggerType),
 			Status:          models.ExecutionStatus(v.Status),
@@ -391,6 +439,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 			TriggeredByID:   v.TriggeredByUuid.String(),
 			CurrentActionID: v.CurrentActionID.String,
 			ActionRetries:   actionRetries,
+			ScheduledAt:     v.ScheduledAt.Time,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -431,6 +480,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 			FlowName:        v.FlowName,
 			FlowID:          v.FlowSlug,
 			CreatedAt:       v.CreatedAt,
+			StartedAt:       v.StartedAt.Time,
 			CompletedAt:     v.CompletedAt.Time,
 			TriggerType:     string(v.TriggerType),
 			Status:          models.ExecutionStatus(v.Status),
@@ -438,6 +488,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 			TriggeredByID:   v.TriggeredByUuid.String(),
 			CurrentActionID: v.CurrentActionID.String,
 			ActionRetries:   actionRetries,
+			ScheduledAt:     v.ScheduledAt.Time,
 		})
 		pageCount = v.PageCount
 		totalCount = v.TotalCount
@@ -475,12 +526,14 @@ func (c *Core) GetExecutionSummaryByExecID(ctx context.Context, execID string, n
 		FlowID:          e.FlowSlug,
 		Status:          models.ExecutionStatus(e.Status),
 		CreatedAt:       e.CreatedAt,
+		StartedAt:       e.StartedAt.Time,
 		CompletedAt:     e.CompletedAt.Time,
 		TriggerType:     string(e.TriggerType),
 		TriggeredByName: e.TriggeredByName,
 		TriggeredByID:   e.TriggeredByUuid.String(),
 		CurrentActionID: e.CurrentActionID.String,
 		ActionRetries:   actionRetries,
+		ScheduledAt:     e.ScheduledAt.Time,
 	}, nil
 }
 

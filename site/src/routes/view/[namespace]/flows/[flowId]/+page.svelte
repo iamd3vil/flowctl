@@ -10,13 +10,15 @@
   import FlowHero from '$lib/components/flows/FlowHero.svelte';
   import FlowActionsSummary from '$lib/components/flow-input/FlowActionsSummary.svelte';
   import FlowSchedulesList from '$lib/components/flows/FlowSchedulesList.svelte';
+  import ScheduledExecutionsList from '$lib/components/flows/ScheduledExecutionsList.svelte';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import type { PageData } from './$types';
-  import type { TableColumn } from '$lib/types';
+  import type { TableColumn, ScheduledExecution } from '$lib/types';
   import { DEFAULT_PAGE_SIZE } from '$lib/constants';
   import { permissionChecker } from '$lib/utils/permissions';
-  import { formatDateTime } from '$lib/utils';
-    import { IconPencil } from '@tabler/icons-svelte';
+  import { formatDateTime, getStartTime } from '$lib/utils';
+  import { apiClient } from '$lib/apiClient';
+  import { IconPencil } from '@tabler/icons-svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -28,6 +30,7 @@
   let historyTotalCount = $state(0);
   let historyPageCount = $state(0);
   let canUpdateFlow = $state(false);
+  let scheduledExecutions = $state<ScheduledExecution[]>(data.flowMeta?.scheduled_executions || []);
 
   let namespace = $derived(page.params.namespace);
   let flowId = $derived(page.params.flowId);
@@ -39,6 +42,14 @@
     canUpdateFlow = permissions.canUpdate;
   });
 
+  const refreshScheduledExecutions = async () => {
+    try {
+      const flowMeta = await apiClient.flows.getMeta(namespace!, flowId!);
+      scheduledExecutions = flowMeta.scheduled_executions || [];
+    } catch (error) {
+      console.error('Failed to refresh scheduled executions:', error);
+    }
+  };
 
   const loadFlowHistory = async () => {
     historyLoading = true;
@@ -124,12 +135,12 @@
       key: 'started_at',
       header: 'Started At',
       width: 'w-40',
-      render: (value) => `<div class="text-sm text-gray-600">${formatDateTime(value)}</div>`
+      render: (_value, row) => `<div class="text-sm text-gray-600">${formatDateTime(getStartTime(row))}</div>`
     },
     {
       key: 'duration',
       header: 'Duration',
-      render: (_value, row) => `<div class="text-sm text-gray-600">${formatDuration(row.started_at, row.completed_at)}</div>`
+      render: (_value, row) => `<div class="text-sm text-gray-600">${formatDuration(getStartTime(row), row.completed_at)}</div>`
     },
     {
       key: 'status',
@@ -227,7 +238,11 @@
         namespace={namespace!}
         flowId={flowId!}
         executionInput={data.executionInput}
+        onScheduled={refreshScheduledExecutions}
       />
+      <div class="mt-6">
+        <ScheduledExecutionsList schedules={scheduledExecutions} cronSchedules={data.flowMeta?.meta?.schedules || []} namespace={namespace!} flowId={flowId!} />
+      </div>
       <div class="mt-6">
         <FlowSchedulesList schedules={data.flowMeta?.meta?.schedules || []} />
       </div>

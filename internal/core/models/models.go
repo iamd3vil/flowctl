@@ -149,36 +149,13 @@ type ExecutionSummary struct {
 	TriggeredByID   string
 	CurrentActionID string
 	CreatedAt       time.Time
+	StartedAt       time.Time
 	CompletedAt     time.Time
+	ScheduledAt     time.Time
 	ActionRetries   map[string]int
 }
 
-func (e ExecutionSummary) Duration() string {
-	duration := e.CompletedAt.Sub(e.CreatedAt)
-
-	// Handle durations less than a minute
-	if duration < time.Minute {
-		if duration < time.Second {
-			return fmt.Sprintf("%d milliseconds", duration.Milliseconds())
-		}
-		return fmt.Sprintf("%d seconds", int(duration.Seconds()))
-	}
-
-	// Handle durations less than an hour
-	if duration < time.Hour {
-		minutes := int(duration.Minutes())
-		seconds := int(duration.Seconds()) % 60
-		if seconds == 0 {
-			return fmt.Sprintf("%d minutes", minutes)
-		}
-		return fmt.Sprintf("%d minutes %d seconds", minutes, seconds)
-	}
-
-	// Handle durations of an hour or more
-	hours := int(duration.Hours())
-	minutes := int(duration.Minutes()) % 60
-	if minutes == 0 {
-		return fmt.Sprintf("%d hours", hours)
-	}
-	return fmt.Sprintf("%d hours %d minutes", hours, minutes)
+type ScheduledExecution struct {
+	ExecID      string
+	ScheduledAt time.Time
 }

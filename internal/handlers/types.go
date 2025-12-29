@@ -29,7 +29,8 @@ type AuthReq struct {
 }
 
 type FlowTriggerResp struct {
-	ExecID string `json:"exec_id"`
+	ExecID      string  `json:"exec_id"`
+	ScheduledAt *string `json:"scheduled_at,omitempty"`
 }
 
 type User struct {
@@ -466,8 +467,14 @@ func coreFlowActionstoFlowActions(a []models.Action) []FlowAction {
 }
 
 type FlowMetaResp struct {
-	Metadata FlowMeta     `json:"meta"`
-	Actions  []FlowAction `json:"actions"`
+	Metadata            FlowMeta              `json:"meta"`
+	Actions             []FlowAction          `json:"actions"`
+	ScheduledExecutions []ScheduledExecution  `json:"scheduled_executions"`
+}
+
+type ScheduledExecution struct {
+	ExecID      string `json:"exec_id"`
+	ScheduledAt string `json:"scheduled_at"`
 }
 
 type FlowListResponse struct {
@@ -601,8 +608,10 @@ type ExecutionSummary struct {
 	Input           json.RawMessage `json:"input,omitempty"`
 	TriggeredBy     string          `json:"triggered_by"`
 	CurrentActionID string          `json:"current_action_id"`
-	CreatedAt       string          `json:"started_at"`
+	CreatedAt       string          `json:"created_at"`
+	StartedAt       string          `json:"started_at"`
 	CompletedAt     string          `json:"completed_at"`
+	ScheduledAt     string          `json:"scheduled_at,omitempty"`
 	ActionRetries   map[string]int  `json:"action_retries,omitempty"`
 }
 
@@ -610,6 +619,16 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 	completedAt := ""
 	if !e.CompletedAt.IsZero() {
 		completedAt = e.CompletedAt.Format(TimeFormat)
+	}
+
+	scheduledAt := ""
+	if !e.ScheduledAt.IsZero() {
+		scheduledAt = e.ScheduledAt.Format(TimeFormat)
+	}
+
+	startedAt := ""
+	if !e.StartedAt.IsZero() {
+		startedAt = e.StartedAt.Format(TimeFormat)
 	}
 
 	return ExecutionSummary{
@@ -622,7 +641,9 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 		TriggeredBy:     e.TriggeredByName,
 		CurrentActionID: e.CurrentActionID,
 		CreatedAt:       e.CreatedAt.Format(TimeFormat),
+		StartedAt:       startedAt,
 		CompletedAt:     completedAt,
+		ScheduledAt:     scheduledAt,
 		ActionRetries:   e.ActionRetries,
 	}
 }

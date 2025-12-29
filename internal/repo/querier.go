@@ -86,6 +86,7 @@ type Querier interface {
 	GetNodeStats(ctx context.Context, argUuid uuid.UUID) (GetNodeStatsRow, error)
 	GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams) ([]GetNodesByNamesRow, error)
 	GetPendingTasks(ctx context.Context, limit int32) ([]SchedulerTask, error)
+	GetScheduledExecutionsByFlow(ctx context.Context, arg GetScheduledExecutionsByFlowParams) ([]GetScheduledExecutionsByFlowRow, error)
 	GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
@@ -116,6 +117,7 @@ type Querier interface {
 	UpdateCredential(ctx context.Context, arg UpdateCredentialParams) (Credential, error)
 	UpdateExecutionActionID(ctx context.Context, arg UpdateExecutionActionIDParams) (ExecutionLog, error)
 	UpdateExecutionActionRetries(ctx context.Context, arg UpdateExecutionActionRetriesParams) error
+	UpdateExecutionStartedAt(ctx context.Context, arg UpdateExecutionStartedAtParams) error
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
 	UpdateFlowSecret(ctx context.Context, arg UpdateFlowSecretParams) (FlowSecret, error)

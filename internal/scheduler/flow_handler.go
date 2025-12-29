@@ -88,8 +88,8 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 		return fmt.Errorf("failed to unmarshal flow payload: %w", err)
 	}
 
-	// Create execution log for scheduled executions only (manual ones are created in core)
-	if payload.TriggerType == TriggerTypeScheduled {
+	// Create execution log for scheduled executions only (manual/run-later ones are created in core)
+	if payload.TriggerType == TriggerTypeScheduled && job.ScheduledAt.IsZero() {
 		if err := h.createExecutionLog(ctx, job.ExecID, payload); err != nil {
 			return fmt.Errorf("failed to create execution log: %w", err)
 		}
@@ -98,6 +98,11 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 	// Set status to Running
 	if err := h.setStatus(ctx, job.ExecID, repo.ExecutionStatusRunning, payload.NamespaceID, nil); err != nil {
 		return fmt.Errorf("could not update execution_log status: %w", err)
+	}
+
+	// Set started_at timestamp
+	if err := h.setStartedAt(ctx, job.ExecID, payload.NamespaceID); err != nil {
+		h.logger.Warn("failed to set started_at", "execID", job.ExecID, "error", err)
 	}
 
 	if h.metrics != nil {
@@ -703,7 +708,20 @@ func (h *FlowExecutionHandler) setStatus(ctx context.Context, execID string, sta
 	return nil
 }
 
-// createExecutionLog creates an execution log entry for scheduled jobs
+// setStartedAt sets the started_at timestamp when execution begins running
+func (h *FlowExecutionHandler) setStartedAt(ctx context.Context, execID string, namespaceID string) error {
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace ID: %w", err)
+	}
+	return h.store.UpdateExecutionStartedAt(ctx, repo.UpdateExecutionStartedAtParams{
+		ExecID: execID,
+		Uuid:   namespaceUUID,
+	})
+}
+
+// createExecutionLog creates an execution log entry for cron jobs
+// scheduled (run later) and manual jobs have the execution logs created in core
 func (h *FlowExecutionHandler) createExecutionLog(ctx context.Context, execID string, payload FlowExecutionPayload) error {
 	namespaceUUID, err := uuid.Parse(payload.NamespaceID)
 	if err != nil {

@@ -33,7 +33,10 @@ func (p *PostgresStorage) Initialize(ctx context.Context) error {
 	if _, err := p.db.ExecContext(ctx, createTableQuery); err != nil {
 		return err
 	}
-	return p.migrateAddPayloadType(ctx)
+	if err := p.migrateAddPayloadType(ctx); err != nil {
+		return err
+	}
+	return p.migrateAddScheduledAt(ctx)
 }
 
 // migrateAddPayloadType adds the payload_type column to existing job_queue tables
@@ -62,15 +65,35 @@ func (p *PostgresStorage) migrateAddPayloadType(ctx context.Context) error {
 	return nil
 }
 
+// migrateAddScheduledAt adds the scheduled_at column to existing job_queue tables
+func (p *PostgresStorage) migrateAddScheduledAt(ctx context.Context) error {
+	addColumnQuery := `
+		ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+	`
+	if _, err := p.db.ExecContext(ctx, addColumnQuery); err != nil {
+		return err
+	}
+
+	// Create partial index for scheduled jobs (only index non-null values)
+	createIndexQuery := `
+		CREATE INDEX IF NOT EXISTS idx_job_queue_scheduled_at ON job_queue(scheduled_at) WHERE scheduled_at IS NOT NULL;
+	`
+	if _, err := p.db.ExecContext(ctx, createIndexQuery); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Put adds a job to the queue
 func (p *PostgresStorage) Put(ctx context.Context, job Job) error {
 	query := `
-		INSERT INTO job_queue (exec_id, payload_type, payload, created_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO job_queue (exec_id, payload_type, payload, created_at, scheduled_at)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 	`
 
-	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.PayloadType, job.Payload, job.CreatedAt)
+	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.PayloadType, job.Payload, job.CreatedAt, job.ScheduledAt)
 	return err
 }
 
@@ -83,10 +106,12 @@ func (p *PostgresStorage) GetByPayloadType(ctx context.Context, payloadType stri
 	}
 
 	// Select and lock the oldest pending job of this payload type
+	// Only return jobs that are ready to run (scheduled_at is NULL or <= NOW())
 	selectQuery := `
-		SELECT id, exec_id, payload_type, payload, created_at
+		SELECT id, exec_id, payload_type, payload, created_at, scheduled_at
 		FROM job_queue
 		WHERE payload_type = $1
+		  AND (scheduled_at IS NULL OR scheduled_at <= NOW())
 		ORDER BY created_at ASC
 		LIMIT 1
 		FOR UPDATE SKIP LOCKED

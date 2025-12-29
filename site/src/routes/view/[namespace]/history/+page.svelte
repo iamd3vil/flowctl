@@ -13,7 +13,7 @@
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
 	import Header from '$lib/components/shared/Header.svelte';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
-	import { formatDateTime } from '$lib/utils';
+	import { formatDateTime, getStartTime } from '$lib/utils';
 	import { IconHistory } from '@tabler/icons-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -91,14 +91,14 @@
 			header: 'Started At',
 			sortable: true,
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm text-gray-600">${formatDateTime(execution.started_at)}</div>
+				<div class="text-sm text-gray-600">${formatDateTime(getStartTime(execution))}</div>
 			`
 		},
 		{
 			key: 'duration',
 			header: 'Duration',
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm text-gray-600">${formatDuration(execution.started_at, execution.completed_at)}</div>
+				<div class="text-sm text-gray-600">${formatDuration(getStartTime(execution), execution.completed_at)}</div>
 			`
 		},
 		{
