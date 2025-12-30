@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,11 +11,11 @@ import (
 	"time"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 const (
-	maxFileSize = 100 * 1024 * 1024 // 100MB
 	tempDirName = "/tmp"
 )
 
@@ -55,8 +54,8 @@ func convertRequestInputs(req map[string]interface{}, flow models.Flow) error {
 	return nil
 }
 
-// processFileUpload handles a single file upload and returns the temporary file path
-func (h *Handler) processFileUpload(c echo.Context, input models.Input, namespace, flowID string) (string, error) {
+// processFileUpload handles a single file upload and saves it to the artifacts directory
+func (h *Handler) processFileUpload(c echo.Context, input models.Input, execID string, globalMaxSize int64) (string, error) {
 	file, err := c.FormFile(input.Name)
 	if err != nil {
 		if input.Required {
@@ -65,34 +64,37 @@ func (h *Handler) processFileUpload(c echo.Context, input models.Input, namespac
 		return "", nil
 	}
 
-	// Validate file size
-	if file.Size > maxFileSize {
-		return "", fmt.Errorf("file %s is too large (max %dMB)", input.Name, maxFileSize/(1024*1024))
+	maxSize := globalMaxSize
+	if input.MaxFileSize > 0 {
+		maxSize = input.MaxFileSize
 	}
 
-	// Create secure temporary directory
-	tmpDir, err := os.MkdirTemp(tempDirName, fmt.Sprintf("flow_%s_%s_*", flowID, namespace))
-	if err != nil {
-		return "", fmt.Errorf("could not create temp directory for storing the uploaded file: %w", err)
+	if file.Size > maxSize {
+		return "", fmt.Errorf("file %s exceeds maximum size of %dMB", input.Name, maxSize/(1024*1024))
 	}
 
-	// Sanitize filename
+	artifactDir := filepath.Join(os.TempDir(), fmt.Sprintf("artifacts-store-%s", execID), "uploads")
+	if err := os.MkdirAll(artifactDir, 0700); err != nil {
+		return "", fmt.Errorf("could not create artifacts directory: %w", err)
+	}
+
 	filename := filepath.Base(filepath.Clean(file.Filename))
 	if filename == "" || filename == "." || filename == ".." {
-		filename = "uploaded_file"
+		filename = fmt.Sprintf("uploaded_%s", input.Name)
 	}
-	tmpFilePath := filepath.Join(tmpDir, filename)
 
-	// Save uploaded file
+	filename = fmt.Sprintf("%s_%s", input.Name, filename)
+	filePath := filepath.Join(artifactDir, filename)
+
 	src, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("failed to open uploaded file: %w", err)
 	}
 	defer src.Close()
 
-	dst, err := os.Create(tmpFilePath)
+	dst, err := os.Create(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
+		return "", fmt.Errorf("failed to create file: %w", err)
 	}
 	defer dst.Close()
 
@@ -100,24 +102,23 @@ func (h *Handler) processFileUpload(c echo.Context, input models.Input, namespac
 		return "", fmt.Errorf("failed to save uploaded file: %w", err)
 	}
 
-	return tmpFilePath, nil
+	return filePath, nil
 }
 
 // processFlowInputs processes all flow inputs from the request and returns a map of input values
-func (h *Handler) processFlowInputs(c echo.Context, flow models.Flow, namespace string) (map[string]interface{}, error) {
+func (h *Handler) processFlowInputs(c echo.Context, flow models.Flow, execID string, globalMaxSize int64) (map[string]interface{}, error) {
 	req := make(map[string]interface{})
 
 	for _, input := range flow.Inputs {
 		switch input.Type {
 		case models.INPUT_TYPE_FILE:
-			filePath, err := h.processFileUpload(c, input, namespace, flow.Meta.ID)
+			filePath, err := h.processFileUpload(c, input, execID, globalMaxSize)
 			if err != nil {
 				return nil, err
 			}
 			if filePath != "" {
 				req[input.Name] = filePath
 			}
-			log.Println(filePath)
 		default:
 			if value := c.FormValue(input.Name); value != "" {
 				req[input.Name] = value
@@ -157,16 +158,18 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "could not get flow", err, nil)
 	}
 
-	req, err := h.processFlowInputs(c, f, namespace)
-	if err != nil {
-		return wrapError(ErrValidationFailed, err.Error(), err, nil)
-	}
-
 	if len(f.Actions) == 0 {
 		return wrapError(ErrValidationFailed, "no actions in flow", nil, nil)
 	}
 
-	// Convert string inputs to appropriate types
+	execID := uuid.NewString()
+	globalMaxSize := h.config.App.MaxFileUploadSize
+
+	req, err := h.processFlowInputs(c, f, execID, globalMaxSize)
+	if err != nil {
+		return wrapError(ErrValidationFailed, err.Error(), err, nil)
+	}
+
 	if err := convertRequestInputs(req, f); err != nil {
 		return wrapError(ErrInvalidInput, "input conversion error", err, nil)
 	}
@@ -179,7 +182,7 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 	}
 
 	// Add to queue
-	execID, err := h.co.QueueFlowExecution(c.Request().Context(), f, req, user.ID, namespace, scheduledAt)
+	execID, err = h.co.QueueFlowExecutionWithExecID(c.Request().Context(), f, req, user.ID, namespace, execID, scheduledAt)
 	if err != nil {
 		return wrapError(ErrOperationFailed, fmt.Sprintf("could not trigger flow: %v", err), err, nil)
 	}

@@ -20,6 +20,13 @@
             input.options = [];
             input.optionsText = "";
         }
+        if (input.type === "file") {
+            input.default = "";
+        }
+        if (input.type !== "file") {
+            input.max_file_size = undefined;
+            input.maxFileSizeMB = undefined;
+        }
     }
 
     function updateOptions(input: any) {
@@ -96,7 +103,7 @@
                             <option value="number">Number</option>
                             <option value="checkbox">Checkbox</option>
                             <option value="password">Password</option>
-                            <!-- <option value="file">File</option> -->
+                            <option value="file">File</option>
                             <option value="datetime">DateTime</option>
                             <option value="select">Select</option>
                         </select>
@@ -127,14 +134,17 @@
                     </div>
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium mb-1"
+                            class:text-gray-700={input.type !== "file"}
+                            class:text-gray-400={input.type === "file"}
                             >Default Value</label
                         >
                         <input
                             type="text"
                             bind:value={input.default}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
-                            placeholder="Default value"
+                            disabled={input.type === "file"}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            placeholder={input.type === "file" ? "Not available for file inputs" : "Default value"}
                         />
                     </div>
                     <div class="col-span-2">
@@ -161,7 +171,6 @@
                     </div>
                 </div>
 
-                <!-- Options for select type -->
                 {#if input.type === "select"}
                     <div class="mt-4 p-3 bg-gray-50 rounded-md">
                         <label
@@ -174,6 +183,24 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono h-20"
                             placeholder="option1&#10;option2&#10;option3"
                         ></textarea>
+                    </div>
+                {/if}
+
+                {#if input.type === "file"}
+                    <div class="mt-4 p-3 bg-gray-50 rounded-md">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Max File Size (MB)</label
+                        >
+                        <input
+                            type="number"
+                            bind:value={input.maxFileSizeMB}
+                            oninput={() => input.max_file_size = (input.maxFileSizeMB || 0) * 1024 * 1024}
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            placeholder="Leave empty for default (100MB)"
+                            min="1"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">Optional. Leave empty to use server default.</p>
                     </div>
                 {/if}
             </div>

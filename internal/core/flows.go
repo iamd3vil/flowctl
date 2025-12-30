@@ -166,6 +166,12 @@ func (c *Core) GetFlowFromLogID(logID string, namespaceID string) (models.Flow, 
 // Exec ID should be universally unique, this is used to create the log stream and identify each execution
 // If scheduledAt is provided, the flow will be scheduled to run at that time instead of immediately.
 func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string, namespaceID string, scheduledAt *time.Time) (string, error) {
+	return c.QueueFlowExecutionWithExecID(ctx, f, input, userUUID, namespaceID, "", scheduledAt)
+}
+
+// QueueFlowExecutionWithExecID adds a flow in the execution queue with a pre-generated execution ID.
+// If execID is empty, a new UUID is generated. Use this when files need to be uploaded before queuing.
+func (c *Core) QueueFlowExecutionWithExecID(ctx context.Context, f models.Flow, input map[string]interface{}, userUUID string, namespaceID string, execID string, scheduledAt *time.Time) (string, error) {
 	if !f.Meta.AllowOverlap {
 		namespaceUUID, err := uuid.Parse(namespaceID)
 		if err != nil {
@@ -183,7 +189,7 @@ func (c *Core) QueueFlowExecution(ctx context.Context, f models.Flow, input map[
 		}
 	}
 
-	info, err := c.queueFlow(ctx, f, input, "", 0, userUUID, namespaceID, false, scheduledAt)
+	info, err := c.queueFlow(ctx, f, input, execID, 0, userUUID, namespaceID, false, scheduledAt)
 	if err != nil {
 		return "", err
 	}

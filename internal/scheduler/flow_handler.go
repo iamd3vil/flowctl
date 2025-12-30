@@ -305,9 +305,9 @@ func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action A
 	}
 
 	row, err := h.store.IncrementActionRetry(ctx, repo.IncrementActionRetryParams{
-		ExecID:   execID,
+		ExecID:  execID,
 		Column2: action.ID,
-		Uuid:     namespaceUUID,
+		Uuid:    namespaceUUID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to increment retry count for action %s: %w", action.ID, err)
@@ -425,9 +425,15 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 		}
 	}
 
+	// Transform file paths for remote execution
+	execInputVars := inputVars
+	if driver.IsRemote() {
+		execInputVars = h.transformPathsForRemote(inputVars, artifactDir, driver, execID)
+	}
+
 	res, err := exec.Execute(ctx, executor.ExecutionContext{
 		ExecID:     execID,
-		Inputs:     inputVars,
+		Inputs:     execInputVars,
 		WithConfig: withConfig,
 		Stdout:     nodeLogger,
 		Stderr:     nodeLogger,
@@ -558,6 +564,24 @@ func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, act
 	}
 
 	return mergedResults, nil
+}
+
+// transformPathsForRemote replaces local artifact paths with remote artifact paths in input variables.
+// Local: /tmp/artifacts-store-{execID}/...  →  Remote: /tmp/artifacts-{execID}/...
+func (h *FlowExecutionHandler) transformPathsForRemote(inputVars map[string]any, localArtifactDir string, driver executor.NodeDriver, execID string) map[string]any {
+	remoteArtifactDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
+	transformed := make(map[string]any, len(inputVars))
+
+	for k, v := range inputVars {
+		if strVal, ok := v.(string); ok && strings.HasPrefix(strVal, localArtifactDir) {
+			relativePath := strings.TrimPrefix(strVal, localArtifactDir)
+			transformed[k] = driver.Join(remoteArtifactDir, relativePath)
+		} else {
+			transformed[k] = v
+		}
+	}
+
+	return transformed
 }
 
 // pushArtifactsWithDriver pushes files from the local artifact directory to the remote artifacts directory

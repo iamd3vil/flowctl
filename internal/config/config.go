@@ -99,15 +99,16 @@ type Logger struct {
 }
 
 type AppConfig struct {
-	AdminUsername   string `koanf:"admin_username"`
-	AdminPassword   string `koanf:"admin_password"`
-	RootURL         string `koanf:"root_url"`
-	Address         string `koanf:"address"`
-	UseTLS          bool   `koanf:"use_tls"`
-	HTTPTLSCert     string `koanf:"http_tls_cert"`
-	HTTPTLSKey      string `koanf:"http_tls_key"`
-	FlowsDirectory  string `koanf:"flows_directory"`
-	SecureCookieKey string `koanf:"secure_cookie_key"`
+	AdminUsername     string `koanf:"admin_username"`
+	AdminPassword     string `koanf:"admin_password"`
+	RootURL           string `koanf:"root_url"`
+	Address           string `koanf:"address"`
+	UseTLS            bool   `koanf:"use_tls"`
+	HTTPTLSCert       string `koanf:"http_tls_cert"`
+	HTTPTLSKey        string `koanf:"http_tls_key"`
+	FlowsDirectory    string `koanf:"flows_directory"`
+	SecureCookieKey   string `koanf:"secure_cookie_key"`
+	MaxFileUploadSize int64  `koanf:"max_file_upload_size"` // in bytes, default 100MB
 }
 
 type KeystoreConfig struct {
@@ -188,15 +189,16 @@ func GetDefaultConfig() Config {
 			SSLRootCert: "",
 		},
 		App: AppConfig{
-			AdminUsername:   "flowctl_admin",
-			AdminPassword:   "flowctl_password",
-			RootURL:         "http://localhost:7000",
-			Address:         ":7000",
-			UseTLS:          false,
-			HTTPTLSCert:     "server_cert.pem",
-			HTTPTLSKey:      "server_key.pem",
-			FlowsDirectory:  "flows",
-			SecureCookieKey: genKey(16),
+			AdminUsername:     "flowctl_admin",
+			AdminPassword:     "flowctl_password",
+			RootURL:           "http://localhost:7000",
+			Address:           ":7000",
+			UseTLS:            false,
+			HTTPTLSCert:       "server_cert.pem",
+			HTTPTLSKey:        "server_key.pem",
+			FlowsDirectory:    "flows",
+			SecureCookieKey:   genKey(16),
+			MaxFileUploadSize: 100 * 1024 * 1024, // 100MB
 		},
 		Keystore: KeystoreConfig{
 			KeeperURL: fmt.Sprintf("base64key://%s", genKey(32)),

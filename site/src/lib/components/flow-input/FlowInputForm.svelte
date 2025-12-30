@@ -163,16 +163,21 @@
               <option value={option} selected={option === input.default}>{option}</option>
             {/each}
           </select>
-          <!-- {:else if input.type === 'file'}
-          <div class="flex items-center">
+          {:else if input.type === 'file'}
+          <div class="flex flex-col">
             <input
               type="file"
               id={input.name}
               name={input.name}
               required={input.required}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
             />
-          </div> -->
+            {#if input.max_file_size}
+              <p class="text-xs text-gray-500 mt-1">
+                Max size: {Math.round(input.max_file_size / (1024 * 1024))}MB
+              </p>
+            {/if}
+          </div>
           {:else if input.type === 'datetime'}
           <div class="flex items-center">
             <input
