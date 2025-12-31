@@ -125,6 +125,7 @@ type Input struct {
 	Validation  string    `yaml:"validation" json:"validation"`
 	Required    bool      `yaml:"required" json:"required"`
 	Default     string    `yaml:"default" json:"default"`
+	MaxFileSize int64     `yaml:"max_file_size" json:"max_file_size"`
 }
 
 type Action struct {

@@ -20,13 +20,15 @@
         updatemode?: boolean;
     } = $props();
 
-    // Compute schedulable status based on inputs
-    let isSchedulable = $derived(
-        inputs.length === 0 ||
-            inputs.every(
-                (input) => input.default && input.default.trim() !== "",
-            ),
+    let hasFileInputs = $derived(
+        inputs.some((input) => input.type === "file"),
     );
+
+    let hasMissingDefaults = $derived(
+        inputs.some((input) => input.type !== "file" && (!input.default || input.default.trim() === "")),
+    );
+
+    let isSchedulable = $derived(!hasFileInputs && !hasMissingDefaults);
 
     function updateName(value: string) {
         if (updatemode) return;
@@ -307,12 +309,21 @@
                                 Flow Not Schedulable
                             </h3>
                             <div class="mt-2 text-sm text-warning-700">
-                                <p>
-                                    This flow cannot be scheduled because it has
-                                    inputs without default values. To make this
-                                    flow schedulable, ensure all inputs have
-                                    default values.
-                                </p>
+                                {#if hasFileInputs}
+                                    <p>
+                                        This flow cannot be scheduled because it has
+                                        file inputs. Flows with file inputs cannot
+                                        be scheduled as files must be provided at
+                                        execution time.
+                                    </p>
+                                {:else}
+                                    <p>
+                                        This flow cannot be scheduled because it has
+                                        inputs without default values. To make this
+                                        flow schedulable, ensure all inputs have
+                                        default values.
+                                    </p>
+                                {/if}
                             </div>
                         </div>
                     </div>

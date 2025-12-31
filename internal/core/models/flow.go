@@ -37,6 +37,7 @@ type Input struct {
 	Required    bool      `yaml:"required" huml:"required" json:"required"`
 	Default     string    `yaml:"default" huml:"default" json:"default"`
 	Options     []string  `yaml:"options" huml:"options" json:"options"`
+	MaxFileSize int64     `yaml:"max_file_size" huml:"max_file_size" json:"max_file_size"`
 }
 
 type Schedule struct {
@@ -211,6 +212,15 @@ func (f Flow) Validate() error {
 		}
 	}
 
+	// Check if schedules are set on a flow with file inputs
+	if len(f.Schedules) > 0 {
+		for _, input := range f.Inputs {
+			if input.Type == INPUT_TYPE_FILE {
+				return fmt.Errorf("cannot set schedules on flow with file inputs")
+			}
+		}
+	}
+
 	// Check if schedules are set on a non-schedulable flow
 	if len(f.Schedules) > 0 && !f.IsSchedulable() {
 		return fmt.Errorf("cannot set schedules on flow: flow has inputs without default values")
@@ -240,6 +250,9 @@ func (f Flow) IsApprovalRequired() bool {
 
 func (f Flow) IsSchedulable() bool {
 	for _, input := range f.Inputs {
+		if input.Type == INPUT_TYPE_FILE {
+			return false
+		}
 		if input.Default == "" {
 			return false
 		}
@@ -249,8 +262,12 @@ func (f Flow) IsSchedulable() bool {
 
 // validateDefaultValue validates that a default value matches the expected input type
 func validateDefaultValue(input Input) error {
+	if input.Type == INPUT_TYPE_FILE && input.Default != "" {
+		return fmt.Errorf("file inputs cannot have default values")
+	}
+
 	if input.Default == "" {
-		return nil // Empty default is valid
+		return nil
 	}
 
 	switch input.Type {
@@ -419,6 +436,7 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 			Validation:  inp.Validation,
 			Required:    inp.Required,
 			Default:     inp.Default,
+			MaxFileSize: inp.MaxFileSize,
 		})
 	}
 

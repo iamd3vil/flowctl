@@ -25,6 +25,9 @@ root_url = "http://localhost:7000"
 # Valid key lengths are 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256
 secure_cookie_key = "{{ .App.SecureCookieKey }}"
 
+# (optional) Maximum file upload size in bytes (default: 104857600 = 100MB)
+# max_file_upload_size = 104857600
+
 [keystore]
 # (required) The keystore manages encryption keys for sensitive data
 # This is a random 32 byte key that is Base64 encoded

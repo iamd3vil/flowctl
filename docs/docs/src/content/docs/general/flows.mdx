@@ -84,7 +84,7 @@ schedules:
     timezone: Asia/Kolkata
 ```
 
-<Aside>Only flows where all inputs have default values can be scheduled.</Aside>
+<Aside>Only flows where all inputs have default values can be scheduled. Flows with file inputs cannot be scheduled.</Aside>
 
 ## Inputs
 
@@ -164,7 +164,62 @@ inputs:
 ```
 
 </TabItem>
+
+<TabItem label="File">
+
+```yaml
+inputs:
+  - name: config_file
+    type: file
+    label: Configuration File
+    description: Upload a configuration file
+    required: true
+    max_file_size: 10485760  # Optional: 10MB limit (default: 100MB)
+```
+
+</TabItem>
 </Tabs>
+
+### File Inputs
+
+File inputs allow users to upload files when triggering a flow. The uploaded file is made available to actions via the artifacts system.
+
+#### Using File Inputs in Actions
+
+Reference file inputs using the standard `{{ inputs.file_name }}` syntax:
+
+```yaml
+inputs:
+  - name: data_file
+    type: file
+    label: Data File
+    required: true
+
+actions:
+  - id: process_file
+    name: Process Uploaded File
+    executor: docker
+    variables:
+      - file_path: "{{ inputs.data_file }}"
+    with:
+      image: docker.io/alpine
+      script: |
+        echo "Processing: $file_path"
+        cat "$file_path"
+        
+        # Files are also available in the uploads directory
+        ls -la $FC_ARTIFACTS/uploads/
+```
+
+#### File Input Limitations
+
+- **No default values**: File inputs cannot have default values
+- **Not schedulable**: Flows with file inputs cannot be scheduled (files must be provided at execution time)
+- **Size limits**: Default maximum file size is 100MB, configurable per-input via `max_file_size` (in bytes) or globally in server config
+
+#### Remote Execution
+
+When running on remote nodes, uploaded files are automatically transferred to the remote node before execution. The file path in your variable will point to the correct location on the remote system.
 
 ### Input Validation
 

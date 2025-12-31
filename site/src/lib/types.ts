@@ -83,6 +83,7 @@ export interface FlowInput {
     | "select";
   options: string[];
   default?: string;
+  max_file_size?: number;
 }
 
 export interface FlowInputsResp {
@@ -444,6 +445,7 @@ export interface FlowInputReq {
   required?: boolean;
   default?: string;
   options?: string[];
+  max_file_size?: number;
 }
 
 export interface FlowActionReq {
