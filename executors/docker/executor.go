@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	WORKING_DIR = "/flows"
+	WORKING_DIR  = "/flows"
+	ArtifactsDir = "/tmp/flow/artifacts"
 )
 
 type DockerWithConfig struct {
@@ -53,6 +54,7 @@ type DockerExecutor struct {
 	client           *client.Client
 	workingDirectory string
 	driver           executor.NodeDriver
+	execID           string
 }
 
 type DockerRunnerOptions struct {
@@ -66,16 +68,21 @@ func init() {
 	executor.RegisterSchema("docker", GetSchema())
 }
 
-func NewDockerExecutor(name string, driver executor.NodeDriver) (executor.Executor, error) {
+func NewDockerExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
 	jobName := slug.Make(fmt.Sprintf("%s-%s", name, xid.New().String()))
 
 	executor := &DockerExecutor{
 		name:             jobName,
 		workingDirectory: driver.GetWorkingDirectory(),
 		driver:           driver,
+		execID:           execID,
 	}
 
 	return executor, nil
+}
+
+func (d *DockerExecutor) GetArtifactsDir() string {
+	return ArtifactsDir
 }
 
 func GetSchema() interface{} {
@@ -164,7 +171,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	}
 
 	// create artifacts directory
-	artifactsDir := d.driver.Join(d.driver.TempDir(), fmt.Sprintf("artifacts-%s", execCtx.ExecID))
+	artifactsDir := d.driver.Join(d.driver.TempDir(), fmt.Sprintf("artifacts-%s", d.execID))
 	if err := d.driver.CreateDir(ctx, artifactsDir); err != nil {
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
@@ -196,7 +203,7 @@ func (d *DockerExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	d.mounts = append(d.mounts, mount.Mount{
 		Type:   mount.TypeBind,
 		Source: artifactsDir,
-		Target: "/tmp/flow/artifacts",
+		Target: ArtifactsDir,
 	})
 
 	// Mount the script file

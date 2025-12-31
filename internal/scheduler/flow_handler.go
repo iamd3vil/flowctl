@@ -409,7 +409,7 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 			err:    fmt.Errorf("failed to get executor for %s: %w", action.ID, err),
 		}
 	}
-	exec, err = ef(nodeExecutorID, driver)
+	exec, err = ef(nodeExecutorID, driver, execID)
 	if err != nil {
 		return ExecResults{
 			result: nil,
@@ -426,13 +426,9 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 	}
 
 	// Transform file paths for remote execution
-	execInputVars := inputVars
-	if driver.IsRemote() {
-		execInputVars = h.transformPathsForRemote(inputVars, artifactDir, driver, execID)
-	}
+	execInputVars := h.transformPaths(inputVars, artifactDir, exec)
 
 	res, err := exec.Execute(ctx, executor.ExecutionContext{
-		ExecID:     execID,
 		Inputs:     execInputVars,
 		WithConfig: withConfig,
 		Stdout:     nodeLogger,
@@ -566,18 +562,19 @@ func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, act
 	return mergedResults, nil
 }
 
-// transformPathsForRemote replaces local artifact paths with remote artifact paths in input variables.
-// Local: /tmp/artifacts-store-{execID}/...  →  Remote: /tmp/artifacts-{execID}/...
-func (h *FlowExecutionHandler) transformPathsForRemote(inputVars map[string]any, localArtifactDir string, driver executor.NodeDriver, execID string) map[string]any {
-	remoteArtifactDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
+// transformPaths replaces local artifact paths with executor artifact paths in input variables.
+// File input paths that reference the local artifact directory are converted to use the executor's artifact directory as the base path.
+func (h *FlowExecutionHandler) transformPaths(inputVars map[string]any, localArtifactDir string, exec executor.Executor) map[string]any {
+	execArtifactDir := exec.GetArtifactsDir()
 	transformed := make(map[string]any, len(inputVars))
 
 	for k, v := range inputVars {
+		transformed[k] = v
 		if strVal, ok := v.(string); ok && strings.HasPrefix(strVal, localArtifactDir) {
-			relativePath := strings.TrimPrefix(strVal, localArtifactDir)
-			transformed[k] = driver.Join(remoteArtifactDir, relativePath)
-		} else {
-			transformed[k] = v
+			relPath, err := filepath.Rel(localArtifactDir, strVal)
+			if err == nil {
+				transformed[k] = filepath.Join(execArtifactDir, relPath)
+			}
 		}
 	}
 

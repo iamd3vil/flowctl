@@ -25,9 +25,9 @@ type ExecutionContext struct {
 	Inputs     map[string]any
 	Stdout     io.Writer
 	Stderr     io.Writer
-	ExecID     string
 }
 
 type Executor interface {
 	Execute(ctx context.Context, execCtx ExecutionContext) (outputs map[string]string, err error)
+	GetArtifactsDir() string
 }

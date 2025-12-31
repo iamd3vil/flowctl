@@ -26,6 +26,8 @@ type ScriptExecutor struct {
 	stderr           io.Writer
 	workingDirectory string
 	driver           executor.NodeDriver
+	artifactsDir     string
+	execID           string
 }
 
 func init() {
@@ -37,16 +39,28 @@ func GetSchema() interface{} {
 	return jsonschema.Reflect(&ScriptWithConfig{})
 }
 
-func NewScriptExecutor(name string, driver executor.NodeDriver) (executor.Executor, error) {
+func NewScriptExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
 	jobName := fmt.Sprintf("script-%s-%s", name, xid.New().String())
+
+	// Create artifacts directory
+	artifactsDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
+	if err := driver.CreateDir(context.Background(), artifactsDir); err != nil {
+		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
+	}
 
 	executor := &ScriptExecutor{
 		name:             jobName,
 		workingDirectory: driver.GetWorkingDirectory(),
 		driver:           driver,
+		artifactsDir:     artifactsDir,
+		execID:           execID,
 	}
 
 	return executor, nil
+}
+
+func (s *ScriptExecutor) GetArtifactsDir() string {
+	return s.artifactsDir
 }
 
 func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.ExecutionContext) (map[string]string, error) {
@@ -72,14 +86,8 @@ func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.Execution
 		return nil, fmt.Errorf("failed to create temp file for output: %w", err)
 	}
 
-	// Create artifacts directory
-	artifactsDir := s.driver.Join(s.driver.TempDir(), fmt.Sprintf("artifacts-%s", execCtx.ExecID))
-	if err := s.driver.CreateDir(ctx, artifactsDir); err != nil {
-		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
-	}
-
 	// Prepare environment variables
-	env := s.prepareEnvironment(execCtx.Inputs, tempFile, artifactsDir)
+	env := s.prepareEnvironment(execCtx.Inputs, tempFile)
 
 	// Execute the script
 	if err := s.runScript(ctx, config, env); err != nil {
@@ -100,7 +108,7 @@ func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.Execution
 	return outputEnv, nil
 }
 
-func (s *ScriptExecutor) prepareEnvironment(inputs map[string]interface{}, outputFile string, artifactsDir string) []string {
+func (s *ScriptExecutor) prepareEnvironment(inputs map[string]interface{}, outputFile string) []string {
 	var env []string
 
 	for k, v := range inputs {
@@ -108,7 +116,7 @@ func (s *ScriptExecutor) prepareEnvironment(inputs map[string]interface{}, outpu
 	}
 
 	env = append(env, fmt.Sprintf("FC_OUTPUT=%s", outputFile))
-	env = append(env, fmt.Sprintf("FC_ARTIFACTS=%s", artifactsDir))
+	env = append(env, fmt.Sprintf("FC_ARTIFACTS=%s", s.artifactsDir))
 
 	return env
 }
