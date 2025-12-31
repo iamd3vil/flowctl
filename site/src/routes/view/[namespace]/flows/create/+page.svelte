@@ -139,6 +139,7 @@
                                           .split("\n")
                                           .filter((o: string) => o.trim())
                                     : undefined,
+                            max_file_size: input.max_file_size || undefined,
                         }),
                     ),
                 actions: flow.actions

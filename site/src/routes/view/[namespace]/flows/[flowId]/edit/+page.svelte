@@ -118,6 +118,7 @@
             flow.inputs = (config.inputs || []).map((input) => ({
                 ...input,
                 optionsText: input.options ? input.options.join("\n") : "",
+                maxFileSizeMB: input.max_file_size ? input.max_file_size / 1024 / 1024 : undefined,
             }));
 
             // Transform actions
@@ -224,6 +225,7 @@
                                           .split("\n")
                                           .filter((o: string) => o.trim())
                                     : undefined,
+                            max_file_size: input.max_file_size || undefined,
                         }),
                     ),
                 actions: flow.actions

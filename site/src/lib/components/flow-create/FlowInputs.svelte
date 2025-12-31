@@ -7,6 +7,16 @@
         addInput: () => void;
     } = $props();
 
+    // Keep max_file_size in sync with maxFileSizeMB for file inputs
+    $effect(() => {
+        for (const input of inputs) {
+            if (input.type === 'file') {
+                const mb = input.maxFileSizeMB;
+                input.max_file_size = mb ? mb * 1024 * 1024 : undefined;
+            }
+        }
+    });
+
     function removeInput(index: number) {
         inputs.splice(index, 1);
     }
@@ -195,7 +205,6 @@
                         <input
                             type="number"
                             bind:value={input.maxFileSizeMB}
-                            oninput={() => input.max_file_size = (input.maxFileSizeMB || 0) * 1024 * 1024}
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             placeholder="Leave empty for default (100MB)"
                             min="1"
