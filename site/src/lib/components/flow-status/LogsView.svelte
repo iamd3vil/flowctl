@@ -74,7 +74,7 @@
     };
 
     const getContainerClasses = () => {
-        const baseClasses = "rounded-lg p-4 font-mono min-h-128 max-h-128 overflow-y-auto";
+        const baseClasses = "rounded-lg p-4 font-mono min-h-128 max-h-128 overflow-y-auto overflow-x-auto";
         const themeClasses =
             theme === "dark"
                 ? "bg-gray-900 text-gray-300"
@@ -196,14 +196,14 @@
             <div style="height: {totalHeight}px; width: 100%; position: relative;">
                 <div style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({offsetY}px);">
                     {#each visibleLogs as logMsg, i (startIndex + i)}
-                        <div class="truncate" style="height: {ITEM_HEIGHT}px; line-height: {ITEM_HEIGHT}px;">
+                        <div class="whitespace-nowrap" style="height: {ITEM_HEIGHT}px; line-height: {ITEM_HEIGHT}px;">
                             {#if showTimestamp && logMsg.timestamp}<span class="text-gray-500">[{logMsg.timestamp}]</span>{/if}{#if logMsg.nodeId}<span class="font-semibold {logMsg.nodeColor}">[{logMsg.nodeId}]</span>{/if}{logMsg.value}
                         </div>
                     {/each}
                 </div>
             </div>
         {:else if logs.length > 0}
-            <div class="whitespace-pre-wrap break-words">
+            <div class="whitespace-pre">
                 {processedRawLogs}
                 {#if isRunning && showCursor}
                     <div class="inline-block">
