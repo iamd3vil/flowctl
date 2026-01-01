@@ -101,6 +101,8 @@ snapshot:
   version_template: "{{ incpatch .Version }}-alpha"
 
 changelog:
+  use: github
+  format: "{{.SHA}}: {{.Message}} (@{{.AuthorUsername}})"
   sort: asc
   filters:
     exclude:
