@@ -19,6 +19,7 @@ import (
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 var (
@@ -635,7 +636,7 @@ func (c *Core) CreateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUID, err := c.importFlowFromFile(yamlFilePath, n.Name)
+	importedFlow, namespaceUUID, err := c.importFlowFromFile(ctx, yamlFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
@@ -692,7 +693,7 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("could not write flow file: %w", err)
 	}
 
-	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(flowFilePath, n.Name)
+	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(ctx, flowFilePath, n.Name)
 	if err != nil {
 		return fmt.Errorf("could not import flow after creation: %w", err)
 	}
@@ -740,7 +741,7 @@ func (c *Core) DeleteFlow(ctx context.Context, flowID, namespaceID string) error
 	return nil
 }
 
-func (c *Core) LoadFlows() error {
+func (c *Core) LoadFlows(ctx context.Context) error {
 	m := make(map[string]models.Flow)
 
 	// Read immediate subdirectories
@@ -756,7 +757,7 @@ func (c *Core) LoadFlows() error {
 		}
 
 		namespaceDir := filepath.Join(c.flowDirectory, entry.Name())
-		namespaceFlows, err := c.processNamespaceFlows(namespaceDir)
+		namespaceFlows, err := c.processNamespaceFlows(ctx, namespaceDir)
 		if err != nil {
 			log.Printf("could not process flows from namespace %s: %v", entry.Name(), err)
 			continue
@@ -769,7 +770,7 @@ func (c *Core) LoadFlows() error {
 }
 
 // processNamespaceFlows iterates through directories in the namespace directory and imports the first yaml file per directory as flow. The files are sorted by name.
-func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flow, error) {
+func (c *Core) processNamespaceFlows(ctx context.Context, namespaceDir string) (map[string]models.Flow, error) {
 	m := make(map[string]models.Flow)
 	namespaceName := filepath.Base(namespaceDir)
 
@@ -813,7 +814,7 @@ func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flo
 			continue
 		}
 
-		f, nsUUID, err := c.importFlowFromFile(flowPath, namespaceName)
+		f, nsUUID, err := c.importFlowFromFile(ctx, flowPath, namespaceName)
 		if err != nil {
 			log.Printf("error importing flow from %s: %v", flowPath, err)
 			continue
@@ -825,7 +826,7 @@ func (c *Core) processNamespaceFlows(namespaceDir string) (map[string]models.Flo
 	return m, nil
 }
 
-func (c *Core) importFlowFromFile(flowFilePath, namespaceName string) (models.Flow, string, error) {
+func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceName string) (models.Flow, string, error) {
 	data, err := os.ReadFile(flowFilePath)
 	if err != nil {
 		return models.Flow{}, "", fmt.Errorf("error reading file %s: %w", flowFilePath, err)
@@ -891,13 +892,15 @@ func (c *Core) importFlowFromFile(flowFilePath, namespaceName string) (models.Fl
 		})
 	} else if fd.Checksum != checksum {
 		fd, err = c.store.UpdateFlowTx(context.Background(), repo.UpdateFlowTxParams{
-			Slug:        f.Meta.ID,
-			Name:        f.Meta.Name,
-			Description: f.Meta.Description,
-			Checksum:    checksum,
-			FilePath:    flowFilePath,
-			Namespace:   f.Meta.Namespace,
-			Schedules:   schedules,
+			Slug:            f.Meta.ID,
+			Name:            f.Meta.Name,
+			Description:     f.Meta.Description,
+			Checksum:        checksum,
+			FilePath:        flowFilePath,
+			Namespace:       f.Meta.Namespace,
+			UserSchedulable: f.Meta.UserSchedulable,
+			Schedulable:     f.IsSchedulable(),
+			Schedules:       schedules,
 		})
 	}
 	if err != nil {
@@ -994,7 +997,6 @@ func (c *Core) SyncScheduledFlowJobs(ctx context.Context) ([]scheduler.Scheduled
 			continue
 		}
 
-		// Load the flow using GetSchedulerFlow
 		schedulerFlow, err := c.GetSchedulerFlow(ctx, flow.Slug, flow.NamespaceUuid.String())
 		if err != nil {
 			log.Printf("failed to load flow %s: %v", flow.Slug, err)
@@ -1003,19 +1005,40 @@ func (c *Core) SyncScheduledFlowJobs(ctx context.Context) ([]scheduler.Scheduled
 
 		input := applyDefaultInputValues(schedulerFlow.Inputs)
 
+		if flow.IsUserCreated && flow.Inputs.Valid {
+			var userInputs map[string]interface{}
+			if err := json.Unmarshal(flow.Inputs.RawMessage, &userInputs); err != nil {
+				log.Printf("failed to unmarshal user inputs for schedule %d: %v", flow.ScheduleID, err)
+				continue
+			}
+			for k, v := range userInputs {
+				input[k] = v
+			}
+		}
+
+		userUUID := SystemUserUUID
+		if flow.IsUserCreated {
+			user, err := c.store.GetUserByID(ctx, flow.CreatedBy)
+			if err != nil {
+				log.Printf("failed to get user for schedule %d: %v", flow.ScheduleID, err)
+			} else {
+				userUUID = user.Uuid.String()
+			}
+		}
+
 		payload := scheduler.FlowExecutionPayload{
 			Workflow:          schedulerFlow,
 			Input:             input,
 			StartingActionIdx: 0,
 			NamespaceID:       namespace.Uuid.String(),
 			TriggerType:       scheduler.TriggerTypeScheduled,
-			UserUUID:          SystemUserUUID,
+			UserUUID:          userUUID,
 			FlowDirectory:     filepath.Dir(flow.FilePath),
 		}
 
 		jobs = append(jobs, scheduler.ScheduledJob{
-			ID:          fmt.Sprintf("%d_%s_%s", flow.ID, flow.Cron, flow.Timezone),
-			Name:        flow.Name,
+			ID:          fmt.Sprintf("schedule_%d", flow.ScheduleID),
+			Name:        fmt.Sprintf("%s (%s)", flow.Name, flow.Cron),
 			Cron:        flow.Cron,
 			Timezone:    flow.Timezone,
 			PayloadType: scheduler.PayloadTypeFlowExecution,
@@ -1035,4 +1058,275 @@ func applyDefaultInputValues(inputs []scheduler.Input) map[string]interface{} {
 		}
 	}
 	return result
+}
+
+func (c *Core) CreateSchedule(ctx context.Context, flowID, cron, timezone string, inputs map[string]interface{}, userUUID, namespaceID string) (models.Schedule, error) {
+	flow, err := c.GetFlowByID(flowID, namespaceID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("flow not found: %w", err)
+	}
+
+	if !flow.IsSchedulable() {
+		return models.Schedule{}, fmt.Errorf("flow is not schedulable: has file inputs or required inputs without defaults")
+	}
+
+	if !flow.Meta.UserSchedulable {
+		return models.Schedule{}, fmt.Errorf("user schedules are not enabled for this flow")
+	}
+
+	existing, err := c.store.GetScheduleByFlowAndCron(ctx, repo.GetScheduleByFlowAndCronParams{
+		FlowID:        flow.Meta.DBID,
+		Cron:          cron,
+		Timezone:      timezone,
+		IsUserCreated: true,
+	})
+	if err == nil && existing.ID > 0 {
+		return models.Schedule{}, fmt.Errorf("schedule with same cron expression already exists for this flow")
+	}
+
+	inputsJSON, err := json.Marshal(inputs)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("could not marshal inputs: %w", err)
+	}
+
+	userID, _ := uuid.Parse(userUUID)
+
+	schedule, err := c.store.CreateUserSchedule(ctx, repo.CreateUserScheduleParams{
+		FlowID:   flow.Meta.DBID,
+		Cron:     cron,
+		Timezone: timezone,
+		Inputs:   pqtype.NullRawMessage{RawMessage: inputsJSON, Valid: inputsJSON != nil},
+		Uuid:     userID,
+	})
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("could not create schedule: %w", err)
+	}
+
+	return models.Schedule{
+		UUID:          schedule.Uuid.String(),
+		FlowSlug:      flow.Meta.ID,
+		FlowName:      flow.Meta.Name,
+		Cron:          schedule.Cron,
+		Timezone:      schedule.Timezone,
+		Inputs:        inputs,
+		CreatedByID:   userUUID,
+		IsActive:      schedule.IsActive,
+		IsUserCreated: schedule.IsUserCreated,
+		CreatedAt:     schedule.CreatedAt,
+		UpdatedAt:     schedule.UpdatedAt,
+	}, nil
+}
+
+func (c *Core) GetSchedule(ctx context.Context, scheduleUUID, userUUID, namespaceID string) (models.Schedule, error) {
+	userID, err := uuid.Parse(userUUID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid user UUID: %w", err)
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	schedID, err := uuid.Parse(scheduleUUID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid schedule UUID: %w", err)
+	}
+
+	schedule, err := c.store.GetUserScheduleByUUID(ctx, repo.GetUserScheduleByUUIDParams{
+		Uuid:   schedID,
+		Uuid_2: userID,
+		Uuid_3: namespaceUUID,
+	})
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("schedule not found: %w", err)
+	}
+
+	var inputs map[string]interface{}
+	if schedule.Inputs.Valid {
+		if err := json.Unmarshal(schedule.Inputs.RawMessage, &inputs); err != nil {
+			return models.Schedule{}, fmt.Errorf("could not unmarshal inputs: %w", err)
+		}
+	}
+
+	return models.Schedule{
+		UUID:          schedule.Uuid.String(),
+		FlowSlug:      schedule.FlowSlug,
+		FlowName:      schedule.FlowName,
+		Cron:          schedule.Cron,
+		Timezone:      schedule.Timezone,
+		Inputs:        inputs,
+		CreatedByID:   schedule.CreatedByUuid.String(),
+		CreatedByName: schedule.CreatedByName,
+		IsUserCreated: schedule.IsUserCreated,
+		IsActive:      schedule.IsActive,
+		CreatedAt:     schedule.CreatedAt,
+		UpdatedAt:     schedule.UpdatedAt,
+	}, nil
+}
+
+// ListSchedules returns a paginated list of all schedules (both user and system schedules)
+func (c *Core) ListSchedules(ctx context.Context, flowSlug, userUUID, namespaceID string, limit, offset int) ([]models.Schedule, int64, int64, error) {
+	userID, err := uuid.Parse(userUUID)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("invalid user UUID: %w", err)
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	var flowID int32
+	if flowSlug != "" {
+		flow, err := c.GetFlowByID(flowSlug, namespaceID)
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("flow not found: %w", err)
+		}
+		flowID = flow.Meta.DBID
+	}
+
+	schedules, err := c.store.ListSchedules(ctx, repo.ListSchedulesParams{
+		Column1: flowID,
+		Uuid:    userID,
+		Uuid_2:  namespaceUUID,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	})
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("could not list schedules: %w", err)
+	}
+
+	var result []models.Schedule
+	var pageCount, totalCount int64
+
+	for _, s := range schedules {
+		var inputs map[string]interface{}
+		if s.Inputs.Valid {
+			if err := json.Unmarshal(s.Inputs.RawMessage, &inputs); err != nil {
+				continue
+			}
+		}
+
+		result = append(result, models.Schedule{
+			UUID:          s.Uuid.String(),
+			FlowSlug:      s.FlowSlug,
+			FlowName:      s.FlowName,
+			Cron:          s.Cron,
+			Timezone:      s.Timezone,
+			Inputs:        inputs,
+			CreatedByID:   s.CreatedByUuid.String(),
+			CreatedByName: s.CreatedByName,
+			IsActive:      s.IsActive,
+			IsUserCreated: s.IsUserCreated,
+			CreatedAt:     s.CreatedAt,
+			UpdatedAt:     s.UpdatedAt,
+		})
+
+		pageCount = s.PageCount
+		totalCount = s.TotalCount
+	}
+
+	return result, pageCount, totalCount, nil
+}
+
+func (c *Core) UpdateSchedule(ctx context.Context, scheduleUUID, cron, timezone string, inputs map[string]interface{}, isActive bool, userUUID, namespaceID string) (models.Schedule, error) {
+	userID, err := uuid.Parse(userUUID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid user UUID: %w", err)
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	schedID, err := uuid.Parse(scheduleUUID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("invalid schedule UUID: %w", err)
+	}
+
+	existing, err := c.store.GetUserScheduleByUUID(ctx, repo.GetUserScheduleByUUIDParams{
+		Uuid:   schedID,
+		Uuid_2: userID,
+		Uuid_3: namespaceUUID,
+	})
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("schedule not found: %w", err)
+	}
+
+	flow, err := c.GetFlowByID(existing.FlowSlug, namespaceID)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("flow not found: %w", err)
+	}
+
+	if !flow.IsSchedulable() {
+		return models.Schedule{}, fmt.Errorf("flow is not schedulable")
+	}
+
+	if !flow.Meta.UserSchedulable {
+		return models.Schedule{}, fmt.Errorf("user schedules are not enabled for this flow")
+	}
+
+	inputsJSON, err := json.Marshal(inputs)
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("could not marshal inputs: %w", err)
+	}
+
+	updated, err := c.store.UpdateUserScheduleByUUID(ctx, repo.UpdateUserScheduleByUUIDParams{
+		Uuid:     schedID,
+		Cron:     cron,
+		Timezone: timezone,
+		Inputs:   pqtype.NullRawMessage{RawMessage: inputsJSON, Valid: inputsJSON != nil},
+		IsActive: isActive,
+		Uuid_2:   userID,
+		Uuid_3:   namespaceUUID,
+	})
+	if err != nil {
+		return models.Schedule{}, fmt.Errorf("could not update schedule: %w", err)
+	}
+
+	return models.Schedule{
+		UUID:          updated.Uuid.String(),
+		FlowSlug:      existing.FlowSlug,
+		FlowName:      existing.FlowName,
+		Cron:          updated.Cron,
+		Timezone:      updated.Timezone,
+		Inputs:        inputs,
+		IsActive:      updated.IsActive,
+		IsUserCreated: updated.IsUserCreated,
+		UpdatedAt:     updated.UpdatedAt,
+	}, nil
+}
+
+func (c *Core) DeleteSchedule(ctx context.Context, scheduleUUID, userUUID, namespaceID string) error {
+	userID, err := uuid.Parse(userUUID)
+	if err != nil {
+		return fmt.Errorf("invalid user UUID: %w", err)
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	schedID, err := uuid.Parse(scheduleUUID)
+	if err != nil {
+		return fmt.Errorf("invalid schedule UUID: %w", err)
+	}
+
+	rowsAffected, err := c.store.DeleteUserScheduleByUUID(ctx, repo.DeleteUserScheduleByUUIDParams{
+		Uuid:   schedID,
+		Uuid_2: userID,
+		Uuid_3: namespaceUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete schedule: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("schedule not found or permission denied")
+	}
+
+	return nil
 }

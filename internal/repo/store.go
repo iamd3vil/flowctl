@@ -59,13 +59,15 @@ type CreateFlowTxParams struct {
 }
 
 type UpdateFlowTxParams struct {
-	Slug        string
-	Name        string
-	Description string
-	Checksum    string
-	FilePath    string
-	Namespace   string
-	Schedules   []struct {
+	Slug            string
+	Name            string
+	Description     string
+	Checksum        string
+	FilePath        string
+	Namespace       string
+	UserSchedulable bool
+	Schedulable     bool
+	Schedules       []struct {
 		Cron     string
 		Timezone string
 	}
@@ -372,21 +374,31 @@ func (p *PostgresStore) UpdateFlowTx(ctx context.Context, params UpdateFlowTxPar
 		return Flow{}, fmt.Errorf("could not update flow: %w", err)
 	}
 
-	// Delete existing schedules
-	err = q.DeleteCronSchedulesByFlowID(ctx, flow.ID)
-	if err != nil {
-		return Flow{}, fmt.Errorf("could not delete old schedules: %w", err)
+	// Disable user-created schedules if flow is not schedulable or not user-schedulable
+	if !params.Schedulable || !params.UserSchedulable {
+		err = q.DisableUserSchedulesForFlow(ctx, flow.ID)
+		if err != nil {
+			return Flow{}, fmt.Errorf("could not disable user schedules: %w", err)
+		}
 	}
 
-	// Create new schedules
-	for _, sched := range params.Schedules {
-		_, err = q.CreateCronSchedule(ctx, CreateCronScheduleParams{
-			FlowID:   flow.ID,
-			Cron:     sched.Cron,
-			Timezone: sched.Timezone,
-		})
-		if err != nil {
-			return Flow{}, fmt.Errorf("could not create schedule: %w", err)
+	// Delete existing system schedules only
+	err = q.DeleteSystemCronsByFlowID(ctx, flow.ID)
+	if err != nil {
+		return Flow{}, fmt.Errorf("could not delete old system schedules: %w", err)
+	}
+
+	// Create new system schedules from flow definition (only if schedulable)
+	if params.Schedulable {
+		for _, sched := range params.Schedules {
+			_, err = q.CreateCronSchedule(ctx, CreateCronScheduleParams{
+				FlowID:   flow.ID,
+				Cron:     sched.Cron,
+				Timezone: sched.Timezone,
+			})
+			if err != nil {
+				return Flow{}, fmt.Errorf("could not create schedule: %w", err)
+			}
 		}
 	}
 

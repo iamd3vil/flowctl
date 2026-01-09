@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ScheduledExecution, Schedule } from '$lib/types';
+  import type { ScheduledExecution, UserSchedule } from '$lib/types';
   import { getNextCronRun } from '$lib/utils/cronParser';
 
   interface UpcomingRun {
@@ -17,7 +17,7 @@
     title = 'Upcoming Scheduled Runs'
   }: {
     schedules: ScheduledExecution[];
-    cronSchedules?: Schedule[];
+    cronSchedules?: UserSchedule[];
     namespace: string;
     flowId: string;
     title?: string;
@@ -59,23 +59,22 @@
 </script>
 
 {#if upcomingRuns.length > 0}
-  <div class="bg-white rounded-lg border border-gray-200 mt-6">
-    <div class="px-4 py-3 border-b border-gray-200">
-      <h3 class="text-sm font-semibold text-gray-900">
-        {title} ({upcomingRuns.length})
-      </h3>
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 py-4 border-b border-gray-200">
+      <h3 class="text-sm font-semibold text-gray-900">{title}</h3>
+      <p class="text-xs text-gray-500 mt-0.5">{upcomingRuns.length} {upcomingRuns.length === 1 ? 'run' : 'runs'} scheduled</p>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Type
             </th>
-            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Time
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Scheduled Time
             </th>
-            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Exec ID
             </th>
           </tr>
@@ -85,12 +84,12 @@
             <tr class="hover:bg-gray-50 transition-colors">
               <td class="px-4 py-3 whitespace-nowrap">
                 {#if run.type === 'cron'}
-                  <code class="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-700">{run.label}</code>
+                  <code class="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-700">{run.label}</code>
                 {:else}
                   <span class="text-sm text-gray-700">{run.label}</span>
                 {/if}
               </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                 {formatScheduledTime(run.scheduledAt)}
               </td>
               <td class="px-4 py-3 whitespace-nowrap">

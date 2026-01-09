@@ -639,6 +639,7 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 
 	updatedMeta := f.Meta
 	updatedMeta.AllowOverlap = req.AllowOverlap
+	updatedMeta.UserSchedulable = req.UserSchedulable
 	updatedMeta.Description = req.Description
 
 	flow := models.Flow{
@@ -696,11 +697,13 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, FlowCreateReq{
-		Meta: FlowMetaReq{
-			Name:         f.Meta.Name,
-			Description:  f.Meta.Description,
-			Schedules:    schedules,
-			AllowOverlap: f.Meta.AllowOverlap,
+		Meta: FlowMeta{
+			ID:              f.Meta.ID,
+			Name:            f.Meta.Name,
+			Description:     f.Meta.Description,
+			Schedules:       schedules,
+			AllowOverlap:    f.Meta.AllowOverlap,
+			UserSchedulable: f.Meta.UserSchedulable,
 		},
 		Inputs:        convertFlowInputsToInputsReq(f.Inputs),
 		Actions:       convertFlowActionsToActionsReq(f.Actions),

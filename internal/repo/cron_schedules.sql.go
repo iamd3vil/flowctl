@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const createCronSchedule = `-- name: CreateCronSchedule :one
 INSERT INTO cron_schedules (flow_id, cron, timezone)
 VALUES ($1, $2, $3)
-RETURNING id, flow_id, cron, timezone, created_at, updated_at
+RETURNING id, flow_id, cron, timezone, created_at, updated_at, uuid, inputs, created_by, is_user_created, is_active
 `
 
 type CreateCronScheduleParams struct {
@@ -34,22 +35,131 @@ func (q *Queries) CreateCronSchedule(ctx context.Context, arg CreateCronSchedule
 		&i.Timezone,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Uuid,
+		&i.Inputs,
+		&i.CreatedBy,
+		&i.IsUserCreated,
+		&i.IsActive,
 	)
 	return i, err
 }
 
-const deleteCronSchedulesByFlowID = `-- name: DeleteCronSchedulesByFlowID :exec
-DELETE FROM cron_schedules
-WHERE flow_id = $1
+const createUserSchedule = `-- name: CreateUserSchedule :one
+INSERT INTO cron_schedules (flow_id, cron, timezone, inputs, created_by, is_user_created, is_active)
+VALUES ($1, $2, $3, $4, (SELECT id FROM users WHERE users.uuid = $5), TRUE, TRUE)
+RETURNING id, flow_id, cron, timezone, created_at, updated_at, uuid, inputs, created_by, is_user_created, is_active
 `
 
-func (q *Queries) DeleteCronSchedulesByFlowID(ctx context.Context, flowID int32) error {
-	_, err := q.db.ExecContext(ctx, deleteCronSchedulesByFlowID, flowID)
+type CreateUserScheduleParams struct {
+	FlowID   int32                 `db:"flow_id" json:"flow_id"`
+	Cron     string                `db:"cron" json:"cron"`
+	Timezone string                `db:"timezone" json:"timezone"`
+	Inputs   pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	Uuid     uuid.UUID             `db:"uuid" json:"uuid"`
+}
+
+func (q *Queries) CreateUserSchedule(ctx context.Context, arg CreateUserScheduleParams) (CronSchedule, error) {
+	row := q.db.QueryRowContext(ctx, createUserSchedule,
+		arg.FlowID,
+		arg.Cron,
+		arg.Timezone,
+		arg.Inputs,
+		arg.Uuid,
+	)
+	var i CronSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.Cron,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Uuid,
+		&i.Inputs,
+		&i.CreatedBy,
+		&i.IsUserCreated,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const deleteSystemCronsByFlowID = `-- name: DeleteSystemCronsByFlowID :exec
+DELETE FROM cron_schedules
+WHERE flow_id = $1 AND is_user_created = FALSE
+`
+
+func (q *Queries) DeleteSystemCronsByFlowID(ctx context.Context, flowID int32) error {
+	_, err := q.db.ExecContext(ctx, deleteSystemCronsByFlowID, flowID)
+	return err
+}
+
+const deleteUserScheduleByUUID = `-- name: DeleteUserScheduleByUUID :execrows
+
+WITH user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $2
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $2)
+)
+DELETE FROM cron_schedules cs
+USING flows f
+WHERE cs.uuid = $1
+  AND cs.flow_id = f.id
+  AND cs.is_user_created = TRUE
+  AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+  AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $2)
+        OR EXISTS (SELECT id FROM users WHERE  users.uuid = $2 AND users.role='superuser')
+        OR EXISTS (SELECT user_namespaces.uuid FROM user_namespaces WHERE user_namespaces.role='admin')
+  )
+`
+
+type DeleteUserScheduleByUUIDParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+	Uuid_3 uuid.UUID `db:"uuid_3" json:"uuid_3"`
+}
+
+// DELETE FROM cron_schedules cs
+// USING flows f
+// WHERE cs.id = $1
+//
+//	AND cs.flow_id = f.id
+//	AND cs.is_user_created = TRUE
+//	AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+//	AND cs.created_by = (SELECT id FROM users WHERE users.uuid = $2);
+func (q *Queries) DeleteUserScheduleByUUID(ctx context.Context, arg DeleteUserScheduleByUUIDParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUserScheduleByUUID, arg.Uuid, arg.Uuid_2, arg.Uuid_3)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const disableUserSchedulesForFlow = `-- name: DisableUserSchedulesForFlow :exec
+UPDATE cron_schedules
+SET is_active = FALSE, updated_at = NOW()
+WHERE flow_id = $1 AND is_user_created = TRUE
+`
+
+func (q *Queries) DisableUserSchedulesForFlow(ctx context.Context, flowID int32) error {
+	_, err := q.db.ExecContext(ctx, disableUserSchedulesForFlow, flowID)
 	return err
 }
 
 const getAllCronSchedules = `-- name: GetAllCronSchedules :many
-SELECT cs.id, cs.flow_id, cs.cron, cs.timezone, cs.created_at, cs.updated_at, f.slug AS flow_slug, f.name AS flow_name, n.uuid AS namespace_uuid
+SELECT cs.id, cs.flow_id, cs.cron, cs.timezone, cs.created_at, cs.updated_at, cs.uuid, cs.inputs, cs.created_by, cs.is_user_created, cs.is_active, f.slug AS flow_slug, f.name AS flow_name, n.uuid AS namespace_uuid
 FROM cron_schedules cs
 JOIN flows f ON cs.flow_id = f.id
 JOIN namespaces n ON f.namespace_id = n.id
@@ -58,15 +168,20 @@ ORDER BY cs.flow_id, cs.id
 `
 
 type GetAllCronSchedulesRow struct {
-	ID            int32     `db:"id" json:"id"`
-	FlowID        int32     `db:"flow_id" json:"flow_id"`
-	Cron          string    `db:"cron" json:"cron"`
-	Timezone      string    `db:"timezone" json:"timezone"`
-	CreatedAt     time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
-	FlowSlug      string    `db:"flow_slug" json:"flow_slug"`
-	FlowName      string    `db:"flow_name" json:"flow_name"`
-	NamespaceUuid uuid.UUID `db:"namespace_uuid" json:"namespace_uuid"`
+	ID            int32                 `db:"id" json:"id"`
+	FlowID        int32                 `db:"flow_id" json:"flow_id"`
+	Cron          string                `db:"cron" json:"cron"`
+	Timezone      string                `db:"timezone" json:"timezone"`
+	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	Uuid          uuid.UUID             `db:"uuid" json:"uuid"`
+	Inputs        pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	CreatedBy     int32                 `db:"created_by" json:"created_by"`
+	IsUserCreated bool                  `db:"is_user_created" json:"is_user_created"`
+	IsActive      bool                  `db:"is_active" json:"is_active"`
+	FlowSlug      string                `db:"flow_slug" json:"flow_slug"`
+	FlowName      string                `db:"flow_name" json:"flow_name"`
+	NamespaceUuid uuid.UUID             `db:"namespace_uuid" json:"namespace_uuid"`
 }
 
 func (q *Queries) GetAllCronSchedules(ctx context.Context) ([]GetAllCronSchedulesRow, error) {
@@ -85,6 +200,11 @@ func (q *Queries) GetAllCronSchedules(ctx context.Context) ([]GetAllCronSchedule
 			&i.Timezone,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Uuid,
+			&i.Inputs,
+			&i.CreatedBy,
+			&i.IsUserCreated,
+			&i.IsActive,
 			&i.FlowSlug,
 			&i.FlowName,
 			&i.NamespaceUuid,
@@ -103,7 +223,7 @@ func (q *Queries) GetAllCronSchedules(ctx context.Context) ([]GetAllCronSchedule
 }
 
 const getCronSchedulesByFlowID = `-- name: GetCronSchedulesByFlowID :many
-SELECT id, flow_id, cron, timezone, created_at, updated_at FROM cron_schedules
+SELECT id, flow_id, cron, timezone, created_at, updated_at, uuid, inputs, created_by, is_user_created, is_active FROM cron_schedules
 WHERE flow_id = $1
 ORDER BY id
 `
@@ -124,6 +244,11 @@ func (q *Queries) GetCronSchedulesByFlowID(ctx context.Context, flowID int32) ([
 			&i.Timezone,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Uuid,
+			&i.Inputs,
+			&i.CreatedBy,
+			&i.IsUserCreated,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -136,4 +261,367 @@ func (q *Queries) GetCronSchedulesByFlowID(ctx context.Context, flowID int32) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const getScheduleByFlowAndCron = `-- name: GetScheduleByFlowAndCron :one
+SELECT id, flow_id, cron, timezone, created_at, updated_at, uuid, inputs, created_by, is_user_created, is_active FROM cron_schedules
+WHERE flow_id = $1
+  AND cron = $2
+  AND timezone = $3
+  AND is_user_created = $4
+  AND is_active = TRUE
+`
+
+type GetScheduleByFlowAndCronParams struct {
+	FlowID        int32  `db:"flow_id" json:"flow_id"`
+	Cron          string `db:"cron" json:"cron"`
+	Timezone      string `db:"timezone" json:"timezone"`
+	IsUserCreated bool   `db:"is_user_created" json:"is_user_created"`
+}
+
+func (q *Queries) GetScheduleByFlowAndCron(ctx context.Context, arg GetScheduleByFlowAndCronParams) (CronSchedule, error) {
+	row := q.db.QueryRowContext(ctx, getScheduleByFlowAndCron,
+		arg.FlowID,
+		arg.Cron,
+		arg.Timezone,
+		arg.IsUserCreated,
+	)
+	var i CronSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.Cron,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Uuid,
+		&i.Inputs,
+		&i.CreatedBy,
+		&i.IsUserCreated,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const getUserScheduleByUUID = `-- name: GetUserScheduleByUUID :one
+
+WITH user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $2
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $2)
+)
+SELECT
+    cs.id, cs.flow_id, cs.cron, cs.timezone, cs.created_at, cs.updated_at, cs.uuid, cs.inputs, cs.created_by, cs.is_user_created, cs.is_active,
+    f.slug as flow_slug,
+    f.name as flow_name,
+    u.uuid as created_by_uuid,
+    u.name as created_by_name
+FROM cron_schedules cs
+JOIN flows f ON cs.flow_id = f.id
+INNER JOIN users u ON cs.created_by = u.id
+WHERE cs.uuid = $1
+  AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+  AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $2)
+        OR EXISTS (SELECT id FROM users WHERE  users.uuid = $2 AND users.role='superuser')
+        OR EXISTS (SELECT user_namespaces.uuid FROM user_namespaces WHERE user_namespaces.role='admin')
+  )
+`
+
+type GetUserScheduleByUUIDParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+	Uuid_3 uuid.UUID `db:"uuid_3" json:"uuid_3"`
+}
+
+type GetUserScheduleByUUIDRow struct {
+	ID            int32                 `db:"id" json:"id"`
+	FlowID        int32                 `db:"flow_id" json:"flow_id"`
+	Cron          string                `db:"cron" json:"cron"`
+	Timezone      string                `db:"timezone" json:"timezone"`
+	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	Uuid          uuid.UUID             `db:"uuid" json:"uuid"`
+	Inputs        pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	CreatedBy     int32                 `db:"created_by" json:"created_by"`
+	IsUserCreated bool                  `db:"is_user_created" json:"is_user_created"`
+	IsActive      bool                  `db:"is_active" json:"is_active"`
+	FlowSlug      string                `db:"flow_slug" json:"flow_slug"`
+	FlowName      string                `db:"flow_name" json:"flow_name"`
+	CreatedByUuid uuid.UUID             `db:"created_by_uuid" json:"created_by_uuid"`
+	CreatedByName string                `db:"created_by_name" json:"created_by_name"`
+}
+
+// SELECT
+//
+//	cs.*,
+//	f.slug as flow_slug,
+//	f.name as flow_name,
+//	u.uuid as created_by_uuid,
+//	u.name as created_by_name
+//
+// FROM cron_schedules cs
+// JOIN flows f ON cs.flow_id = f.id
+// LEFT JOIN users u ON cs.created_by = u.id
+// WHERE cs.id = $1
+//
+//	AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+//	AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $2) OR cs.is_user_created = FALSE);
+func (q *Queries) GetUserScheduleByUUID(ctx context.Context, arg GetUserScheduleByUUIDParams) (GetUserScheduleByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserScheduleByUUID, arg.Uuid, arg.Uuid_2, arg.Uuid_3)
+	var i GetUserScheduleByUUIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.Cron,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Uuid,
+		&i.Inputs,
+		&i.CreatedBy,
+		&i.IsUserCreated,
+		&i.IsActive,
+		&i.FlowSlug,
+		&i.FlowName,
+		&i.CreatedByUuid,
+		&i.CreatedByName,
+	)
+	return i, err
+}
+
+const listSchedules = `-- name: ListSchedules :many
+WITH user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $2
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $2)
+),
+filtered AS (
+    SELECT
+        cs.id, cs.flow_id, cs.cron, cs.timezone, cs.created_at, cs.updated_at, cs.uuid, cs.inputs, cs.created_by, cs.is_user_created, cs.is_active,
+        f.slug as flow_slug,
+        f.name as flow_name,
+        u.uuid as created_by_uuid,
+        u.name as created_by_name
+    FROM cron_schedules cs
+    JOIN flows f ON cs.flow_id = f.id
+    INNER JOIN users u ON cs.created_by = u.id
+    WHERE f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+      -- AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $2)
+      --       OR EXISTS (SELECT id FROM users WHERE  users.uuid = $2 AND users.role='superuser')
+      --       OR EXISTS (SELECT user_namespaces.uuid FROM user_namespaces WHERE user_namespaces.role='admin')
+      --       OR cs.is_user_created = FALSE
+      -- )
+      AND ($1 = 0 OR f.id = $1)
+),
+total AS (
+    SELECT COUNT(*) AS total_count FROM filtered
+),
+paged AS (
+    SELECT id, flow_id, cron, timezone, created_at, updated_at, uuid, inputs, created_by, is_user_created, is_active, flow_slug, flow_name, created_by_uuid, created_by_name FROM filtered
+    ORDER BY created_at DESC
+    LIMIT $4 OFFSET $5
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $4::numeric)::bigint AS page_count FROM total
+)
+SELECT
+    p.id, p.flow_id, p.cron, p.timezone, p.created_at, p.updated_at, p.uuid, p.inputs, p.created_by, p.is_user_created, p.is_active, p.flow_slug, p.flow_name, p.created_by_uuid, p.created_by_name,
+    pc.page_count,
+    t.total_count
+FROM paged p, page_count pc, total t
+`
+
+type ListSchedulesParams struct {
+	Column1 interface{} `db:"column_1" json:"column_1"`
+	Uuid    uuid.UUID   `db:"uuid" json:"uuid"`
+	Uuid_2  uuid.UUID   `db:"uuid_2" json:"uuid_2"`
+	Limit   int32       `db:"limit" json:"limit"`
+	Offset  int32       `db:"offset" json:"offset"`
+}
+
+type ListSchedulesRow struct {
+	ID            int32                 `db:"id" json:"id"`
+	FlowID        int32                 `db:"flow_id" json:"flow_id"`
+	Cron          string                `db:"cron" json:"cron"`
+	Timezone      string                `db:"timezone" json:"timezone"`
+	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	Uuid          uuid.UUID             `db:"uuid" json:"uuid"`
+	Inputs        pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	CreatedBy     int32                 `db:"created_by" json:"created_by"`
+	IsUserCreated bool                  `db:"is_user_created" json:"is_user_created"`
+	IsActive      bool                  `db:"is_active" json:"is_active"`
+	FlowSlug      string                `db:"flow_slug" json:"flow_slug"`
+	FlowName      string                `db:"flow_name" json:"flow_name"`
+	CreatedByUuid uuid.UUID             `db:"created_by_uuid" json:"created_by_uuid"`
+	CreatedByName string                `db:"created_by_name" json:"created_by_name"`
+	PageCount     int64                 `db:"page_count" json:"page_count"`
+	TotalCount    int64                 `db:"total_count" json:"total_count"`
+}
+
+func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([]ListSchedulesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSchedules,
+		arg.Column1,
+		arg.Uuid,
+		arg.Uuid_2,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSchedulesRow
+	for rows.Next() {
+		var i ListSchedulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FlowID,
+			&i.Cron,
+			&i.Timezone,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Uuid,
+			&i.Inputs,
+			&i.CreatedBy,
+			&i.IsUserCreated,
+			&i.IsActive,
+			&i.FlowSlug,
+			&i.FlowName,
+			&i.CreatedByUuid,
+			&i.CreatedByName,
+			&i.PageCount,
+			&i.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateUserScheduleByUUID = `-- name: UpdateUserScheduleByUUID :one
+
+WITH user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $6
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $6)
+)
+UPDATE cron_schedules cs
+SET
+    cron = $2,
+    timezone = $3,
+    inputs = $4,
+    is_active = $5,
+    updated_at = NOW()
+FROM flows f
+WHERE cs.uuid = $1
+  AND cs.flow_id = f.id
+  AND cs.is_user_created = TRUE
+  AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $7)
+  AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $6)
+        OR EXISTS (SELECT id FROM users WHERE  users.uuid = $6 AND users.role='superuser')
+        OR EXISTS (SELECT user_namespaces.uuid FROM user_namespaces WHERE user_namespaces.role='admin')
+  )
+RETURNING cs.id, cs.flow_id, cs.cron, cs.timezone, cs.created_at, cs.updated_at, cs.uuid, cs.inputs, cs.created_by, cs.is_user_created, cs.is_active
+`
+
+type UpdateUserScheduleByUUIDParams struct {
+	Uuid     uuid.UUID             `db:"uuid" json:"uuid"`
+	Cron     string                `db:"cron" json:"cron"`
+	Timezone string                `db:"timezone" json:"timezone"`
+	Inputs   pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	IsActive bool                  `db:"is_active" json:"is_active"`
+	Uuid_2   uuid.UUID             `db:"uuid_2" json:"uuid_2"`
+	Uuid_3   uuid.UUID             `db:"uuid_3" json:"uuid_3"`
+}
+
+// UPDATE cron_schedules cs
+// SET
+//
+//	cron = $2,
+//	timezone = $3,
+//	inputs = $4,
+//	is_active = $5,
+//	updated_at = NOW()
+//
+// FROM flows f
+// WHERE cs.id = $1
+//
+//	AND cs.flow_id = f.id
+//	AND cs.is_user_created = TRUE
+//	AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $7)
+//	AND cs.created_by = (SELECT id FROM users WHERE users.uuid = $6)
+//
+// RETURNING cs.*;
+func (q *Queries) UpdateUserScheduleByUUID(ctx context.Context, arg UpdateUserScheduleByUUIDParams) (CronSchedule, error) {
+	row := q.db.QueryRowContext(ctx, updateUserScheduleByUUID,
+		arg.Uuid,
+		arg.Cron,
+		arg.Timezone,
+		arg.Inputs,
+		arg.IsActive,
+		arg.Uuid_2,
+		arg.Uuid_3,
+	)
+	var i CronSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.Cron,
+		&i.Timezone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Uuid,
+		&i.Inputs,
+		&i.CreatedBy,
+		&i.IsUserCreated,
+		&i.IsActive,
+	)
+	return i, err
 }

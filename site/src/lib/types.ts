@@ -47,6 +47,40 @@ export interface Schedule {
   timezone: string;
 }
 
+export interface UserSchedule {
+  uuid: string;
+  flow_slug: string;
+  flow_name: string;
+  cron: string;
+  timezone: string;
+  inputs: Record<string, any>;
+  created_by: string;
+  is_active: boolean;
+  is_user_created: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduleCreateReq {
+  cron: string;
+  timezone: string;
+  inputs: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface ScheduleUpdateReq {
+  cron?: string;
+  timezone?: string;
+  inputs?: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface SchedulesPaginateResponse {
+  schedules: UserSchedule[];
+  page_count: number;
+  total_count: number;
+}
+
 export interface Notify {
   channel: string;
   receivers: string[];
@@ -97,6 +131,7 @@ export interface FlowMeta {
   schedules: Schedule[];
   namespace: string;
   allow_overlap: boolean;
+  user_schedulable: boolean;
 }
 
 export interface FlowAction {

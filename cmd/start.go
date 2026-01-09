@@ -343,6 +343,14 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.POST("/flows/:flowID/secrets", h.HandleCreateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionCreate))
 	namespaceGroup.PUT("/flows/:flowID/secrets/:secretID", h.HandleUpdateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/flows/:flowID/secrets/:secretID", h.HandleDeleteFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionDelete))
+
+	// Flow schedule routes - users can manage their own schedules
+	namespaceGroup.GET("/flows/:flowID/schedules", h.HandleListSchedules, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
+	namespaceGroup.GET("/flows/:flowID/schedules/:schedule_id", h.HandleGetSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
+	namespaceGroup.POST("/flows/:flowID/schedules", h.HandleCreateSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
+	namespaceGroup.PUT("/flows/:flowID/schedules/:schedule_id", h.HandleUpdateSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
+	namespaceGroup.DELETE("/flows/:flowID/schedules/:schedule_id", h.HandleDeleteSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
+
 	namespaceGroup.POST("/trigger/:flow", h.HandleFlowTrigger, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.GET("/logs/:logID", h.HandleLogStreaming, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
 

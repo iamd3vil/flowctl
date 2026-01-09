@@ -40,10 +40,10 @@ type Input struct {
 	MaxFileSize int64     `yaml:"max_file_size" huml:"max_file_size" json:"max_file_size"`
 }
 
-type Schedule struct {
-	Cron     string `yaml:"cron" huml:"cron" json:"cron" validate:"required,cron"`
-	Timezone string `yaml:"timezone" huml:"timezone" json:"timezone" validate:"required,timezone"`
-}
+// type Schedule struct {
+// 	Cron     string `yaml:"cron" huml:"cron" json:"cron" validate:"required,cron"`
+// 	Timezone string `yaml:"timezone" huml:"timezone" json:"timezone" validate:"required,timezone"`
+// }
 
 type NotifyEvent string
 
@@ -93,13 +93,14 @@ func SchedulerActionToAction(a scheduler.Action) Action {
 }
 
 type Metadata struct {
-	ID           string `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
-	DBID         int32  `yaml:"-" huml:"-"`
-	Name         string `yaml:"name" huml:"name" validate:"required"`
-	Description  string `yaml:"description" huml:"description"`
-	SrcDir       string `yaml:"-" huml:"-"`
-	Namespace    string `yaml:"namespace" huml:"namespace"`
-	AllowOverlap bool   `yaml:"allow_overlap" huml:"allow_overlap"`
+	ID              string `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
+	DBID            int32  `yaml:"-" huml:"-"`
+	Name            string `yaml:"name" huml:"name" validate:"required"`
+	Description     string `yaml:"description" huml:"description"`
+	SrcDir          string `yaml:"-" huml:"-"`
+	Namespace       string `yaml:"namespace" huml:"namespace"`
+	AllowOverlap    bool   `yaml:"allow_overlap" huml:"allow_overlap"`
+	UserSchedulable bool   `yaml:"user_schedulable" huml:"user_schedulable"`
 }
 
 type Variable map[string]any
@@ -224,6 +225,15 @@ func (f Flow) Validate() error {
 	// Check if schedules are set on a non-schedulable flow
 	if len(f.Schedules) > 0 && !f.IsSchedulable() {
 		return fmt.Errorf("cannot set schedules on flow: flow has inputs without default values")
+	}
+
+	// Check if user_schedulable is enabled on a flow with file inputs or empty defaults
+	if f.Meta.UserSchedulable {
+		for _, input := range f.Inputs {
+			if input.Type == INPUT_TYPE_FILE || input.Default == "" {
+				return fmt.Errorf("user_schedulable cannot be enabled for flows with file inputs or empty default values")
+			}
+		}
 	}
 
 	return validate.Struct(f)

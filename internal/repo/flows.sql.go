@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const createFlow = `-- name: CreateFlow :one
@@ -170,27 +171,31 @@ func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([
 }
 
 const getScheduledFlows = `-- name: GetScheduledFlows :many
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid, cs.cron, cs.timezone
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid, cs.id AS schedule_id, cs.cron, cs.timezone, cs.inputs, cs.created_by, cs.is_user_created
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
 JOIN cron_schedules cs ON cs.flow_id = f.id
-WHERE f.is_active = TRUE
+WHERE f.is_active = TRUE AND cs.is_active = TRUE
 `
 
 type GetScheduledFlowsRow struct {
-	ID            int32          `db:"id" json:"id"`
-	Slug          string         `db:"slug" json:"slug"`
-	Name          string         `db:"name" json:"name"`
-	Checksum      string         `db:"checksum" json:"checksum"`
-	Description   sql.NullString `db:"description" json:"description"`
-	FilePath      string         `db:"file_path" json:"file_path"`
-	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
-	IsActive      bool           `db:"is_active" json:"is_active"`
-	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
-	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
-	Cron          string         `db:"cron" json:"cron"`
-	Timezone      string         `db:"timezone" json:"timezone"`
+	ID            int32                 `db:"id" json:"id"`
+	Slug          string                `db:"slug" json:"slug"`
+	Name          string                `db:"name" json:"name"`
+	Checksum      string                `db:"checksum" json:"checksum"`
+	Description   sql.NullString        `db:"description" json:"description"`
+	FilePath      string                `db:"file_path" json:"file_path"`
+	NamespaceID   int32                 `db:"namespace_id" json:"namespace_id"`
+	IsActive      bool                  `db:"is_active" json:"is_active"`
+	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	NamespaceUuid uuid.UUID             `db:"namespace_uuid" json:"namespace_uuid"`
+	ScheduleID    int32                 `db:"schedule_id" json:"schedule_id"`
+	Cron          string                `db:"cron" json:"cron"`
+	Timezone      string                `db:"timezone" json:"timezone"`
+	Inputs        pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	CreatedBy     int32                 `db:"created_by" json:"created_by"`
+	IsUserCreated bool                  `db:"is_user_created" json:"is_user_created"`
 }
 
 func (q *Queries) GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow, error) {
@@ -214,8 +219,12 @@ func (q *Queries) GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.NamespaceUuid,
+			&i.ScheduleID,
 			&i.Cron,
 			&i.Timezone,
+			&i.Inputs,
+			&i.CreatedBy,
+			&i.IsUserCreated,
 		); err != nil {
 			return nil, err
 		}

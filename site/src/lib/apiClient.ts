@@ -45,7 +45,11 @@ import type {
   GroupAccessReq,
   ExecutorConfigResponse,
   ApiErrorResponse,
-  NamespacesPaginateResponse
+  NamespacesPaginateResponse,
+  UserSchedule,
+  ScheduleCreateReq,
+  ScheduleUpdateReq,
+  SchedulesPaginateResponse
 } from './types.js';
 
 export class ApiError extends Error {
@@ -255,6 +259,27 @@ export const apiClient = {
         body: formData,
         headers: {},
       });
+    },
+    schedules: {
+      list: (namespace: string, flowId: string, params: PaginateRequest = {}) =>
+        baseFetch<SchedulesPaginateResponse>(
+          `/api/v1/${namespace}/flows/${flowId}/schedules${buildQueryString(params)}`
+        ),
+      create: (namespace: string, flowId: string, schedule: ScheduleCreateReq) =>
+        baseFetch<{ schedule_id: string }>(
+          `/api/v1/${namespace}/flows/${flowId}/schedules`,
+          { method: 'POST', body: JSON.stringify(schedule) }
+        ),
+      update: (namespace: string, flowId: string, scheduleId: string, schedule: ScheduleUpdateReq) =>
+        baseFetch<{ schedule_id: string }>(
+          `/api/v1/${namespace}/flows/${flowId}/schedules/${scheduleId}`,
+          { method: 'PUT', body: JSON.stringify(schedule) }
+        ),
+      delete: (namespace: string, flowId: string, scheduleId: string) =>
+        baseFetch<void>(
+          `/api/v1/${namespace}/flows/${flowId}/schedules/${scheduleId}`,
+          { method: 'DELETE' }
+        ),
     },
   },
 

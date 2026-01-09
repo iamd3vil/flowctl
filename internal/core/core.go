@@ -44,7 +44,7 @@ func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, k
 		messengers:    messengerNames,
 	}
 
-	if err := c.LoadFlows(); err != nil {
+	if err := c.LoadFlows(context.Background()); err != nil {
 		return nil, err
 	}
 	if err := c.InitializeRBACPolicies(); err != nil {

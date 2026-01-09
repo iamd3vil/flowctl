@@ -111,11 +111,11 @@ SELECT
 FROM paged p, page_count pc, total t;
 
 -- name: GetScheduledFlows :many
-SELECT f.*, n.uuid AS namespace_uuid, cs.cron, cs.timezone
+SELECT f.*, n.uuid AS namespace_uuid, cs.id AS schedule_id, cs.cron, cs.timezone, cs.inputs, cs.created_by, cs.is_user_created
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
 JOIN cron_schedules cs ON cs.flow_id = f.id
-WHERE f.is_active = TRUE;
+WHERE f.is_active = TRUE AND cs.is_active = TRUE;
 
 -- name: MarkAllFlowsInactiveForNamespace :exec
 UPDATE flows SET is_active = FALSE, updated_at = NOW()

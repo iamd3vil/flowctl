@@ -27,12 +27,13 @@ export const load: PageLoad = async ({ params, parent, url }) => {
   const rerunFromExecId = url.searchParams.get('rerun_from');
 
   try {
-    const [flowInputs, flowMeta, executionData] = await Promise.all([
+    const [flowInputs, flowMeta, executionData, schedules] = await Promise.all([
       apiClient.flows.getInputs(params.namespace, params.flowId),
       apiClient.flows.getMeta(params.namespace, params.flowId),
       rerunFromExecId
         ? apiClient.executions.getById(params.namespace, rerunFromExecId).catch(() => null)
-        : Promise.resolve(null)
+        : Promise.resolve(null),
+      apiClient.flows.schedules.list(params.namespace, params.flowId)
     ]);
 
     return {
@@ -41,6 +42,7 @@ export const load: PageLoad = async ({ params, parent, url }) => {
       namespaceId,
       rerunFromExecId,
       executionInput: executionData?.input || null,
+      userSchedules: schedules.schedules || [],
     };
   } catch (err) {
     error(500, 'Failed to load flow data');

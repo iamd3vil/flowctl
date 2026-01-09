@@ -32,16 +32,26 @@ type Querier interface {
 	// Immediate task operations
 	CreateSchedulerTask(ctx context.Context, arg CreateSchedulerTaskParams) (SchedulerTask, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateUserSchedule(ctx context.Context, arg CreateUserScheduleParams) (CronSchedule, error)
 	DeleteAllFlows(ctx context.Context) error
 	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
-	DeleteCronSchedulesByFlowID(ctx context.Context, flowID int32) error
 	DeleteFlow(ctx context.Context, arg DeleteFlowParams) error
 	DeleteFlowSecret(ctx context.Context, arg DeleteFlowSecretParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNamespace(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNamespaceSecret(ctx context.Context, arg DeleteNamespaceSecretParams) error
 	DeleteNode(ctx context.Context, arg DeleteNodeParams) error
+	DeleteSystemCronsByFlowID(ctx context.Context, flowID int32) error
 	DeleteUserByUUID(ctx context.Context, argUuid uuid.UUID) error
+	// DELETE FROM cron_schedules cs
+	// USING flows f
+	// WHERE cs.id = $1
+	//   AND cs.flow_id = f.id
+	//   AND cs.is_user_created = TRUE
+	//   AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+	//   AND cs.created_by = (SELECT id FROM users WHERE users.uuid = $2);
+	DeleteUserScheduleByUUID(ctx context.Context, arg DeleteUserScheduleByUUIDParams) (int64, error)
+	DisableUserSchedulesForFlow(ctx context.Context, flowID int32) error
 	ExecutionExistsForFlow(ctx context.Context, arg ExecutionExistsForFlowParams) (bool, error)
 	GetAllCronSchedules(ctx context.Context) ([]GetAllCronSchedulesRow, error)
 	GetAllExecutionsPaginated(ctx context.Context, arg GetAllExecutionsPaginatedParams) ([]GetAllExecutionsPaginatedRow, error)
@@ -86,6 +96,7 @@ type Querier interface {
 	GetNodeStats(ctx context.Context, argUuid uuid.UUID) (GetNodeStatsRow, error)
 	GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams) ([]GetNodesByNamesRow, error)
 	GetPendingTasks(ctx context.Context, limit int32) ([]SchedulerTask, error)
+	GetScheduleByFlowAndCron(ctx context.Context, arg GetScheduleByFlowAndCronParams) (CronSchedule, error)
 	GetScheduledExecutionsByFlow(ctx context.Context, arg GetScheduledExecutionsByFlowParams) ([]GetScheduledExecutionsByFlowRow, error)
 	GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
@@ -95,6 +106,19 @@ type Querier interface {
 	GetUserByUsernameWithGroups(ctx context.Context, username string) (UserView, error)
 	GetUserGroups(ctx context.Context, argUuid uuid.UUID) ([]Group, error)
 	GetUserNamespacesWithRoles(ctx context.Context, argUuid uuid.UUID) ([]GetUserNamespacesWithRolesRow, error)
+	// SELECT
+	//     cs.*,
+	//     f.slug as flow_slug,
+	//     f.name as flow_name,
+	//     u.uuid as created_by_uuid,
+	//     u.name as created_by_name
+	// FROM cron_schedules cs
+	// JOIN flows f ON cs.flow_id = f.id
+	// LEFT JOIN users u ON cs.created_by = u.id
+	// WHERE cs.id = $1
+	//   AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $3)
+	//   AND (cs.created_by = (SELECT id FROM users WHERE users.uuid = $2) OR cs.is_user_created = FALSE);
+	GetUserScheduleByUUID(ctx context.Context, arg GetUserScheduleByUUIDParams) (GetUserScheduleByUUIDRow, error)
 	GetUsersByRole(ctx context.Context, role UserRoleType) ([]User, error)
 	IncrementActionRetry(ctx context.Context, arg IncrementActionRetryParams) (IncrementActionRetryRow, error)
 	ListFlowSecrets(ctx context.Context, arg ListFlowSecretsParams) ([]ListFlowSecretsRow, error)
@@ -102,6 +126,7 @@ type Querier interface {
 	ListFlowsPaginated(ctx context.Context, arg ListFlowsPaginatedParams) ([]ListFlowsPaginatedRow, error)
 	ListNamespaceSecrets(ctx context.Context, argUuid uuid.UUID) ([]ListNamespaceSecretsRow, error)
 	ListNamespaces(ctx context.Context, arg ListNamespacesParams) ([]ListNamespacesRow, error)
+	ListSchedules(ctx context.Context, arg ListSchedulesParams) ([]ListSchedulesRow, error)
 	MarkAllFlowsInactiveForNamespace(ctx context.Context, argUuid uuid.UUID) error
 	MarkFlowActive(ctx context.Context, arg MarkFlowActiveParams) error
 	RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error)
@@ -129,6 +154,21 @@ type Querier interface {
 	UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) error
 	UpdateUserByUUID(ctx context.Context, arg UpdateUserByUUIDParams) (User, error)
 	UpdateUserPasswordByUsername(ctx context.Context, arg UpdateUserPasswordByUsernameParams) (User, error)
+	// UPDATE cron_schedules cs
+	// SET
+	//     cron = $2,
+	//     timezone = $3,
+	//     inputs = $4,
+	//     is_active = $5,
+	//     updated_at = NOW()
+	// FROM flows f
+	// WHERE cs.id = $1
+	//   AND cs.flow_id = f.id
+	//   AND cs.is_user_created = TRUE
+	//   AND f.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $7)
+	//   AND cs.created_by = (SELECT id FROM users WHERE users.uuid = $6)
+	// RETURNING cs.*;
+	UpdateUserScheduleByUUID(ctx context.Context, arg UpdateUserScheduleByUUIDParams) (CronSchedule, error)
 }
 
 var _ Querier = (*Queries)(nil)

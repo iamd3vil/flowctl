@@ -33,6 +33,7 @@
             schedules: [] as Schedule[],
             namespace: namespace,
             allow_overlap: false,
+            user_schedulable: false,
         },
         inputs: [] as any[],
         actions: [] as any[],
@@ -112,13 +113,16 @@
                 schedules: config.metadata.schedules || [],
                 namespace: namespace,
                 allow_overlap: config.metadata.allow_overlap || false,
+                user_schedulable: config.metadata.user_schedulable || false,
             };
 
             // Transform inputs
             flow.inputs = (config.inputs || []).map((input) => ({
                 ...input,
                 optionsText: input.options ? input.options.join("\n") : "",
-                maxFileSizeMB: input.max_file_size ? input.max_file_size / 1024 / 1024 : undefined,
+                maxFileSizeMB: input.max_file_size
+                    ? input.max_file_size / 1024 / 1024
+                    : undefined,
             }));
 
             // Transform actions
@@ -207,6 +211,7 @@
                 schedules:
                     flow.metadata.schedules?.filter((s) => s.cron.trim()) || [],
                 allow_overlap: flow.metadata.allow_overlap,
+                user_schedulable: flow.metadata.user_schedulable,
                 description: flow.metadata.description || undefined,
                 inputs: flow.inputs
                     .filter((i) => i.name)

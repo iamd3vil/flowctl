@@ -32,6 +32,7 @@
             schedules: [] as Schedule[],
             namespace: namespace,
             allow_overlap: false,
+            user_schedulable: false,
         },
         inputs: [] as any[],
         actions: [] as any[],
@@ -120,7 +121,8 @@
                     schedules:
                         flow.metadata.schedules?.filter((s) => s.cron.trim()) ||
                         undefined,
-                    allow_overlap: flow.metadata.allow_overlap || undefined,
+                    allow_overlap: flow.metadata.allow_overlap || false,
+                    user_schedulable: flow.metadata.user_schedulable || false,
                 },
                 inputs: flow.inputs
                     .filter((i) => i.name)

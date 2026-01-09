@@ -351,12 +351,17 @@ type Credential struct {
 }
 
 type CronSchedule struct {
-	ID        int32     `db:"id" json:"id"`
-	FlowID    int32     `db:"flow_id" json:"flow_id"`
-	Cron      string    `db:"cron" json:"cron"`
-	Timezone  string    `db:"timezone" json:"timezone"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	ID            int32                 `db:"id" json:"id"`
+	FlowID        int32                 `db:"flow_id" json:"flow_id"`
+	Cron          string                `db:"cron" json:"cron"`
+	Timezone      string                `db:"timezone" json:"timezone"`
+	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	Uuid          uuid.UUID             `db:"uuid" json:"uuid"`
+	Inputs        pqtype.NullRawMessage `db:"inputs" json:"inputs"`
+	CreatedBy     int32                 `db:"created_by" json:"created_by"`
+	IsUserCreated bool                  `db:"is_user_created" json:"is_user_created"`
+	IsActive      bool                  `db:"is_active" json:"is_active"`
 }
 
 type ExecutionLog struct {

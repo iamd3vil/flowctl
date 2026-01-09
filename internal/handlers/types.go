@@ -412,12 +412,13 @@ func coreFlowInputsToInputs(inputs []models.Input) []FlowInput {
 }
 
 type FlowMeta struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Description  string     `json:"description"`
-	Schedules    []Schedule `json:"schedules"`
-	Namespace    string     `json:"namespace"`
-	AllowOverlap bool       `json:"allow_overlap"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	Schedules       []Schedule `json:"schedules"`
+	Namespace       string     `json:"namespace"`
+	AllowOverlap    bool       `json:"allow_overlap"`
+	UserSchedulable bool       `json:"user_schedulable"`
 }
 
 func coreSchedulesToSchedules(schedules []models.Schedule) []Schedule {
@@ -433,12 +434,13 @@ func coreSchedulesToSchedules(schedules []models.Schedule) []Schedule {
 
 func coreFlowMetatoFlowMeta(m models.Metadata, schedules []models.Schedule) FlowMeta {
 	return FlowMeta{
-		ID:           m.ID,
-		Name:         m.Name,
-		Description:  m.Description,
-		Schedules:    coreSchedulesToSchedules(schedules),
-		Namespace:    m.Namespace,
-		AllowOverlap: m.AllowOverlap,
+		ID:              m.ID,
+		Name:            m.Name,
+		Description:     m.Description,
+		Schedules:       coreSchedulesToSchedules(schedules),
+		Namespace:       m.Namespace,
+		AllowOverlap:    m.AllowOverlap,
+		UserSchedulable: m.UserSchedulable,
 	}
 }
 
@@ -469,9 +471,9 @@ func coreFlowActionstoFlowActions(a []models.Action) []FlowAction {
 }
 
 type FlowMetaResp struct {
-	Metadata            FlowMeta              `json:"meta"`
-	Actions             []FlowAction          `json:"actions"`
-	ScheduledExecutions []ScheduledExecution  `json:"scheduled_executions"`
+	Metadata            FlowMeta             `json:"meta"`
+	Actions             []FlowAction         `json:"actions"`
+	ScheduledExecutions []ScheduledExecution `json:"scheduled_executions"`
 }
 
 type ScheduledExecution struct {
@@ -651,18 +653,10 @@ func coreExecutionSummaryToExecutionSummary(e models.ExecutionSummary) Execution
 }
 
 type FlowCreateReq struct {
-	Meta          FlowMetaReq     `json:"metadata" validate:"required"`
+	Meta          FlowMeta        `json:"metadata" validate:"required"`
 	Inputs        []FlowInputReq  `json:"inputs" validate:"required,dive"`
 	Actions       []FlowActionReq `json:"actions" validate:"required,dive"`
 	Notifications []Notify        `json:"notify" validate:"omitempty,dive"`
-}
-
-type FlowMetaReq struct {
-	Name         string     `json:"name" validate:"required,min=2,max=150,alphanum_whitespace"`
-	Description  string     `json:"description" validate:"max=255"`
-	Schedules    []Schedule `json:"schedules" validate:"omitempty,dive"`
-	Notify       []Notify   `json:"notify" validate:"omitempty,dive"`
-	AllowOverlap bool       `json:"allow_overlap"`
 }
 
 type FlowInputReq struct {
@@ -704,12 +698,13 @@ type ExecutionGetReq struct {
 }
 
 type FlowUpdateReq struct {
-	Schedules    []Schedule      `json:"schedules" validate:"omitempty,dive"`
-	Notify       []Notify        `json:"notify" validate:"omitempty,dive"`
-	AllowOverlap bool            `json:"allow_overlap"`
-	Description  string          `json:"description" validate:"max=255"`
-	Inputs       []FlowInputReq  `json:"inputs" validate:"required,dive"`
-	Actions      []FlowActionReq `json:"actions" validate:"required,dive"`
+	Schedules       []Schedule      `json:"schedules" validate:"omitempty,dive"`
+	Notify          []Notify        `json:"notify" validate:"omitempty,dive"`
+	AllowOverlap    bool            `json:"allow_overlap"`
+	UserSchedulable bool            `json:"user_schedulable"`
+	Description     string          `json:"description" validate:"max=255"`
+	Inputs          []FlowInputReq  `json:"inputs" validate:"required,dive"`
+	Actions         []FlowActionReq `json:"actions" validate:"required,dive"`
 }
 
 // Helper functions to convert request types to models
@@ -873,4 +868,79 @@ type FlowCancellationResp struct {
 
 type MessengersResp struct {
 	Messengers []string `json:"messengers"`
+}
+
+type ScheduleCreateReq struct {
+	FlowID   string                 `param:"flowID" validate:"required"`
+	Cron     string                 `json:"cron" validate:"required,cron"`
+	Timezone string                 `json:"timezone" validate:"required,timezone"`
+	Inputs   map[string]interface{} `json:"inputs" validate:"required"`
+}
+
+type ScheduleUpdateReq struct {
+	FlowID     string                 `param:"flowID" validate:"required"`
+	ScheduleID string                 `param:"schedule_id" validate:"required,uuid4"`
+	Cron       string                 `json:"cron" validate:"required,cron"`
+	Timezone   string                 `json:"timezone" validate:"required,timezone"`
+	Inputs     map[string]interface{} `json:"inputs" validate:"required"`
+	IsActive   bool                   `json:"is_active"`
+}
+
+type ScheduleGetReq struct {
+	FlowID     string `param:"flowID" validate:"required"`
+	ScheduleID string `param:"schedule_id" validate:"required,uuid4"`
+}
+
+type ScheduleListReq struct {
+	FlowID string `param:"flowID" validate:"required"`
+	Page   int    `query:"page"`
+	Count  int    `query:"count_per_page"`
+}
+
+type ScheduleUpdateResp struct {
+	ScheduleID string `json:"schedule_id"`
+}
+
+type ScheduleResp struct {
+	UUID          string                 `json:"uuid"`
+	FlowSlug      string                 `json:"flow_slug"`
+	FlowName      string                 `json:"flow_name"`
+	Cron          string                 `json:"cron"`
+	Timezone      string                 `json:"timezone"`
+	Inputs        map[string]interface{} `json:"inputs"`
+	CreatedBy     string                 `json:"created_by"`
+	IsActive      bool                   `json:"is_active"`
+	IsUserCreated bool                   `json:"is_user_created"`
+	CreatedAt     string                 `json:"created_at"`
+	UpdatedAt     string                 `json:"updated_at"`
+}
+
+type SchedulesPaginateResponse struct {
+	Schedules  []ScheduleResp `json:"schedules"`
+	PageCount  int64          `json:"page_count"`
+	TotalCount int64          `json:"total_count"`
+}
+
+func coreScheduleToScheduleResp(s models.Schedule) ScheduleResp {
+	return ScheduleResp{
+		UUID:          s.UUID,
+		FlowSlug:      s.FlowSlug,
+		FlowName:      s.FlowName,
+		Cron:          s.Cron,
+		Timezone:      s.Timezone,
+		Inputs:        s.Inputs,
+		CreatedBy:     s.CreatedByID,
+		IsActive:      s.IsActive,
+		IsUserCreated: s.IsUserCreated,
+		CreatedAt:     s.CreatedAt.Format(TimeFormat),
+		UpdatedAt:     s.UpdatedAt.Format(TimeFormat),
+	}
+}
+
+func coreSchedulesToScheduleResps(schedules []models.Schedule) []ScheduleResp {
+	resp := make([]ScheduleResp, len(schedules))
+	for i, s := range schedules {
+		resp[i] = coreScheduleToScheduleResp(s)
+	}
+	return resp
 }

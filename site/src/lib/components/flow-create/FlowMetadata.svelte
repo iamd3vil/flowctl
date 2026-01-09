@@ -15,6 +15,7 @@
             schedules: Schedule[];
             namespace: string;
             allow_overlap: boolean;
+            user_schedulable: boolean;
         };
         inputs?: any[];
         updatemode?: boolean;
@@ -29,6 +30,13 @@
     );
 
     let isSchedulable = $derived(!hasFileInputs && !hasMissingDefaults);
+
+    // Auto-disable user_schedulable when file inputs are detected
+    $effect(() => {
+        if (hasFileInputs && metadata.user_schedulable) {
+            metadata.user_schedulable = false;
+        }
+    });
 
     function updateName(value: string) {
         if (updatemode) return;
@@ -137,6 +145,24 @@
                 execution is still running / waiting for approval.
             </p>
         </div>
+
+        {#if isSchedulable}
+            <div class="mb-6">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        bind:checked={metadata.user_schedulable}
+                        class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                    />
+                    <span class="text-sm font-medium text-gray-700"
+                        >Allow User Schedules</span
+                    >
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-6">
+                    Users can create their own cron schedules for this flow
+                </p>
+            </div>
+        {/if}
 
         {#if isSchedulable}
             <div>
