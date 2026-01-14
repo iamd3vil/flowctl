@@ -113,7 +113,9 @@ Before adding a node, create SSH credentials:
 
 ### Using Remote Nodes in Flows
 
-Execute actions on remote nodes using the `on` field. This will be the node name:
+Execute actions on remote nodes using the `on` field. You can specify node names directly or use tags to target multiple nodes.
+
+#### By Node Name
 
 ```yaml
 actions:
@@ -123,15 +125,32 @@ actions:
     on:
       - WebServer1
       - WebServer2
-    variables:
-      - version: "{{ inputs.version }}"
-    with:
-      script: |
-        cd /var/www/app
-        git fetch --all
-        git checkout $version
-        sudo systemctl restart app
 ```
+
+#### By Tag
+
+Use the `tag:` prefix to run on all nodes with a specific tag:
+
+```yaml
+actions:
+  - id: deploy_to_dev
+    name: Deploy to Dev Servers
+    executor: script
+    on:
+      - tag:dev
+```
+
+You can mix node names and tags:
+
+```yaml
+on:
+  - WebServer1
+  - tag:backend
+```
+
+![Node Selector](../../../assets/images/node-selector.png)
+
+In the UI, type `tag:` followed by the tag name to search by tag. You can either select the tag itself (targets all nodes with that tag) or pick individual nodes from the results.
 
 **Key Points:**
 
@@ -139,6 +158,7 @@ actions:
 - Each node receives the same inputs and variables
 - Outputs are collected from all nodes
 - If any node action fails, the entire flow will fail
+- When using tags, nodes are resolved at execution time. Add/remove nodes from a tag without updating flows
 
 ## Next Steps
 
