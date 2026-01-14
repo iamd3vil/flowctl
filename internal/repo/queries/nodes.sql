@@ -16,6 +16,8 @@ WITH filtered AS (
         $4 = '' OR
         n.name ILIKE '%' || $4::text || '%' OR
         n.hostname ILIKE '%' || $4::text || '%'
+    ) AND (
+        $5::text[] IS NULL OR array_length($5::text[], 1) IS NULL OR n.tags && $5::text[]
     )
 ),
 total AS (
@@ -71,6 +73,31 @@ FROM nodes n
 JOIN namespaces ns ON n.namespace_id = ns.id
 LEFT JOIN credentials c ON n.credential_id = c.id
 WHERE n.name = ANY($1::text[]) AND ns.uuid = $2
+ORDER BY n.name;
+
+-- name: GetNodesByTags :many
+WITH updated_credentials AS (
+    UPDATE credentials
+    SET last_accessed = NOW()
+    WHERE id IN (
+        SELECT DISTINCT n.credential_id
+        FROM nodes n
+        JOIN namespaces ns ON n.namespace_id = ns.id
+        WHERE n.tags && $1::text[] AND ns.uuid = $2 AND n.credential_id IS NOT NULL
+    )
+    RETURNING *
+)
+SELECT
+    n.*,
+    ns.uuid AS namespace_uuid,
+    c.uuid AS credential_uuid,
+    c.name AS credential_name,
+    c.key_type AS credential_key_type,
+    c.key_data AS credential_key_data
+FROM nodes n
+JOIN namespaces ns ON n.namespace_id = ns.id
+LEFT JOIN credentials c ON n.credential_id = c.id
+WHERE n.tags && $1::text[] AND ns.uuid = $2
 ORDER BY n.name;
 
 -- name: GetNodeStats :one

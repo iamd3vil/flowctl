@@ -41,6 +41,7 @@ import type {
   UsersPaginateResponse,
   GroupsPaginateResponse,
   PaginateRequest,
+  NodePaginateRequest,
   ApprovalPaginateRequest,
   GroupAccessReq,
   ExecutorConfigResponse,
@@ -285,7 +286,7 @@ export const apiClient = {
 
   // Nodes
   nodes: {
-    list: (namespace: string, params: PaginateRequest = {}) =>
+    list: (namespace: string, params: NodePaginateRequest = {}) =>
       baseFetch<NodesPaginateResponse>(`/api/v1/${namespace}/nodes${buildQueryString(params)}`),
     getStats: (namespace: string) =>
       baseFetch<NodeStatsResp>(`/api/v1/${namespace}/nodes/stats`),

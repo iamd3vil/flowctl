@@ -303,6 +303,102 @@ func (q *Queries) GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams
 	return items, nil
 }
 
+const getNodesByTags = `-- name: GetNodesByTags :many
+WITH updated_credentials AS (
+    UPDATE credentials
+    SET last_accessed = NOW()
+    WHERE id IN (
+        SELECT DISTINCT n.credential_id
+        FROM nodes n
+        JOIN namespaces ns ON n.namespace_id = ns.id
+        WHERE n.tags && $1::text[] AND ns.uuid = $2 AND n.credential_id IS NOT NULL
+    )
+    RETURNING id, uuid, name, key_type, key_data, namespace_id, last_accessed, created_at, updated_at
+)
+SELECT
+    n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at,
+    ns.uuid AS namespace_uuid,
+    c.uuid AS credential_uuid,
+    c.name AS credential_name,
+    c.key_type AS credential_key_type,
+    c.key_data AS credential_key_data
+FROM nodes n
+JOIN namespaces ns ON n.namespace_id = ns.id
+LEFT JOIN credentials c ON n.credential_id = c.id
+WHERE n.tags && $1::text[] AND ns.uuid = $2
+ORDER BY n.name
+`
+
+type GetNodesByTagsParams struct {
+	Column1 []string  `db:"column_1" json:"column_1"`
+	Uuid    uuid.UUID `db:"uuid" json:"uuid"`
+}
+
+type GetNodesByTagsRow struct {
+	ID                int32                `db:"id" json:"id"`
+	Uuid              uuid.UUID            `db:"uuid" json:"uuid"`
+	Name              string               `db:"name" json:"name"`
+	Hostname          string               `db:"hostname" json:"hostname"`
+	Port              int32                `db:"port" json:"port"`
+	Username          string               `db:"username" json:"username"`
+	OsFamily          string               `db:"os_family" json:"os_family"`
+	Tags              []string             `db:"tags" json:"tags"`
+	AuthMethod        AuthenticationMethod `db:"auth_method" json:"auth_method"`
+	ConnectionType    ConnectionType       `db:"connection_type" json:"connection_type"`
+	CredentialID      sql.NullInt32        `db:"credential_id" json:"credential_id"`
+	NamespaceID       int32                `db:"namespace_id" json:"namespace_id"`
+	CreatedAt         time.Time            `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time            `db:"updated_at" json:"updated_at"`
+	NamespaceUuid     uuid.UUID            `db:"namespace_uuid" json:"namespace_uuid"`
+	CredentialUuid    uuid.NullUUID        `db:"credential_uuid" json:"credential_uuid"`
+	CredentialName    sql.NullString       `db:"credential_name" json:"credential_name"`
+	CredentialKeyType sql.NullString       `db:"credential_key_type" json:"credential_key_type"`
+	CredentialKeyData sql.NullString       `db:"credential_key_data" json:"credential_key_data"`
+}
+
+func (q *Queries) GetNodesByTags(ctx context.Context, arg GetNodesByTagsParams) ([]GetNodesByTagsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getNodesByTags, pq.Array(arg.Column1), arg.Uuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetNodesByTagsRow
+	for rows.Next() {
+		var i GetNodesByTagsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.Name,
+			&i.Hostname,
+			&i.Port,
+			&i.Username,
+			&i.OsFamily,
+			pq.Array(&i.Tags),
+			&i.AuthMethod,
+			&i.ConnectionType,
+			&i.CredentialID,
+			&i.NamespaceID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.NamespaceUuid,
+			&i.CredentialUuid,
+			&i.CredentialName,
+			&i.CredentialKeyType,
+			&i.CredentialKeyData,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchNodes = `-- name: SearchNodes :many
 WITH filtered AS (
     SELECT n.id, n.uuid, n.name, n.hostname, n.port, n.username, n.os_family, n.tags, n.auth_method, n.connection_type, n.credential_id, n.namespace_id, n.created_at, n.updated_at, ns.uuid AS namespace_uuid FROM nodes n
@@ -311,6 +407,8 @@ WITH filtered AS (
         $4 = '' OR
         n.name ILIKE '%' || $4::text || '%' OR
         n.hostname ILIKE '%' || $4::text || '%'
+    ) AND (
+        $5::text[] IS NULL OR array_length($5::text[], 1) IS NULL OR n.tags && $5::text[]
     )
 ),
 total AS (
@@ -335,6 +433,7 @@ type SearchNodesParams struct {
 	Limit   int32       `db:"limit" json:"limit"`
 	Offset  int32       `db:"offset" json:"offset"`
 	Column4 interface{} `db:"column_4" json:"column_4"`
+	Column5 []string    `db:"column_5" json:"column_5"`
 }
 
 type SearchNodesRow struct {
@@ -363,6 +462,7 @@ func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]Sea
 		arg.Limit,
 		arg.Offset,
 		arg.Column4,
+		pq.Array(arg.Column5),
 	)
 	if err != nil {
 		return nil, err

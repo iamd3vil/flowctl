@@ -331,6 +331,10 @@ export interface ApprovalPaginateRequest extends PaginateRequest {
   status?: "pending" | "approved" | "rejected" | "";
 }
 
+export interface NodePaginateRequest extends PaginateRequest {
+  tags?: string[];
+}
+
 export interface PaginatedResponse<T> {
   page_count: number;
   total_count: number;

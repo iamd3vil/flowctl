@@ -433,8 +433,22 @@ func MarshalFlow(f Flow, format FlowFormat) ([]byte, error) {
 	return data, nil
 }
 
+// ParseActionTargets parses the On array and separates node names from tag references.
+// Tag references are prefixed with "tag:" (e.g., "tag:web").
+// Returns two slices: node names and tags (without the "tag:" prefix).
+func ParseActionTargets(on []string) (nodeNames []string, tags []string) {
+	for _, item := range on {
+		if tagName, ok := strings.CutPrefix(item, "tag:"); ok {
+			tags = append(tags, tagName)
+		} else {
+			nodeNames = append(nodeNames, item)
+		}
+	}
+	return nodeNames, tags
+}
+
 // ConvertToSchedulerFlow converts a Flow to scheduler.Flow
-func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID, getNodesByNames func(context.Context, []string, uuid.UUID) ([]Node, error)) (scheduler.Flow, error) {
+func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID, getNodesByNames func(context.Context, []string, uuid.UUID) ([]Node, error), getNodesByTags func(context.Context, []string, uuid.UUID) ([]Node, error)) (scheduler.Flow, error) {
 	// Convert inputs
 	var inputs []scheduler.Input
 	for _, inp := range f.Inputs {
@@ -450,13 +464,35 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 		})
 	}
 
-	// Convert actions
 	var actions []scheduler.Action
 	for _, act := range f.Actions {
-		// Get nodes for this action
-		nodes, err := getNodesByNames(ctx, act.On, namespaceUUID)
-		if err != nil && len(act.On) > 0 {
-			return scheduler.Flow{}, fmt.Errorf("failed to get nodes for action %s: %w", act.ID, err)
+		nodeNames, tags := ParseActionTargets(act.On)
+
+		var nodes []Node
+		if len(nodeNames) > 0 {
+			nodesByName, err := getNodesByNames(ctx, nodeNames, namespaceUUID)
+			if err != nil {
+				return scheduler.Flow{}, fmt.Errorf("failed to get nodes by names for action %s: %w", act.ID, err)
+			}
+			nodes = append(nodes, nodesByName...)
+		}
+
+		if len(tags) > 0 {
+			nodesByTags, err := getNodesByTags(ctx, tags, namespaceUUID)
+			if err != nil {
+				return scheduler.Flow{}, fmt.Errorf("failed to get nodes by tag for action %s: %w", act.ID, err)
+			}
+			// Deduplicate nodes
+			seen := make(map[string]bool)
+			for _, n := range nodes {
+				seen[n.ID] = true
+			}
+			for _, n := range nodesByTags {
+				if !seen[n.ID] {
+					nodes = append(nodes, n)
+					seen[n.ID] = true
+				}
+			}
 		}
 
 		// Convert nodes to scheduler format

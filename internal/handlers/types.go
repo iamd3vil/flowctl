@@ -112,6 +112,13 @@ type PaginateRequest struct {
 	Count  int    `query:"count_per_page"`
 }
 
+type NodePaginateRequest struct {
+	Filter string   `query:"filter"`
+	Tags   []string `query:"tags"`
+	Page   int      `query:"page"`
+	Count  int      `query:"count_per_page"`
+}
+
 type UsersPaginateResponse struct {
 	Users      []UserWithGroups `json:"users"`
 	PageCount  int64            `json:"page_count"`

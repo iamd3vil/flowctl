@@ -241,60 +241,6 @@ func (c *Core) RetryFlowExecution(ctx context.Context, execID string, userUUID s
 	return c.ResumeFlowExecution(ctx, execID, exec.CurrentActionID, userUUID, namespaceID, true)
 }
 
-// GetNodesByNames retrieves nodes by their names and returns a slice of models.Node
-// This is used as a lookup function for converting flows to task models
-func (c *Core) GetNodesByNames(ctx context.Context, nodeNames []string, namespaceUUID uuid.UUID) ([]models.Node, error) {
-	if len(nodeNames) == 0 {
-		return nil, nil
-	}
-
-	n, err := c.store.GetNodesByNames(ctx, repo.GetNodesByNamesParams{
-		Column1: nodeNames,
-		Uuid:    namespaceUUID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("could not get nodes by names %v: %w", nodeNames, err)
-	}
-
-	var nodes []models.Node
-	for _, v := range n {
-		key := v.CredentialKeyData.String
-
-		// decrypt the key
-		dKey, err := hex.DecodeString(key)
-		if err != nil {
-			return nil, fmt.Errorf("could not decode key for node %s: %w", v.Name, err)
-		}
-
-		decryptedKey, err := c.keeper.Decrypt(ctx, []byte(dKey))
-		if err != nil {
-			return nil, fmt.Errorf("could not decrypt key for node %s: %w", v.Name, err)
-		}
-
-		nodes = append(nodes, models.Node{
-			ID:             v.Uuid.String(),
-			Name:           v.Name,
-			Hostname:       v.Hostname,
-			Port:           int(v.Port),
-			Username:       v.Username,
-			OSFamily:       v.OsFamily,
-			Tags:           v.Tags,
-			ConnectionType: string(v.ConnectionType),
-			Auth: models.NodeAuth{
-				CredentialID: v.CredentialUuid.UUID.String(),
-				Method:       models.AuthMethod(v.AuthMethod),
-				Key:          string(decryptedKey),
-			},
-		})
-	}
-
-	if len(nodes) == 0 {
-		return nil, fmt.Errorf("no nodes found for names %v", nodeNames)
-	}
-
-	return nodes, nil
-}
-
 // queueFlow adds a flow to the execution queue. If the actionIndex is not zero, it is moved to a resume queue.
 // If scheduledAt is provided, the flow will be scheduled to run at that time instead of immediately.
 func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]interface{}, execID string, actionIndex int, userUUID string, namespaceID string, retry bool, scheduledAt *time.Time) (string, error) {
@@ -323,7 +269,7 @@ func (c *Core) queueFlow(ctx context.Context, f models.Flow, input map[string]in
 	}
 
 	// Convert to scheduler flow format
-	schedulerFlow, err := models.ConvertToSchedulerFlow(ctx, f, namespaceUUID, c.GetNodesByNames)
+	schedulerFlow, err := models.ConvertToSchedulerFlow(ctx, f, namespaceUUID, c.GetNodesByNames, c.GetNodesByTags)
 	if err != nil {
 		return "", fmt.Errorf("error converting flow to scheduler model: %w", err)
 	}
@@ -958,7 +904,7 @@ func (c *Core) GetSchedulerFlow(ctx context.Context, flowSlug string, namespaceU
 	}
 
 	// Convert to scheduler format with nodes resolved
-	return models.ConvertToSchedulerFlow(ctx, flow, nsUUID, c.GetNodesByNames)
+	return models.ConvertToSchedulerFlow(ctx, flow, nsUUID, c.GetNodesByNames, c.GetNodesByTags)
 }
 
 // removeDuplicateSchedules removes duplicate schedules from a slice

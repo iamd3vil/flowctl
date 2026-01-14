@@ -3,12 +3,12 @@
   import { apiClient } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
   import type { NodeResp } from '$lib/types';
-  import { IconChevronDown, IconServer, IconX } from '@tabler/icons-svelte';
+  import { IconChevronDown, IconServer, IconTag, IconX } from '@tabler/icons-svelte';
 
   let {
     namespace,
     selectedNodes = $bindable([]),
-    placeholder = 'Search nodes...',
+    placeholder = 'Search nodes or use tag:name...',
     disabled = false,
     multiple = true
   }: {
@@ -24,9 +24,41 @@
   let showDropdown = $state(false);
   let loading = $state(false);
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isTagSearch = $state(false);
+  let currentTagQuery = $state('');
 
   async function searchNodes(filter: string = '') {
     loading = true;
+    isTagSearch = false;
+    currentTagQuery = '';
+
+    // Check if this is a tag search
+    if (filter.startsWith('tag:')) {
+      const tagName = filter.slice(4).trim();
+      isTagSearch = true;
+      currentTagQuery = tagName;
+
+      if (tagName) {
+        try {
+          const response = await apiClient.nodes.list(namespace, {
+            count_per_page: 100,
+            tags: [tagName]
+          });
+          searchResults = response.nodes || [];
+        } catch (error) {
+          handleInlineError(error, 'Unable to Load Nodes');
+          searchResults = [];
+        } finally {
+          loading = false;
+        }
+        return;
+      } else {
+        searchResults = [];
+        loading = false;
+        return;
+      }
+    }
+
     try {
       const response = await apiClient.nodes.list(namespace, {
         count_per_page: 100,
@@ -39,6 +71,10 @@
     } finally {
       loading = false;
     }
+  }
+
+  function isTagSelection(item: string): boolean {
+    return item.startsWith('tag:');
   }
 
   async function handleInput() {
@@ -66,6 +102,19 @@
       }
     } else {
       selectedNodes = [node.name];
+    }
+    searchQuery = '';
+    showDropdown = false;
+  }
+
+  function selectTag(tagName: string) {
+    const tagValue = `tag:${tagName}`;
+    if (multiple) {
+      if (!selectedNodes.includes(tagValue)) {
+        selectedNodes = [...selectedNodes, tagValue];
+      }
+    } else {
+      selectedNodes = [tagValue];
     }
     searchQuery = '';
     showDropdown = false;
@@ -119,7 +168,33 @@
     <!-- Dropdown -->
     {#if showDropdown}
       <div class="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <!-- Tag selection option when searching by tag -->
+        {#if isTagSearch && currentTagQuery && !selectedNodes.includes(`tag:${currentTagQuery}`)}
+          <div
+            class="px-4 py-2 hover:bg-success-50 cursor-pointer border-b border-gray-200"
+            onclick={() => selectTag(currentTagQuery)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => e.key === 'Enter' && selectTag(currentTagQuery)}
+          >
+            <div class="flex items-center">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-success-100">
+                <IconTag class="text-success-600" size={16} />
+              </div>
+              <div>
+                <div class="text-sm font-medium text-success-900">Select tag: {currentTagQuery}</div>
+                <div class="text-xs text-success-600">{searchResults.length} node{searchResults.length !== 1 ? 's' : ''} with this tag</div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
         {#if searchResults.length > 0}
+          {#if isTagSearch}
+            <div class="px-4 py-1 text-xs text-gray-500 bg-gray-50 border-b border-gray-100">
+              Or select individual nodes:
+            </div>
+          {/if}
           {#each searchResults as node}
             <!-- Skip already selected nodes -->
             {#if !selectedNodes.includes(node.name)}
@@ -155,19 +230,36 @@
   {#if selectedNodes.length > 0}
     <div class="mt-2 flex flex-wrap gap-1">
       {#each selectedNodes as nodeName (nodeName)}
-        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-900">
-          {nodeName}
-          {#if !disabled}
-            <button
-              type="button"
-              onclick={() => removeNode(nodeName)}
-              class="ml-1 text-primary-500 hover:text-primary-900 cursor-pointer"
-              aria-label="Remove {nodeName}"
-            >
-              <IconX size={12} />
-            </button>
-          {/if}
-        </span>
+        {#if isTagSelection(nodeName)}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-success-100 text-success-900">
+            <IconTag size={12} class="mr-1" />
+            {nodeName.slice(4)}
+            {#if !disabled}
+              <button
+                type="button"
+                onclick={() => removeNode(nodeName)}
+                class="ml-1 text-success-500 hover:text-success-900 cursor-pointer"
+                aria-label="Remove {nodeName}"
+              >
+                <IconX size={12} />
+              </button>
+            {/if}
+          </span>
+        {:else}
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-900">
+            {nodeName}
+            {#if !disabled}
+              <button
+                type="button"
+                onclick={() => removeNode(nodeName)}
+                class="ml-1 text-primary-500 hover:text-primary-900 cursor-pointer"
+                aria-label="Remove {nodeName}"
+              >
+                <IconX size={12} />
+              </button>
+            {/if}
+          </span>
+        {/if}
       {/each}
     </div>
   {/if}

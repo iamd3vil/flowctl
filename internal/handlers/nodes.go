@@ -75,7 +75,7 @@ func (h *Handler) HandleListNodes(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
 	}
 
-	var req PaginateRequest
+	var req NodePaginateRequest
 	if err := c.Bind(&req); err != nil {
 		return wrapError(ErrInvalidInput, "could not decode request", err, nil)
 	}
@@ -92,7 +92,7 @@ func (h *Handler) HandleListNodes(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	nodes, pageCount, totalCount, err := h.co.SearchNodes(c.Request().Context(), req.Filter, req.Count, req.Count*req.Page, namespace)
+	nodes, pageCount, totalCount, err := h.co.SearchNodes(c.Request().Context(), req.Filter, req.Tags, req.Count, req.Count*req.Page, namespace)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not list nodes", err, nil)
 	}

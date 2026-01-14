@@ -95,6 +95,7 @@ type Querier interface {
 	GetNodeByUUID(ctx context.Context, arg GetNodeByUUIDParams) (GetNodeByUUIDRow, error)
 	GetNodeStats(ctx context.Context, argUuid uuid.UUID) (GetNodeStatsRow, error)
 	GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams) ([]GetNodesByNamesRow, error)
+	GetNodesByTags(ctx context.Context, arg GetNodesByTagsParams) ([]GetNodesByTagsRow, error)
 	GetPendingTasks(ctx context.Context, limit int32) ([]SchedulerTask, error)
 	GetScheduleByFlowAndCron(ctx context.Context, arg GetScheduleByFlowAndCronParams) (CronSchedule, error)
 	GetScheduledExecutionsByFlow(ctx context.Context, arg GetScheduledExecutionsByFlowParams) ([]GetScheduledExecutionsByFlowRow, error)
