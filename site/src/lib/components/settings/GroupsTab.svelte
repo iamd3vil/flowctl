@@ -7,7 +7,7 @@
 	import DeleteModal from '$lib/components/shared/DeleteModal.svelte';
 	import { apiClient } from '$lib/apiClient';
 	import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
-	import type { Group } from '$lib/types';
+	import type { Group, GroupWithUsers } from '$lib/types';
 	import { DEFAULT_PAGE_SIZE } from '$lib/constants';
 	import { IconPlus } from '@tabler/icons-svelte';
 
@@ -34,7 +34,7 @@
 	let showDeleteModal = $state(false);
 	let isEditMode = $state(false);
 	let editingGroupId = $state<string | null>(null);
-	let editingGroupData = $state<Group | null>(null);
+	let editingGroupData = $state<GroupWithUsers | null>(null);
 	let deleteData = $state<{ id: string; name: string } | null>(null);
 
 	// Table configuration

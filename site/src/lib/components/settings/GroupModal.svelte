@@ -1,7 +1,7 @@
 <script lang="ts">
     import { handleInlineError } from "$lib/utils/errorHandling";
     import { autofocus } from "$lib/utils/autofocus";
-    import type { Group } from "$lib/types";
+    import type { GroupWithUsers, User } from "$lib/types";
 
     let {
         isEditMode = false,
@@ -10,7 +10,7 @@
         onClose,
     }: {
         isEditMode: boolean;
-        groupData: Group | null;
+        groupData: GroupWithUsers | null;
         onSave: (data: any) => Promise<void>;
         onClose: () => void;
     } = $props();
@@ -18,6 +18,7 @@
     // Form state
     let name = $state(groupData?.name || "");
     let description = $state(groupData?.description || "");
+    let users: User[] = $derived(groupData?.users || []);
     let saving = $state(false);
 
     async function handleSubmit(event: Event) {
@@ -108,6 +109,33 @@
                     placeholder="Optional description"
                 />
             </div>
+
+            <!-- Users List (Edit Mode Only) -->
+            {#if isEditMode}
+                <div class="mb-4">
+                    <label class="block mb-1 font-medium text-gray-900"
+                        >Members ({users.length})</label
+                    >
+                    {#if users.length > 0}
+                        <div
+                            class="border border-gray-300 rounded-lg max-h-40 overflow-y-auto"
+                        >
+                            {#each users as user}
+                                <div
+                                    class="flex justify-between px-3 py-2 border-b border-gray-100 last:border-b-0 text-sm"
+                                >
+                                    <span class="text-gray-900">{user.name}</span>
+                                    <span class="text-gray-500">{user.username}</span>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <p class="text-sm text-gray-500 italic">
+                            No members in this group
+                        </p>
+                    {/if}
+                </div>
+            {/if}
 
             <!-- Action Buttons -->
             <div class="flex justify-end gap-2 mt-6">
