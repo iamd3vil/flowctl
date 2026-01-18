@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
-	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 )
 
@@ -28,6 +28,20 @@ type Config struct {
 	Messengers MessengersConfig `koanf:"messengers"`
 }
 
+func (c *Config) Validate() error {
+	validate := validator.New()
+
+	if err := validate.Struct(c); err != nil {
+		return fmt.Errorf("config validation failed: %w", err)
+	}
+
+	if err := validateOIDCProviders(c.OIDC); err != nil {
+		return fmt.Errorf("invalid oidc configuration: %w", err)
+	}
+
+	return nil
+}
+
 type Metrics struct {
 	Enabled bool   `koanf:"enabled"`
 	Path    string `koanf:"path"`
@@ -35,12 +49,12 @@ type Metrics struct {
 
 type DBConfig struct {
 	DSN         string `koanf:"dsn"`
-	DBName      string `koanf:"dbname"`
-	User        string `koanf:"user"`
-	Password    string `koanf:"password"`
-	Host        string `koanf:"host"`
-	Port        int    `koanf:"port"`
-	SSLMode     string `koanf:"sslmode"`
+	DBName      string `koanf:"dbname" validate:"required_without=DSN"`
+	User        string `koanf:"user" validate:"required_without=DSN"`
+	Password    string `koanf:"password" validate:"required_without=DSN"`
+	Host        string `koanf:"host" validate:"required_without=DSN"`
+	Port        int    `koanf:"port" validate:"required_without=DSN,omitempty,min=1,max=65535"`
+	SSLMode     string `koanf:"sslmode" validate:"omitempty,oneof=disable allow prefer require verify-ca verify-full"`
 	SSLCert     string `koanf:"sslcert"`
 	SSLKey      string `koanf:"sslkey"`
 	SSLRootCert string `koanf:"sslrootcert"`
@@ -84,45 +98,44 @@ func (db DBConfig) ConnectionString() string {
 }
 
 type SchedulerConfig struct {
-	WorkerCount          int           `koanf:"workers"`
+	WorkerCount          int           `koanf:"workers" validate:"min=1"`
 	Backend              string        `koanf:"backend"`
-	CronSyncInterval     time.Duration `koanf:"cron_sync_interval"`
-	FlowExecutionTimeout time.Duration `koanf:"flow_execution_timeout"`
+	CronSyncInterval     time.Duration `koanf:"cron_sync_interval" validate:"min=1s"`
+	FlowExecutionTimeout time.Duration `koanf:"flow_execution_timeout" validate:"min=1s"`
 }
 
 type Logger struct {
 	Backend       string        `koanf:"backend"`
-	Directory     string        `koanf:"log_directory"`
-	MaxSizeBytes  int64         `koanf:"max_size_bytes"`
-	RetentionTime time.Duration `koanf:"retention_time"`
-	ScanInterval  time.Duration `koanf:"scan_interval"`
+	Directory     string        `koanf:"log_directory" validate:"required"`
+	MaxSizeBytes  int64         `koanf:"max_size_bytes" validate:"min=0"`
+	RetentionTime time.Duration `koanf:"retention_time" validate:"min=0"`
+	ScanInterval  time.Duration `koanf:"scan_interval" validate:"min=1s"`
 }
 
 type AppConfig struct {
-	AdminUsername     string `koanf:"admin_username"`
-	AdminPassword     string `koanf:"admin_password"`
-	RootURL           string `koanf:"root_url"`
-	Address           string `koanf:"address"`
+	AdminUsername     string `koanf:"admin_username" validate:"required,min=1"`
+	AdminPassword     string `koanf:"admin_password" validate:"required,min=8"`
+	RootURL           string `koanf:"root_url" validate:"required,url"`
+	Address           string `koanf:"address" validate:"required"`
 	UseTLS            bool   `koanf:"use_tls"`
-	HTTPTLSCert       string `koanf:"http_tls_cert"`
-	HTTPTLSKey        string `koanf:"http_tls_key"`
-	FlowsDirectory    string `koanf:"flows_directory"`
-	SecureCookieKey   string `koanf:"secure_cookie_key"`
-	MaxFileUploadSize int64  `koanf:"max_file_upload_size"` // in bytes, default 100MB
+	HTTPTLSCert       string `koanf:"http_tls_cert" validate:"required_if=UseTLS true"`
+	HTTPTLSKey        string `koanf:"http_tls_key" validate:"required_if=UseTLS true"`
+	FlowsDirectory    string `koanf:"flows_directory" validate:"required"`
+	MaxFileUploadSize int64  `koanf:"max_file_upload_size" validate:"required,min=1"`
 }
 
 type KeystoreConfig struct {
-	KeeperURL string `koanf:"keeper_url"`
+	KeeperURL string `koanf:"keeper_url" validate:"required"`
 }
 
 type OIDCConfig struct {
-	Name         string `koanf:"name"`
-	Issuer       string `koanf:"issuer"`
-	AuthURL      string `koanf:"auth_url"`
-	TokenURL     string `koanf:"token_url"`
-	RedirectURL  string `koanf:"redirect_url"`
-	ClientID     string `koanf:"client_id"`
-	ClientSecret string `koanf:"client_secret"`
+	Name         string `koanf:"name" validate:"required,alpha"`
+	Issuer       string `koanf:"issuer" validate:"required,url"`
+	AuthURL      string `koanf:"auth_url" validate:"omitempty,url"`
+	TokenURL     string `koanf:"token_url" validate:"omitempty,url"`
+	RedirectURL  string `koanf:"redirect_url" validate:"omitempty,url"`
+	ClientID     string `koanf:"client_id" validate:"required"`
+	ClientSecret string `koanf:"client_secret" validate:"required"`
 	Label        string `koanf:"label"`
 }
 
@@ -132,23 +145,18 @@ type MessengersConfig struct {
 
 type SMTPConfig struct {
 	Enabled     bool   `koanf:"enabled"`
-	Host        string `koanf:"host"`
-	Port        int    `koanf:"port"`
+	Host        string `koanf:"host" validate:"required_if=Enabled true"`
+	Port        int    `koanf:"port" validate:"required_if=Enabled true,min=1,max=65535"`
 	Username    string `koanf:"username"`
 	Password    string `koanf:"password"`
-	FromAddress string `koanf:"from_address"`
+	FromAddress string `koanf:"from_address" validate:"required_if=Enabled true,email"`
 	FromName    string `koanf:"from_name"`
-	MaxConns    int    `koanf:"max_conns"`
-	SSL         string `koanf:"ssl"` // none, tls, starttls
+	MaxConns    int    `koanf:"max_conns" validate:"min=1"`
+	SSL         string `koanf:"ssl" validate:"omitempty,oneof=none tls starttls"`
 }
 
 func Load(configPath string) (Config, error) {
 	k := koanf.New(".")
-
-	defaultConfig := GetDefaultConfig()
-	if err := k.Load(structs.Provider(defaultConfig, "koanf"), nil); err != nil {
-		return Config{}, fmt.Errorf("error loading default config: %w", err)
-	}
 
 	if configPath != "" {
 		if err := k.Load(file.Provider(configPath), toml.Parser()); err != nil {
@@ -169,6 +177,10 @@ func Load(configPath string) (Config, error) {
 	var config Config
 	if err := k.Unmarshal("", &config); err != nil {
 		return Config{}, fmt.Errorf("error unmarshaling config: %w", err)
+	}
+
+	if err := config.Validate(); err != nil {
+		return Config{}, fmt.Errorf("error validating config: %w", err)
 	}
 
 	return config, nil
@@ -198,7 +210,6 @@ func GetDefaultConfig() Config {
 			HTTPTLSCert:       "server_cert.pem",
 			HTTPTLSKey:        "server_key.pem",
 			FlowsDirectory:    "flows",
-			SecureCookieKey:   genKey(16),
 			MaxFileUploadSize: 100 * 1024 * 1024, // 100MB
 		},
 		Keystore: KeystoreConfig{
@@ -241,4 +252,18 @@ func genKey(bytes int) string {
 		log.Fatalf("could not generate random key for securecookie encryption: %v", err)
 	}
 	return base64.URLEncoding.EncodeToString(key)
+}
+
+// validateOIDCProviders ensures OIDC array has no duplicate names
+func validateOIDCProviders(providers []OIDCConfig) error {
+	names := make(map[string]bool)
+
+	for _, provider := range providers {
+		if names[provider.Name] {
+			return fmt.Errorf("duplicate provider name: %s", provider.Name)
+		}
+		names[provider.Name] = true
+	}
+
+	return nil
 }
