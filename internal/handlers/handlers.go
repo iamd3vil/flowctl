@@ -26,10 +26,6 @@ const (
 )
 
 type OIDCAuthConfig struct {
-	Issuer       string
-	ClientID     string
-	ClientSecret string
-	Scopes       []string
 	provider     *oidc.Provider
 	verifier     *oidc.IDTokenVerifier
 	oauth2Config *oauth2.Config
@@ -39,7 +35,7 @@ type Handler struct {
 	co         *core.Core
 	validate   *validator.Validate
 	sessMgr    *simplesessions.Manager
-	authconfig OIDCAuthConfig
+	authconfig map[string]OIDCAuthConfig
 	logger     *slog.Logger
 	config     config.Config
 }
@@ -87,12 +83,8 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 		time.Sleep(SessionTimeout / 2)
 	}()
 
-	h := &Handler{co: co, validate: validate, logger: logger, sessMgr: sessMgr, config: cfg}
-	if err := h.initOIDC(OIDCAuthConfig{
-		Issuer:       cfg.OIDC.Issuer,
-		ClientID:     cfg.OIDC.ClientID,
-		ClientSecret: cfg.OIDC.ClientSecret,
-	}); err != nil {
+	h := &Handler{co: co, validate: validate, logger: logger, sessMgr: sessMgr, config: cfg, authconfig: make(map[string]OIDCAuthConfig)}
+	if err := h.initOIDC(); err != nil {
 		return nil, fmt.Errorf("error initializing oidc config: %w", err)
 	}
 	return h, nil

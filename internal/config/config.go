@@ -21,7 +21,7 @@ type Config struct {
 	DB         DBConfig         `koanf:"db"`
 	App        AppConfig        `koanf:"app"`
 	Keystore   KeystoreConfig   `koanf:"keystore"`
-	OIDC       OIDCConfig       `koanf:"oidc"`
+	OIDC       []OIDCConfig     `koanf:"oidc"`
 	Scheduler  SchedulerConfig  `koanf:"scheduler"`
 	Logger     Logger           `koanf:"logger"`
 	Metrics    Metrics          `koanf:"metrics"`
@@ -116,6 +116,7 @@ type KeystoreConfig struct {
 }
 
 type OIDCConfig struct {
+	Name         string `koanf:"name"`
 	Issuer       string `koanf:"issuer"`
 	AuthURL      string `koanf:"auth_url"`
 	TokenURL     string `koanf:"token_url"`
@@ -203,10 +204,12 @@ func GetDefaultConfig() Config {
 		Keystore: KeystoreConfig{
 			KeeperURL: fmt.Sprintf("base64key://%s", genKey(32)),
 		},
-		OIDC: OIDCConfig{
-			Issuer:       "",
-			ClientID:     "",
-			ClientSecret: "",
+		OIDC: []OIDCConfig{
+			{
+				Issuer:       "",
+				ClientID:     "",
+				ClientSecret: "",
+			},
 		},
 		Scheduler: SchedulerConfig{
 			WorkerCount:          runtime.NumCPU(),

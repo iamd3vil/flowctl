@@ -51,7 +51,9 @@ retention_time = "0s"
 scan_interval = "1h0m0s"
 
 # SSO setup using OIDC
-[oidc]
+[[oidc]]
+# (required)
+name = "oidc"
 # (optional) This is the public visible URL for the identity provider
 auth_url = ""
 # (required) Client ID for OIDC
@@ -67,6 +69,26 @@ redirect_url = ""
 token_url = ""
 # (optional) Sign in label
 label = ""
+
+# Multiple OIDC providers support
+# [[oidc]]
+# # (required)
+# name = "custom"
+# # (optional) This is the public visible URL for the identity provider
+# auth_url = ""
+# # (required) Client ID for OIDC
+# client_id = ""
+# # (required) Client Secret for OIDC
+# client_secret = ""
+# # (required) Issuer URL for the identity provider
+# issuer = ""
+# # (optional) The path should be /auth/callback but the url can be different
+# # This is only useful if you have a proxy setup and for development
+# redirect_url = ""
+# # (optional) Token URL of the OIDC provider
+# token_url = ""
+# # (optional) Sign in label
+# label = ""
 
 [scheduler]
 # (required) Any updates to flow schedules is synced from DB in cron_sync_interval

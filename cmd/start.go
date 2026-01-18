@@ -275,7 +275,7 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	e.POST("/logout", h.HandleLogout)
 	e.GET("/sso-providers", h.HandleGetSSOProviders)
 
-	e.GET("/login/oidc", h.HandleOIDCLogin)
+	e.GET("/login/oidc/:provider", h.HandleOIDCLogin)
 	e.GET("/auth/callback", h.HandleAuthCallback)
 
 	if metricsManager != nil {

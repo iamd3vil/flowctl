@@ -29,12 +29,16 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// if using oidc, validate the token to check if they have not expired
 		if method == "oidc" {
-			rawIDToken, err := sess.Get("id_token")
-			if err != nil || rawIDToken == nil {
+			td, err := sess.Get("id_token")
+			if err != nil {
 				return wrapError(ErrAuthenticationFailed, "could not get id token", err, nil)
 			}
+			var tokenData TokenData
+			if err := tokenData.Decode(td.(string)); err != nil {
+				return wrapError(ErrAuthenticationFailed, "invalid token data", err, nil)
+			}
 
-			_, err = h.authconfig.verifier.Verify(context.Background(), rawIDToken.(string))
+			_, err = h.authconfig[tokenData.Provider].verifier.Verify(context.Background(), tokenData.RawIDToken)
 			if err != nil {
 				sess.Delete("method")
 				sess.Delete("id_token")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -23,56 +24,111 @@ const (
 	RedirectAfterLogin = "/"
 )
 
+type TokenData struct {
+	Provider   string
+	RawIDToken string
+}
+
+// GetEncoded returns the token data in base64 encoding
+func (s *TokenData) GetEncoded() (string, error) {
+	j, err := json.Marshal(s)
+	if err != nil {
+		return "", fmt.Errorf("error encoding token data: %w", err)
+	}
+
+	return base64.URLEncoding.EncodeToString(j), nil
+}
+
+// Decode converts and unmarshals encoded token data
+func (s *TokenData) Decode(e string) error {
+	j, err := base64.URLEncoding.DecodeString(e)
+	if err != nil {
+		return fmt.Errorf("error decoding token data: %w", err)
+	}
+
+	if err := json.Unmarshal(j, &s); err != nil {
+		return fmt.Errorf("invalid state: %w", err)
+	}
+	return nil
+}
+
+type StateData struct {
+	Provider string
+	Nonce    string
+}
+
+// GetEncoded returns the state data in base64 encoding
+func (s *StateData) GetEncoded() (string, error) {
+	j, err := json.Marshal(s)
+	if err != nil {
+		return "", fmt.Errorf("error encoding state: %w", err)
+	}
+
+	return base64.URLEncoding.EncodeToString(j), nil
+}
+
+// Decode converts and unmarshals encoded state
+func (s *StateData) Decode(e string) error {
+	j, err := base64.URLEncoding.DecodeString(e)
+	if err != nil {
+		return fmt.Errorf("error decoding state: %w", err)
+	}
+
+	if err := json.Unmarshal(j, &s); err != nil {
+		return fmt.Errorf("invalid state: %w", err)
+	}
+	return nil
+}
+
 // isSafeRedirect determines if the redirect URL is safe
 // Must start with '/' but not with '//' or '/\'.
 func isSafeRedirect(u string) bool {
 	return len(u) > 0 && u[0] == '/' && (len(u) == 1 || (u[1] != '/' && u[1] != '\\'))
 }
 
-func (h *Handler) initOIDC(authconfig OIDCAuthConfig) error {
-	provider, err := oidc.NewProvider(context.Background(), authconfig.Issuer)
-	if err != nil {
-		return fmt.Errorf("could not initialize new OIDC provider client: %w", err)
+func (h *Handler) initOIDC() error {
+	for _, oauthConfig := range h.config.OIDC {
+		provider, err := oidc.NewProvider(context.Background(), oauthConfig.Issuer)
+		if err != nil {
+			return fmt.Errorf("could not initialize new OIDC provider client: %w", err)
+		}
+
+		redirectURL, err := url.JoinPath(h.config.App.RootURL, RedirectPath)
+		if err != nil {
+			return fmt.Errorf("failed to create redirect URL: %w", err)
+		}
+
+		if oauthConfig.RedirectURL != "" {
+			redirectURL = oauthConfig.RedirectURL
+		}
+
+		endpoint := provider.Endpoint()
+		if oauthConfig.AuthURL != "" {
+			endpoint.AuthURL = oauthConfig.AuthURL
+		}
+		if oauthConfig.TokenURL != "" {
+			endpoint.TokenURL = oauthConfig.TokenURL
+		}
+
+		oauth2Config := &oauth2.Config{
+			ClientID:     oauthConfig.ClientID,
+			ClientSecret: oauthConfig.ClientSecret,
+			RedirectURL:  redirectURL,
+			Endpoint:     endpoint,
+			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+		}
+
+		verifier := provider.Verifier(&oidc.Config{
+			ClientID: oauthConfig.ClientID,
+		})
+
+		h.authconfig[oauthConfig.Name] = OIDCAuthConfig{
+			provider:     provider,
+			verifier:     verifier,
+			oauth2Config: oauth2Config,
+		}
+
 	}
-
-	if len(authconfig.Scopes) == 0 {
-		authconfig.Scopes = []string{oidc.ScopeOpenID, "profile", "email"}
-	}
-
-	redirectURL, err := url.JoinPath(h.config.App.RootURL, RedirectPath)
-	if err != nil {
-		return fmt.Errorf("failed to create redirect URL: %w", err)
-	}
-
-	if h.config.OIDC.RedirectURL != "" {
-		redirectURL = h.config.OIDC.RedirectURL
-	}
-
-	endpoint := provider.Endpoint()
-	if h.config.OIDC.AuthURL != "" {
-		endpoint.AuthURL = h.config.OIDC.AuthURL
-	}
-	if h.config.OIDC.TokenURL != "" {
-		endpoint.TokenURL = h.config.OIDC.TokenURL
-	}
-
-	oauth2Config := &oauth2.Config{
-		ClientID:     authconfig.ClientID,
-		ClientSecret: authconfig.ClientSecret,
-		RedirectURL:  redirectURL,
-		Endpoint:     endpoint,
-		Scopes:       authconfig.Scopes,
-	}
-
-	verifier := provider.Verifier(&oidc.Config{
-		ClientID: authconfig.ClientID,
-	})
-
-	authconfig.provider = provider
-	authconfig.verifier = verifier
-	authconfig.oauth2Config = oauth2Config
-
-	h.authconfig = authconfig
 
 	return nil
 }
@@ -133,6 +189,11 @@ func (h *Handler) HandleLoginPage(c echo.Context) error {
 }
 
 func (h *Handler) HandleOIDCLogin(c echo.Context) error {
+	provider := c.Param("provider")
+	if provider == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("oidc provider cannot be empty"))
+	}
+
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 
 	if err == simplesessions.ErrInvalidSession {
@@ -146,18 +207,28 @@ func (h *Handler) HandleOIDCLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, err)
 	}
 
-	state, err := generateRandomState()
+	nonce, err := generateRandomState()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "could not generate a login state")
 	}
 
-	sess.Set("state", state)
+	state := StateData{
+		Provider: provider,
+		Nonce:    nonce,
+	}
+
+	encodedState, err := state.GetEncoded()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	sess.Set("state", encodedState)
 
 	if redirectURL := c.QueryParam("redirect_url"); redirectURL != "" && isSafeRedirect(redirectURL) {
 		sess.Set("redirect_url", redirectURL)
 	}
 
-	authURL := h.authconfig.oauth2Config.AuthCodeURL(state)
+	authURL := h.authconfig[provider].oauth2Config.AuthCodeURL(encodedState)
 	return c.Redirect(http.StatusTemporaryRedirect, authURL)
 }
 
@@ -177,16 +248,25 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 		return wrapError(ErrInvalidInput, "session does not exist", err, nil)
 	}
 
-	state, err := sess.Get("state")
+	rawSessionState, err := sess.Get("state")
 	if err != nil {
 		return wrapError(ErrInvalidInput, "state not found", err, nil)
 	}
+	var sessionState StateData
+	if err := sessionState.Decode(rawSessionState.(string)); err != nil {
+		return wrapError(ErrInternalError, "invalid session state", err, nil)
+	}
 
-	if state.(string) != c.QueryParam("state") {
+	var callbackState StateData
+	if err := callbackState.Decode(c.QueryParam("state")); err != nil {
+		return wrapError(ErrInternalError, "invalid callback state", err, nil)
+	}
+
+	if sessionState.Nonce != callbackState.Nonce || sessionState.Provider != callbackState.Provider {
 		return wrapError(ErrInvalidInput, "invalid state parameter", nil, nil)
 	}
 
-	token, err := h.authconfig.oauth2Config.Exchange(context.Background(), c.QueryParam("code"))
+	token, err := h.authconfig[sessionState.Provider].oauth2Config.Exchange(context.Background(), c.QueryParam("code"))
 	if err != nil {
 		return wrapError(ErrOperationFailed, "failed to exchange token", err, nil)
 	}
@@ -196,7 +276,7 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 		return wrapError(ErrOperationFailed, "no id_token in token response", nil, nil)
 	}
 
-	idToken, err := h.authconfig.verifier.Verify(context.Background(), rawIDToken)
+	idToken, err := h.authconfig[sessionState.Provider].verifier.Verify(context.Background(), rawIDToken)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "failed to verify ID token", err, nil)
 	}
@@ -216,7 +296,17 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	}
 
 	sess.Set("method", "oidc")
-	sess.Set("id_token", rawIDToken)
+
+	td := TokenData{
+		Provider:   sessionState.Provider,
+		RawIDToken: rawIDToken,
+	}
+	tokenData, err := td.GetEncoded()
+	if err != nil {
+		return wrapError(ErrInternalError, err.Error(), err, nil)
+	}
+
+	sess.Set("id_token", tokenData)
 
 	sess.Set("user", user.ToUserInfo())
 
@@ -267,13 +357,14 @@ func (h *Handler) HandleGetCasbinPermissions(c echo.Context) error {
 func (h *Handler) HandleGetSSOProviders(c echo.Context) error {
 	var providers []SSOProvider
 
-	if h.config.OIDC.Issuer != "" {
-		label := h.config.OIDC.Label
+	for _, v := range h.config.OIDC {
+		label := v.Label
 		if label == "" {
-			label = "Sign in with OIDC"
+			label = fmt.Sprintf("Sign in with %s", v.Name)
 		}
+
 		providers = append(providers, SSOProvider{
-			ID:    "oidc",
+			ID:    v.Name,
 			Label: label,
 		})
 	}
