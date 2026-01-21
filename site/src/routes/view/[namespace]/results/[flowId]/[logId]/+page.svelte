@@ -141,6 +141,7 @@
     );
 
     const updateExecutionStatus = async () => {
+        if (!logId) return;
         try {
             const executionSummary = await apiClient.executions.getById(
                 namespace,

@@ -865,7 +865,7 @@ func (h *FlowExecutionHandler) enqueueNotifications(ctx context.Context, execID 
 		// Generate a unique exec ID for the notification job
 		notifyExecID := fmt.Sprintf("notify-%s-%s", execID, notify.Channel)
 
-		if _, err := h.taskQueuer.QueueTask(ctx, PayloadTypeNotification, notifyExecID, notifyPayload); err != nil {
+		if _, err := h.taskQueuer.QueueTaskWithRetries(ctx, PayloadTypeNotification, notifyExecID, notifyPayload, 3); err != nil {
 			h.logger.Error("failed to queue notification", "execID", execID, "channel", notify.Channel, "error", err)
 		} else {
 			h.logger.Debug("notification queued", "execID", execID, "channel", notify.Channel, "event", event)
