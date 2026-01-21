@@ -229,6 +229,7 @@ type FlowLoaderFn func(ctx context.Context, flowSlug string, namespaceUUID strin
 // TaskQueuer allows handlers to enqueue new tasks
 type TaskQueuer interface {
 	QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error)
+	QueueTaskWithRetries(ctx context.Context, payloadType PayloadType, execID string, payload any, maxRetries int) (string, error)
 }
 
 // PayloadType identifies different types of jobs in the queue
@@ -250,6 +251,43 @@ type Job struct {
 	Payload     []byte
 	CreatedAt   time.Time
 	ScheduledAt time.Time
+	MaxRetries  int
+	Attempt     int
+}
+
+func (j Job) ShouldRetry() bool {
+	return j.Attempt < j.MaxRetries
+}
+
+// RetryOptions configures exponential backoff for job retries
+type RetryOptions struct {
+	InitialDelay  time.Duration
+	MaxDelay      time.Duration
+	BackoffFactor float64
+}
+
+func DefaultRetryOptions() RetryOptions {
+	return RetryOptions{
+		InitialDelay:  15 * time.Second,
+		MaxDelay:      5 * time.Minute,
+		BackoffFactor: 2.0,
+	}
+}
+
+// CalculateDelay returns the delay for the given attempt using exponential backoff
+func (r RetryOptions) CalculateDelay(attempt int) time.Duration {
+	if attempt <= 0 {
+		return r.InitialDelay
+	}
+
+	delay := r.InitialDelay
+	for i := 0; i < attempt; i++ {
+		delay = time.Duration(float64(delay) * r.BackoffFactor)
+		if delay > r.MaxDelay {
+			return r.MaxDelay
+		}
+	}
+	return delay
 }
 
 // QueueWeight defines weight for a payload type

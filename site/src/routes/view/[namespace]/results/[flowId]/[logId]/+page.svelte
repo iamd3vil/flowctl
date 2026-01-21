@@ -111,6 +111,17 @@
         scheduleFlush();
     };
 
+    const resetLogState = () => {
+        if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+        messageBuffer = [];
+        logOutputBuffer = [];
+        logMessages = [];
+        logOutput = "";
+    };
+
     // Polling for execution status updates
     let statusPollingInterval: NodeJS.Timeout | null = null;
 
@@ -196,6 +207,12 @@
             stopStatusPolling();
         } else {
             startStatusPolling();
+        }
+
+        // Reconnect SSE if status changed to running but not connected (scheduler retry)
+        if (newStatus === "running" && !eventSource) {
+            resetLogState();
+            connectSSE();
         }
     };
 
@@ -325,10 +342,6 @@
                 }
                 if (currentActionIndex !== -1) {
                     failedActionIndex = currentActionIndex;
-                }
-                if (eventSource) {
-                    eventSource.close();
-                    eventSource = null;
                 }
                 stopStatusPolling();
                 break;
@@ -581,7 +594,9 @@
             }
         }
 
-        connectSSE();
+        if (!eventSource) {
+            connectSSE();
+        }
         startStatusPolling();
     });
 

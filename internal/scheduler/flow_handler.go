@@ -88,8 +88,12 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 		return fmt.Errorf("failed to unmarshal flow payload: %w", err)
 	}
 
-	// Create execution log for scheduled executions only (manual/run-later ones are created in core)
-	if payload.TriggerType == TriggerTypeScheduled && job.ScheduledAt.IsZero() {
+	if job.Attempt > 0 {
+		payload.Resumed = true
+	}
+
+	// Create execution log for scheduled executions or for retried jobs
+	if job.Attempt > 0 || (payload.TriggerType == TriggerTypeScheduled && job.ScheduledAt.IsZero()) {
 		if err := h.createExecutionLog(ctx, job.ExecID, payload); err != nil {
 			return fmt.Errorf("failed to create execution log: %w", err)
 		}
@@ -111,7 +115,7 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 
 	// Execute the flow
 	if err := h.executeFlow(ctx, job.ExecID, payload); err != nil {
-		h.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err)
+		h.logger.Error("error executing flow", "flow", payload.Workflow.Meta.ID, "error", err, "attempt", job.Attempt, "maxRetries", job.MaxRetries)
 		if errors.Is(err, ErrPendingApproval) {
 			return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusPendingApproval, payload, nil)
 		}
@@ -119,7 +123,12 @@ func (h *FlowExecutionHandler) Handle(ctx context.Context, job Job) error {
 			// If execution is cancelled, the context will also be cancelled, so use background context
 			return h.setStatusWithMetrics(context.Background(), job.ExecID, repo.ExecutionStatusCancelled, payload, nil)
 		}
-		return h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusErrored, payload, err)
+
+		if err := h.setStatusWithMetrics(ctx, job.ExecID, repo.ExecutionStatusErrored, payload, err); err != nil {
+			return err
+		}
+
+		return err
 	}
 
 	if h.metrics != nil {

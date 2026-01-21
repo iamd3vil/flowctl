@@ -15,6 +15,8 @@ type Job struct {
 	Payload     []byte    `json:"payload" db:"payload"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	ScheduledAt time.Time `json:"scheduled_at" db:"scheduled_at"`
+	MaxRetries  int       `json:"max_retries" db:"max_retries"`
+	Attempt     int       `json:"attempt" db:"attempt"`
 }
 
 var (
@@ -74,5 +76,42 @@ func NewScheduledJob(execID string, payloadType string, payload any, scheduledAt
 		Payload:     payloadBytes,
 		CreatedAt:   time.Now(),
 		ScheduledAt: truncatedTime,
+	}, nil
+}
+
+// NewJobWithRetries creates a new job with retry configuration
+func NewJobWithRetries(execID string, payloadType string, payload any, maxRetries int) (Job, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return Job{}, err
+	}
+
+	return Job{
+		ExecID:      execID,
+		PayloadType: payloadType,
+		Payload:     payloadBytes,
+		CreatedAt:   time.Now(),
+		MaxRetries:  maxRetries,
+		Attempt:     0,
+	}, nil
+}
+
+// NewScheduledJobWithRetries creates a new scheduled job with retry configuration.
+// The scheduledAt time is truncated to minute precision.
+func NewScheduledJobWithRetries(execID string, payloadType string, payload any, scheduledAt time.Time, maxRetries int) (Job, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return Job{}, err
+	}
+
+	truncatedTime := scheduledAt.Truncate(time.Minute)
+	return Job{
+		ExecID:      execID,
+		PayloadType: payloadType,
+		Payload:     payloadBytes,
+		CreatedAt:   time.Now(),
+		ScheduledAt: truncatedTime,
+		MaxRetries:  maxRetries,
+		Attempt:     0,
 	}, nil
 }

@@ -36,7 +36,10 @@ func (p *PostgresStorage) Initialize(ctx context.Context) error {
 	if err := p.migrateAddPayloadType(ctx); err != nil {
 		return err
 	}
-	return p.migrateAddScheduledAt(ctx)
+	if err := p.migrateAddScheduledAt(ctx); err != nil {
+		return err
+	}
+	return p.migrateAddRetryColumns(ctx)
 }
 
 // migrateAddPayloadType adds the payload_type column to existing job_queue tables
@@ -85,15 +88,25 @@ func (p *PostgresStorage) migrateAddScheduledAt(ctx context.Context) error {
 	return nil
 }
 
+// migrateAddRetryColumns adds max_retries and attempt columns to existing job_queue tables
+func (p *PostgresStorage) migrateAddRetryColumns(ctx context.Context) error {
+	addColumnsQuery := `
+		ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS max_retries INT DEFAULT 0;
+		ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS attempt INT DEFAULT 0;
+	`
+	_, err := p.db.ExecContext(ctx, addColumnsQuery)
+	return err
+}
+
 // Put adds a job to the queue
 func (p *PostgresStorage) Put(ctx context.Context, job Job) error {
 	query := `
-		INSERT INTO job_queue (exec_id, payload_type, payload, created_at, scheduled_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO job_queue (exec_id, payload_type, payload, created_at, scheduled_at, max_retries, attempt)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
-	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.PayloadType, job.Payload, job.CreatedAt, job.ScheduledAt)
+	err := p.db.GetContext(ctx, &job.ID, query, job.ExecID, job.PayloadType, job.Payload, job.CreatedAt, job.ScheduledAt, job.MaxRetries, job.Attempt)
 	return err
 }
 
@@ -108,7 +121,7 @@ func (p *PostgresStorage) GetByPayloadType(ctx context.Context, payloadType stri
 	// Select and lock the oldest pending job of this payload type
 	// Only return jobs that are ready to run (scheduled_at is NULL or <= NOW())
 	selectQuery := `
-		SELECT id, exec_id, payload_type, payload, created_at, scheduled_at
+		SELECT id, exec_id, payload_type, payload, created_at, scheduled_at, max_retries, attempt
 		FROM job_queue
 		WHERE payload_type = $1
 		  AND (scheduled_at IS NULL OR scheduled_at <= NOW())

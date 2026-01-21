@@ -19,7 +19,9 @@ const (
 
 type TaskScheduler interface {
 	QueueTask(ctx context.Context, payloadType PayloadType, execID string, payload any) (string, error)
+	QueueTaskWithRetries(ctx context.Context, payloadType PayloadType, execID string, payload any, maxRetries int) (string, error)
 	QueueScheduledTask(ctx context.Context, payloadType PayloadType, execID string, payload any, scheduledAt time.Time) (string, error)
+	QueueScheduledTaskWithRetries(ctx context.Context, payloadType PayloadType, execID string, payload any, scheduledAt time.Time, maxRetries int) (string, error)
 	CancelTask(ctx context.Context, execID string) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
@@ -33,6 +35,7 @@ type Scheduler struct {
 	workerCount      int
 	cronSyncInterval time.Duration
 	jobSyncer        JobSyncerFn
+	retryOptions     RetryOptions
 
 	cancelFuncs   map[string]context.CancelFunc
 	cancelMu      sync.RWMutex
@@ -55,6 +58,7 @@ type SchedulerBuilder struct {
 	workerCount      int
 	cronSyncInterval time.Duration
 	jobSyncer        JobSyncerFn
+	retryOptions     *RetryOptions
 	logger           *slog.Logger
 }
 
@@ -95,6 +99,12 @@ func (b *SchedulerBuilder) WithCronSyncInterval(s time.Duration) *SchedulerBuild
 	return b
 }
 
+// WithRetryOptions sets the retry options for failed jobs
+func (b *SchedulerBuilder) WithRetryOptions(opts RetryOptions) *SchedulerBuilder {
+	b.retryOptions = &opts
+	return b
+}
+
 // Build creates the scheduler instance
 func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 	if b.jobStore == nil {
@@ -111,6 +121,11 @@ func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 		cronInterval = 5 * time.Minute
 	}
 
+	retryOpts := DefaultRetryOptions()
+	if b.retryOptions != nil {
+		retryOpts = *b.retryOptions
+	}
+
 	return &Scheduler{
 		jobStore:         b.jobStore,
 		handlers:         newHandlerRegistry(),
@@ -118,6 +133,7 @@ func (b *SchedulerBuilder) Build() (*Scheduler, error) {
 		workerCount:      workerCount,
 		cronSyncInterval: cronInterval,
 		jobSyncer:        b.jobSyncer,
+		retryOptions:     retryOpts,
 		cancelFuncs:      make(map[string]context.CancelFunc),
 		scheduledJobs:    make(map[string]ScheduledJob),
 		stopCh:           make(chan struct{}),
@@ -234,6 +250,42 @@ func (s *Scheduler) QueueScheduledTask(ctx context.Context, payloadType PayloadT
 	return execID, nil
 }
 
+// QueueTaskWithRetries queues a task with retry configuration
+func (s *Scheduler) QueueTaskWithRetries(ctx context.Context, payloadType PayloadType, execID string, payload any, maxRetries int) (string, error) {
+	job, err := storage.NewJobWithRetries(execID, string(payloadType), payload, maxRetries)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.jobStore.Put(ctx, job)
+	if err != nil {
+		return "", err
+	}
+
+	s.logger.Info("queued task with retries", "execID", execID, "maxRetries", maxRetries)
+	return execID, nil
+}
+
+// QueueScheduledTaskWithRetries queues a scheduled task with retry configuration
+func (s *Scheduler) QueueScheduledTaskWithRetries(ctx context.Context, payloadType PayloadType, execID string, payload any, scheduledAt time.Time, maxRetries int) (string, error) {
+	if scheduledAt.Before(time.Now()) {
+		return "", fmt.Errorf("scheduled_at must be in the future")
+	}
+
+	job, err := storage.NewScheduledJobWithRetries(execID, string(payloadType), payload, scheduledAt, maxRetries)
+	if err != nil {
+		return "", err
+	}
+
+	err = s.jobStore.Put(ctx, job)
+	if err != nil {
+		return "", err
+	}
+
+	s.logger.Info("queued scheduled task with retries", "execID", execID, "scheduledAt", scheduledAt, "maxRetries", maxRetries)
+	return execID, nil
+}
+
 // CancelTask cancels a running or pending execution
 func (s *Scheduler) CancelTask(ctx context.Context, execID string) error {
 	s.cancelMu.Lock()
@@ -320,11 +372,36 @@ func (s *Scheduler) processPendingTasks(ctx context.Context) error {
 					Payload:     j.Payload,
 					CreatedAt:   j.CreatedAt,
 					ScheduledAt: j.ScheduledAt,
+					MaxRetries:  j.MaxRetries,
+					Attempt:     j.Attempt,
 				}
 
-				s.logger.Debug("starting job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID)
+				s.logger.Debug("starting job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID, "attempt", j.Attempt, "maxRetries", j.MaxRetries)
 				if err := h.Handle(execCtx, handlerJob); err != nil {
 					s.logger.Error("handler error", "type", j.PayloadType, "execID", j.ExecID, "error", err)
+
+					// Check if we should retry
+					if handlerJob.ShouldRetry() {
+						nextAttempt := j.Attempt + 1
+						delay := s.retryOptions.CalculateDelay(nextAttempt)
+						scheduledAt := time.Now().Add(delay)
+
+						retryJob := storage.Job{
+							ExecID:      j.ExecID,
+							PayloadType: j.PayloadType,
+							Payload:     j.Payload,
+							CreatedAt:   time.Now(),
+							ScheduledAt: scheduledAt,
+							MaxRetries:  j.MaxRetries,
+							Attempt:     nextAttempt,
+						}
+
+						if putErr := s.jobStore.Put(context.Background(), retryJob); putErr != nil {
+							s.logger.Error("failed to requeue job for retry", "execID", j.ExecID, "error", putErr)
+						} else {
+							s.logger.Info("scheduled job retry", "execID", j.ExecID, "attempt", nextAttempt, "maxRetries", j.MaxRetries, "scheduledAt", scheduledAt, "delay", delay)
+						}
+					}
 				}
 				s.logger.Debug("completed job execution", "execID", j.ExecID, "type", j.PayloadType, "jobID", j.ID)
 			}(done, job, handler)

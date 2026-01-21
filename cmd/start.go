@@ -183,6 +183,7 @@ func initializeSharedComponents() *SharedComponents {
 		WithJobStore(jobStore).
 		WithWorkerCount(appConfig.Scheduler.WorkerCount).
 		WithCronSyncInterval(appConfig.Scheduler.CronSyncInterval).
+		WithRetryOptions(scheduler.DefaultRetryOptions()).
 		Build()
 	if err != nil {
 		log.Fatal(err)
