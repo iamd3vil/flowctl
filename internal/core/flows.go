@@ -26,6 +26,25 @@ var (
 	ErrFlowNotFound = errors.New("flow not found")
 )
 
+// isSubpath checks if child is under parent (or equal to parent)
+func isSubpath(parent, child string) (bool, error) {
+	parent, err := filepath.Abs(parent)
+	if err != nil {
+		return false, err
+	}
+	child, err = filepath.Abs(child)
+	if err != nil {
+		return false, err
+	}
+
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false, err
+	}
+
+	return !strings.HasPrefix(rel, ".."), nil
+}
+
 // detectFlowFormat determines the flow format based on file extension
 func detectFlowFormat(filePath string) models.FlowFormat {
 	ext := strings.ToLower(filepath.Ext(filePath))
@@ -628,6 +647,11 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 		return fmt.Errorf("flow file does not exist at %s: %w", flowFilePath, err)
 	}
 
+	isSub, err := isSubpath(c.flowDirectory, flowFilePath)
+	if err != nil || !isSub {
+		return fmt.Errorf("cannot write to file outside flows root: %s", flowFilePath)
+	}
+
 	// Detect the format of the existing file and use the same format
 	format := detectFlowFormat(flowFilePath)
 	flowData, err := models.MarshalFlow(f, format)
@@ -657,21 +681,30 @@ func (c *Core) DeleteFlow(ctx context.Context, flowID, namespaceID string) error
 	}
 	c.rwf.RUnlock()
 
-	n, err := c.GetNamespaceByID(ctx, namespaceID)
-	if err != nil {
-		return fmt.Errorf("could not get namespace details for %s: %w", namespaceID, err)
-	}
-
-	namespaceDirPath := filepath.Join(c.flowDirectory, n.Name)
-	flowDir := filepath.Join(namespaceDirPath, flowID)
-
-	if err := os.RemoveAll(flowDir); err != nil {
-		return fmt.Errorf("could not delete flow: %w", err)
-	}
-
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	// Get the file path from the database
+	existingFlow, err := c.store.GetFlowBySlug(ctx, repo.GetFlowBySlugParams{
+		Slug:     flowID,
+		Uuid:     namespaceUUID,
+		IsActive: sql.NullBool{Valid: false},
+	})
+	if err != nil {
+		return fmt.Errorf("could not get flow details: %w", err)
+	}
+
+	// Delete the flow directory
+	flowDir := filepath.Dir(existingFlow.FilePath)
+	isSub, err := isSubpath(c.flowDirectory, flowDir)
+	if err != nil || !isSub {
+		return fmt.Errorf("cannot delete directory outside flows root: %s", flowDir)
+	}
+
+	if err := os.RemoveAll(flowDir); err != nil {
+		return fmt.Errorf("could not delete flow: %w", err)
 	}
 
 	if err := c.store.DeleteFlow(ctx, repo.DeleteFlowParams{
