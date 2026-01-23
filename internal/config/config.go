@@ -21,7 +21,7 @@ type Config struct {
 	DB         DBConfig         `koanf:"db"`
 	App        AppConfig        `koanf:"app"`
 	Keystore   KeystoreConfig   `koanf:"keystore"`
-	OIDC       []OIDCConfig     `koanf:"oidc"`
+	OIDC       []OIDCConfig     `koanf:"oidc" validate:"dive"`
 	Scheduler  SchedulerConfig  `koanf:"scheduler"`
 	Logger     Logger           `koanf:"logger"`
 	Metrics    Metrics          `koanf:"metrics"`

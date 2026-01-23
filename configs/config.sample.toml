@@ -21,12 +21,8 @@ use_tls = false
 # (required) This is the public url as visible on the browser
 root_url = "http://localhost:7000"
 
-# (required) Base64-encoded key for encrypting session cookies
-# Valid key lengths are 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256
-secure_cookie_key = "{{ .App.SecureCookieKey }}"
-
-# (optional) Maximum file upload size in bytes (default: 104857600 = 100MB)
-# max_file_upload_size = 104857600
+# (required) Maximum file upload size in bytes (default: 104857600 = 100MB)
+max_file_upload_size = 104857600
 
 [keystore]
 # (required) The keystore manages encryption keys for sensitive data
@@ -95,8 +91,8 @@ label = ""
 cron_sync_interval = "5m0s"
 # (optional) Number of workers
 workers = 20
-# (optional) Timeout for flow execution. A running flow will be terminated after this duration. Default - 1 hour
-# flow_execution_timeout = "1h"
+# (required) Timeout for flow execution. A running flow will be terminated after this duration. Default - 1 hour
+flow_execution_timeout = "1h"
 
 [db]
 # (required) Database name
