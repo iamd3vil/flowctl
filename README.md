@@ -82,7 +82,7 @@ inputs:
   - name: email
     type: string
     label: Email
-    validation: email matches "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$"
+    validation: email matches "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     required: true
 
 actions:
