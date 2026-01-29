@@ -107,8 +107,8 @@
 						</svg>
 					</div>
 					<div>
-						<a href="#" class="text-sm hover:underline font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="event.preventDefault(); document.dispatchEvent(new CustomEvent('editNode', {detail: {id: '${node.id}'}}))">${node.name}</a>
-						<div class="text-sm text-gray-500">${node.id}</div>
+						<a href="#" class="text-sm hover:underline font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick="event.preventDefault(); document.dispatchEvent(new CustomEvent('editNode', {detail: {id: '${node.id}'}}))">${node.name}</a>
+						<div class="text-sm text-muted-foreground">${node.id}</div>
 					</div>
 				</div>
 			`
@@ -138,7 +138,7 @@
 						`<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">${tag}</span>`
 					).join('')}
 				</div>`
-				: '<span class="text-xs text-gray-400">No tags</span>'
+				: '<span class="text-xs text-muted-foreground">No tags</span>'
 		}
 	];
 
@@ -146,7 +146,7 @@
 		{
 			label: 'Edit',
 			onClick: (node: NodeResp) => handleEdit(node.id),
-			className: 'text-primary-600 border-primary-600 hover:bg-primary-100'
+			className: 'text-link border-link hover:bg-link-hover'
 		},
 		{
 			label: 'Delete',

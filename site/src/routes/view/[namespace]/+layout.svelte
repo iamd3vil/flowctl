@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=yes" />
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-muted">
   <Sidebar namespace={data.namespace} />
   
   <div class="flex-1 flex flex-col overflow-hidden">

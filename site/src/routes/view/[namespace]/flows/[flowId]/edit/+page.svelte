@@ -285,7 +285,7 @@
     <title>Edit Flow - {flow.metadata.name || "Loading..."} | Flowctl</title>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-muted">
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <Header
@@ -301,38 +301,38 @@
         />
 
         <!-- Page Content -->
-        <div class="flex-1 overflow-y-auto bg-gray-50">
+        <div class="flex-1 overflow-y-auto bg-muted">
             <div class="max-w-6xl mx-auto px-6 py-8">
                 {#if loading}
                     <div
-                        class="bg-white rounded-lg shadow border border-gray-200 p-8"
+                        class="bg-card rounded-lg shadow border border-border p-8"
                     >
                         <div class="animate-pulse">
                             <div
-                                class="h-4 bg-gray-200 rounded w-1/4 mb-4"
+                                class="h-4 bg-subtle rounded w-1/4 mb-4"
                             ></div>
                             <div
-                                class="h-4 bg-gray-200 rounded w-1/2 mb-2"
+                                class="h-4 bg-subtle rounded w-1/2 mb-2"
                             ></div>
-                            <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                            <div class="h-4 bg-subtle rounded w-1/3"></div>
                         </div>
                     </div>
                 {:else}
                     <!-- Page Title -->
                     <div class="mb-8">
-                        <h1 class="text-2xl font-bold text-gray-900">
+                        <h1 class="text-2xl font-bold text-foreground">
                             Edit Flow
                         </h1>
-                        <p class="mt-1 text-sm text-gray-600">
+                        <p class="mt-1 text-sm text-muted-foreground">
                             Update workflow configuration for {flow.metadata
                                 .name}
                         </p>
                     </div>
 
                     <!-- Main Card -->
-                    <div class="bg-white rounded-lg border border-gray-300">
+                    <div class="bg-card rounded-lg border border-input">
                         <!-- Tab Navigation -->
-                        <div class="border-b border-gray-200">
+                        <div class="border-b border-border">
                             <Tabs bind:activeTab {tabs} />
                         </div>
 
@@ -370,7 +370,7 @@
                         <!-- Action Buttons (only show on non-secrets tabs) -->
                         {#if activeTab !== "secrets"}
                             <div
-                                class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3"
+                                class="px-6 py-4 bg-muted border-t border-border flex justify-end gap-3"
                             >
                                 <button
                                     type="button"
@@ -378,7 +378,7 @@
                                         goto(
                                             `/view/${namespace}/flows/${flowId}`,
                                         )}
-                                    class="px-6 py-2 cursor-pointer text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400"
+                                    class="px-6 py-2 cursor-pointer text-sm font-medium text-foreground bg-card border border-input rounded-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400"
                                 >
                                     Cancel
                                 </button>

@@ -56,8 +56,8 @@
 							${firstLetter}
 						</div>
 						<div>
-							<div class="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editUser', {detail: {id: '${user.id}'}}))">${user.name}</div>
-							<div class="text-sm text-gray-500">${user.username}</div>
+							<div class="text-sm font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editUser', {detail: {id: '${user.id}'}}))">${user.name}</div>
+							<div class="text-sm text-muted-foreground">${user.username}</div>
 						</div>
 					</div>
 				`;
@@ -69,7 +69,7 @@
 			render: (_value: any, user: UserWithGroups) => {
 				const userGroups = user.groups || [];
 				if (userGroups.length === 0) {
-					return '<span class="text-gray-400 text-sm">No groups</span>';
+					return '<span class="text-muted-foreground text-sm">No groups</span>';
 				}
 
 				let html = '<div class="flex flex-wrap gap-1 items-center">';
@@ -81,7 +81,7 @@
 
 				// Show +N more if there are more than 3
 				if (userGroups.length > 3) {
-					html += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">+${userGroups.length - 3}</span>`;
+					html += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-subtle text-foreground">+${userGroups.length - 3}</span>`;
 				}
 
 				html += '</div>';
@@ -94,15 +94,15 @@
 			render: (_value: any, user: UserWithGroups) => {
 				// Don't show actions for superuser role (reserved users)
 				if (user.role === 'superuser') {
-					return '<span class="text-gray-400 text-sm">Reserved</span>';
+					return '<span class="text-muted-foreground text-sm">Reserved</span>';
 				}
 
 				return `
-					<div class="flex items-center gap-3">
+					<div class="flex items-center gap-2">
 						<button
 							data-action="edit"
 							data-user-id="${user.id}"
-							class="text-primary-600 hover:text-primary-800 text-sm font-medium"
+							class="text-link border border-link hover:bg-link-hover rounded px-2 py-1 text-sm font-medium cursor-pointer"
 						>
 							Edit
 						</button>
@@ -110,7 +110,7 @@
 							data-action="delete"
 							data-user-id="${user.id}"
 							data-user-name="${user.name}"
-							class="text-danger-600 hover:text-danger-800 text-sm font-medium"
+							class="text-danger-600 border border-danger-600 hover:bg-danger-100 rounded px-2 py-1 text-sm font-medium cursor-pointer"
 						>
 							Delete
 						</button>

@@ -93,32 +93,32 @@
       oninput={loadSubjects}
       onfocus={handleFocus}
       {placeholder}
-      class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5 pr-10"
+      class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5 pr-10"
       autocomplete="off"
       {disabled}
     />
     
     {#if loading}
       <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-        <svg class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
       </div>
     {:else}
-      <svg class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
       </svg>
     {/if}
     
     <!-- Dropdown -->
     {#if showDropdown}
-      <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+      <div class="absolute z-10 w-full mt-1 bg-card border border-input rounded-lg shadow-lg max-h-48 overflow-y-auto">
         {#if searchResults.length > 0}
           {#each searchResults as subject}
             <button
               type="button"
-              class="w-full px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-left"
+              class="w-full px-4 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 text-left"
               onclick={() => selectSubject(subject)}
             >
               <div class="flex items-center">
@@ -130,14 +130,14 @@
                   {/if}
                 </div>
                 <div>
-                  <div class="text-sm font-medium text-gray-900">{'name' in subject ? subject.name : subject.username}</div>
-                  <div class="text-xs text-gray-500">{subject.id}</div>
+                  <div class="text-sm font-medium text-foreground">{'name' in subject ? subject.name : subject.username}</div>
+                  <div class="text-xs text-muted-foreground">{subject.id}</div>
                 </div>
               </div>
             </button>
           {/each}
         {:else if !loading}
-          <div class="px-4 py-3 text-sm text-gray-500 text-center">
+          <div class="px-4 py-3 text-sm text-muted-foreground text-center">
             {type === 'user' ? 'No users found' : 'No groups found'}
           </div>
         {/if}
@@ -147,7 +147,7 @@
   
   <!-- Selected subject display -->
   {#if selectedSubject}
-    <div class="mt-2 p-2 bg-gray-50 rounded-lg border">
+    <div class="mt-2 p-2 bg-muted rounded-lg border">
       <div class="flex items-center justify-between">
         <div class="flex items-center">
           <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-primary-50">
@@ -158,11 +158,11 @@
             {/if}
           </div>
           <div>
-            <div class="text-sm font-medium text-gray-900">{'name' in selectedSubject ? selectedSubject.name : selectedSubject.username}</div>
-            <div class="text-xs text-gray-500">{selectedSubject.id}</div>
+            <div class="text-sm font-medium text-foreground">{'name' in selectedSubject ? selectedSubject.name : selectedSubject.username}</div>
+            <div class="text-xs text-muted-foreground">{selectedSubject.id}</div>
           </div>
         </div>
-        <button type="button" onclick={clearSelection} class="text-gray-400 hover:text-gray-600" {disabled}>
+        <button type="button" onclick={clearSelection} class="text-muted-foreground hover:text-foreground" {disabled}>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>

@@ -20,8 +20,8 @@
     if (status === 401) {
       return {
         IconComponent: IconLock,
-        iconColor: 'text-warning-600',
-        bgColor: 'bg-warning-100',
+        iconColor: 'text-warning-600 dark:text-warning-400',
+        bgColor: 'bg-warning-100 dark:bg-warning-900/30',
         title: 'Authentication Required',
         message: error?.message || 'Please log in to access this resource',
         showLoginButton: true
@@ -31,8 +31,8 @@
     if (status === 403) {
       return {
         IconComponent: IconShieldX,
-        iconColor: 'text-danger-600',
-        bgColor: 'bg-danger-100',
+        iconColor: 'text-danger-600 dark:text-danger-400',
+        bgColor: 'bg-danger-100 dark:bg-danger-900/30',
         title: 'Access Denied',
         message: error?.message || 'You do not have permission to access this resource',
         showLoginButton: false
@@ -42,8 +42,8 @@
     if (status === 404) {
       return {
         IconComponent: IconFileX,
-        iconColor: 'text-gray-600',
-        bgColor: 'bg-gray-100',
+        iconColor: 'text-muted-foreground',
+        bgColor: 'bg-subtle',
         title: 'Page Not Found',
         message: error?.message || 'The page you are looking for does not exist',
         showLoginButton: false
@@ -52,8 +52,8 @@
 
     return {
       IconComponent: IconAlertTriangle,
-      iconColor: 'text-danger-600',
-      bgColor: 'bg-danger-100',
+      iconColor: 'text-danger-600 dark:text-danger-400',
+      bgColor: 'bg-danger-100 dark:bg-danger-900/30',
       title: 'Something went wrong',
       message: error?.message || 'An unexpected error occurred',
       showLoginButton: false
@@ -80,7 +80,7 @@
   <title>Error - Flowctl</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+<div class="min-h-screen flex items-center justify-center bg-muted px-4">
   <div class="max-w-lg w-full text-center">
     <!-- Error Icon -->
     <div class="mb-8">
@@ -91,16 +91,16 @@
 
     <!-- Error Content -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">
+      <h1 class="text-3xl font-bold text-foreground mb-4">
         {errorDetails.title}
       </h1>
-      <p class="text-lg text-gray-600 mb-2">
+      <p class="text-lg text-muted-foreground mb-2">
         {errorDetails.message}
       </p>
       
       <!-- Show error code if available -->
       {#if errorCode}
-        <p class="text-sm text-gray-500 mt-2 font-mono">
+        <p class="text-sm text-muted-foreground mt-2 font-mono">
           Error Code: {errorCode}
         </p>
       {/if}
@@ -120,7 +120,7 @@
       
       <button
         onclick={handleGoHome}
-        class="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-card border border-input text-foreground rounded-md hover:bg-muted transition-colors font-medium cursor-pointer"
       >
         <IconHome size={18} />
         {$isAuthenticated ? 'Dashboard' : 'Home'}

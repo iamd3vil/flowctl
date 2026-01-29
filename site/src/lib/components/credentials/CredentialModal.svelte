@@ -83,7 +83,7 @@
 
 <!-- Modal Backdrop -->
 <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-overlay"
     onclick={handleClose}
     onkeydown={(e) => e.key === "Escape" && handleClose()}
     role="dialog"
@@ -92,10 +92,10 @@
 >
     <!-- Modal Content -->
     <div
-        class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6"
+        class="bg-card rounded-lg shadow-lg w-full max-w-2xl p-6"
         onclick={(e) => e.stopPropagation()}
     >
-        <h3 class="font-bold text-lg mb-4 text-gray-900">
+        <h3 class="font-bold text-lg mb-4 text-foreground">
             {isEditMode ? "Edit Credential" : "Add New Credential"}
         </h3>
 
@@ -108,12 +108,12 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <!-- Name -->
                 <div>
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Credential Name *</label
                     >
                     <input
                         type="text"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.name}
                         use:autofocus
                         placeholder="my-ssh-key"
@@ -124,11 +124,11 @@
 
                 <!-- Type -->
                 <div>
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Type *</label
                     >
                     <select
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.key_type}
                         required
                         disabled={loading}
@@ -143,11 +143,11 @@
             <!-- SSH Key Fields -->
             {#if formData.key_type === "private_key"}
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Private Key *</label
                     >
                     <textarea
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5 resize-none h-32 font-mono text-xs"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5 resize-none h-32 font-mono text-xs"
                         bind:value={formData.key_data}
                         placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
                         required
@@ -159,12 +159,12 @@
             <!-- Password Fields -->
             {#if formData.key_type === "password"}
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Password *</label
                     >
                     <input
                         type="password"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.key_data}
                         placeholder="Enter password"
                         required
@@ -177,7 +177,7 @@
             <div class="flex justify-end gap-2 mt-6">
                 <button
                     type="button"
-                    class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 cursor-pointer"
+                    class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 cursor-pointer"
                     onclick={handleClose}
                     disabled={loading}
                 >

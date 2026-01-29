@@ -46,9 +46,9 @@
       case 'current':
         return 'bg-primary-500 text-white border-primary-500';
       case 'disabled':
-        return 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed';
+        return 'bg-subtle text-muted-foreground border-border cursor-not-allowed';
       default: // upcoming
-        return 'bg-white text-gray-500 border-gray-300';
+        return 'bg-card text-muted-foreground border-input';
     }
   };
 
@@ -58,7 +58,7 @@
     if (index < currentIndex) {
       return 'bg-primary-500';
     }
-    return 'bg-gray-300';
+    return 'bg-border';
   };
 
   const getLabelClasses = (step: Step, index: number) => {
@@ -67,11 +67,11 @@
     switch (status) {
       case 'completed':
       case 'current':
-        return 'text-gray-900 font-medium';
+        return 'text-foreground font-medium';
       case 'disabled':
-        return 'text-gray-400';
+        return 'text-muted-foreground';
       default: // upcoming
-        return 'text-gray-500';
+        return 'text-muted-foreground';
     }
   };
 
@@ -141,7 +141,7 @@
             type="button"
             onclick={() => handleStepClick(step, index)}
             disabled={!clickable}
-            class="group flex items-center w-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg p-2 cursor-pointer {clickable ? 'hover:bg-gray-50' : ''}"
+            class="group flex items-center w-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg p-2 cursor-pointer {clickable ? 'hover:bg-muted' : ''}"
             aria-current={status === 'current' ? 'step' : undefined}
           >
             <!-- Step number/icon -->
@@ -162,7 +162,7 @@
                 {step.label}
               </div>
               {#if step.description}
-                <div class="text-xs text-gray-500 mt-0.5">
+                <div class="text-xs text-muted-foreground mt-0.5">
                   {step.description}
                 </div>
               {/if}
@@ -184,7 +184,7 @@
       type="button"
       onclick={goPrevious}
       disabled={!canGoPrevious()}
-      class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+      class="inline-flex items-center px-4 py-2 text-sm font-medium text-foreground bg-card border border-input rounded-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
     >
       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -192,7 +192,7 @@
       Previous
     </button>
 
-    <span class="text-sm text-gray-500">
+    <span class="text-sm text-muted-foreground">
       Step {getCurrentStepIndex() + 1} of {steps.length}
     </span>
 

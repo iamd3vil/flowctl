@@ -62,7 +62,7 @@
 			sortable: true,
 			render: (_value: any, execution: ExecutionSummary) => `
 					<a href="/view/${data.namespace}/flows/${execution.flow_id}"
-					   class="text-sm hover:underline text-gray-900 hover:text-primary-600 font-medium"
+					   class="text-sm hover:underline text-foreground hover:text-primary-600 font-medium"
 					>
 					  ${execution.flow_name}
 					</a>
@@ -74,7 +74,7 @@
 			render: (_value: any, execution: ExecutionSummary) => `
      			<a
       				href="/view/${data.namespace}/results/${execution.flow_id}/${execution.id}"
-      				class="font-mono text-primary-600 hover:text-primary-800 hover:underline text-sm"
+      				class="font-mono text-link hover:underline text-sm"
      			>
                     ${execution.id.substring(0, 8)}
 				</a>
@@ -91,14 +91,14 @@
 			header: 'Started At',
 			sortable: true,
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm text-gray-600">${formatDateTime(getStartTime(execution))}</div>
+				<div class="text-sm text-muted-foreground">${formatDateTime(getStartTime(execution))}</div>
 			`
 		},
 		{
 			key: 'duration',
 			header: 'Duration',
 			render: (_value: any, execution: ExecutionSummary) => `
-				<div class="text-sm text-gray-600">${formatDuration(getStartTime(execution), execution.completed_at)}</div>
+				<div class="text-sm text-muted-foreground">${formatDuration(getStartTime(execution), execution.completed_at)}</div>
 			`
 		},
 		{
@@ -112,7 +112,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
 						</svg>
 					</div>
-					<span class="text-sm text-gray-900">${execution.triggered_by || 'System'}</span>
+					<span class="text-sm text-foreground">${execution.triggered_by || 'System'}</span>
 				</div>
 			`
 		},

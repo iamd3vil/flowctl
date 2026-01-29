@@ -149,29 +149,29 @@
       oninput={handleInput}
       onfocus={handleFocus}
       {placeholder}
-      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pr-10"
+      class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pr-10"
       autocomplete="off"
       {disabled}
     />
 
     {#if loading}
       <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-        <svg class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
       </div>
     {:else}
-      <IconChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+      <IconChevronDown class="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
     {/if}
 
     <!-- Dropdown -->
     {#if showDropdown}
-      <div class="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+      <div class="absolute z-20 w-full mt-2 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
         <!-- Tag selection option when searching by tag -->
         {#if isTagSearch && currentTagQuery && !selectedNodes.includes(`tag:${currentTagQuery}`)}
           <div
-            class="px-4 py-2 hover:bg-success-50 cursor-pointer border-b border-gray-200"
+            class="px-4 py-2 hover:bg-success-50 cursor-pointer border-b border-border"
             onclick={() => selectTag(currentTagQuery)}
             role="button"
             tabindex="0"
@@ -191,7 +191,7 @@
 
         {#if searchResults.length > 0}
           {#if isTagSearch}
-            <div class="px-4 py-1 text-xs text-gray-500 bg-gray-50 border-b border-gray-100">
+            <div class="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border">
               Or select individual nodes:
             </div>
           {/if}
@@ -199,7 +199,7 @@
             <!-- Skip already selected nodes -->
             {#if !selectedNodes.includes(node.name)}
               <div
-                class="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                class="px-4 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
                 onclick={() => selectNode(node)}
                 role="button"
                 tabindex="0"
@@ -210,15 +210,15 @@
                     <IconServer class="text-primary-500" size={16} />
                   </div>
                   <div>
-                    <div class="text-sm font-medium text-gray-900">{node.name}</div>
-                    <div class="text-xs text-gray-500">{node.hostname}:{node.port}</div>
+                    <div class="text-sm font-medium text-foreground">{node.name}</div>
+                    <div class="text-xs text-muted-foreground">{node.hostname}:{node.port}</div>
                   </div>
                 </div>
               </div>
             {/if}
           {/each}
         {:else if !loading}
-          <div class="px-4 py-2 text-sm text-gray-500 text-center">
+          <div class="px-4 py-2 text-sm text-muted-foreground text-center">
             {searchQuery ? 'No nodes found' : 'No nodes available'}
           </div>
         {/if}

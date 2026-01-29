@@ -50,9 +50,9 @@
       case 'awaiting_approval':
         return `${baseClasses} ${sizeClasses[size]} bg-warning-50 border-warning-500`;
       case 'cancelled':
-        return `${baseClasses} ${sizeClasses[size]} bg-gray-100 border-gray-400`;
+        return `${baseClasses} ${sizeClasses[size]} bg-subtle border-input`;
       default:
-        return `${baseClasses} ${sizeClasses[size]} bg-gray-50 border-gray-300`;
+        return `${baseClasses} ${sizeClasses[size]} bg-muted border-input`;
     }
   };
 
@@ -74,9 +74,9 @@
       case 'awaiting_approval':
         return `${baseClasses} ${sizeClasses[size]} bg-warning-500 text-primary-900`;
       case 'cancelled':
-        return `${baseClasses} ${sizeClasses[size]} bg-gray-500 text-gray-900`;
+        return `${baseClasses} ${sizeClasses[size]} bg-muted text-foreground`;
       default:
-        return `${baseClasses} ${sizeClasses[size]} bg-gray-400 text-gray-900`;
+        return `${baseClasses} ${sizeClasses[size]} bg-muted-foreground text-white`;
     }
   };
 
@@ -123,9 +123,9 @@
     
     const sizeClasses = orientation === 'horizontal' ? 'w-4' : 'h-4';
     
-    const colorClasses = currentStatus === 'completed' 
-      ? 'bg-success-500' 
-      : 'bg-gray-300';
+    const colorClasses = currentStatus === 'completed'
+      ? 'bg-success-500'
+      : 'bg-border';
 
     return `${baseClasses} ${sizeClasses} ${colorClasses}`;
   };
@@ -140,16 +140,16 @@
   };
 </script>
 
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+<div class="bg-card rounded-lg shadow-sm border border-border p-6">
   {#if title}
-    <h2 class="text-lg font-semibold text-gray-900 mb-4">{title}</h2>
+    <h2 class="text-lg font-semibold text-foreground mb-4">{title}</h2>
   {/if}
   
   <div class={getContainerClasses()}>
     {#each steps as step, index}
       <div class="{getStepClasses(step.status)} relative">
         <div class="flex justify-between items-center mb-2">
-          <span class="font-semibold text-gray-900 {size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'}">
+          <span class="font-semibold text-foreground {size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'}">
             {step.name}
           </span>
           <div class={getIconClasses(step.status)}>
@@ -157,7 +157,7 @@
           </div>
         </div>
         
-        <p class="text-sm text-gray-600">
+        <p class="text-sm text-muted-foreground">
           {step.description || getStatusMessage(step.status)}
         </p>
 

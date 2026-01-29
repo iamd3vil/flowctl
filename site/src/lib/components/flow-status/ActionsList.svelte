@@ -48,9 +48,9 @@
       case 'awaiting_approval':
         return 'bg-warning-50 text-warning-700';
       case 'cancelled':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-subtle text-foreground';
       default:
-        return 'bg-gray-50 text-gray-600';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -65,9 +65,9 @@
       case 'awaiting_approval':
         return 'bg-warning-500 text-white';
       case 'cancelled':
-        return 'bg-gray-500 text-white';
+        return 'bg-muted text-white';
       default:
-        return 'bg-gray-400 text-white';
+        return 'bg-muted-foreground text-white';
     }
   };
 
@@ -93,21 +93,21 @@
   };
 </script>
 
-<div class="flex flex-col h-full bg-white rounded-lg border border-gray-300 overflow-hidden">
+<div class="flex flex-col h-full bg-card rounded-lg border border-input overflow-hidden">
   <!-- Header with Search -->
-  <div class="flex-shrink-0 sticky top-0 bg-white border-b border-gray-300 px-6 py-5 space-y-4 z-10">
-    <h2 class="text-base font-semibold text-gray-900">Actions</h2>
+  <div class="flex-shrink-0 sticky top-0 bg-card border-b border-input px-6 py-5 space-y-4 z-10">
+    <h2 class="text-base font-semibold text-foreground">Actions</h2>
 
     <!-- Search Input -->
     <div class="relative">
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <IconSearch size={18} class="text-gray-400" />
+        <IconSearch size={18} class="text-muted-foreground" />
       </div>
       <input
         type="text"
         bind:value={searchQuery}
         placeholder="Search actions..."
-        class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        class="w-full pl-10 pr-4 py-2 text-sm text-foreground bg-card border border-input rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
       />
     </div>
   </div>
@@ -115,7 +115,7 @@
   <!-- Actions List -->
   <div class="overflow-y-scroll p-4 min-h-128 max-h-128">
     {#if filteredActions.length === 0}
-      <div class="text-center py-8 text-gray-500 text-sm">
+      <div class="text-center py-8 text-muted-foreground text-sm">
         {searchQuery ? 'No actions found' : 'No actions available'}
       </div>
     {:else}
@@ -125,7 +125,7 @@
             type="button"
             onclick={() => handleActionClick(action.id)}
             class="w-full text-left p-4 rounded-lg border transition-all duration-200 cursor-pointer {getStatusClasses(action.status)}"
-            class:border-gray-100={selectedActionId !== action.id}
+            class:border-border={selectedActionId !== action.id}
             class:border-2={selectedActionId !== action.id}
           >
             <div class="flex items-center justify-between gap-3">

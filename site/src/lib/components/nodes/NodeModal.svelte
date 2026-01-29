@@ -135,28 +135,28 @@
 
 <!-- Modal Backdrop -->
 <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
     on:click={handleClose}
 >
     <!-- Modal Content -->
     <div
-        class="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        class="bg-card rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto"
         on:click|stopPropagation
     >
         <div class="p-6">
-            <h3 class="font-bold text-lg mb-4 text-gray-900">
+            <h3 class="font-bold text-lg mb-4 text-foreground">
                 {isEditMode ? "Edit Node" : "Add Node"}
             </h3>
 
             <form on:submit|preventDefault={handleSubmit}>
                 <!-- Name -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Name</label
                     >
                     <input
                         type="text"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.name}
                         required
                         disabled={loading}
@@ -166,12 +166,12 @@
 
                 <!-- Hostname -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Hostname</label
                     >
                     <input
                         type="text"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.hostname}
                         required
                         disabled={loading}
@@ -180,12 +180,12 @@
 
                 <!-- Port -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Port</label
                     >
                     <input
                         type="number"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.port}
                         min="1"
                         max="65535"
@@ -196,12 +196,12 @@
 
                 <!-- Username -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Username</label
                     >
                     <input
                         type="text"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.username}
                         required
                         disabled={loading}
@@ -210,11 +210,11 @@
 
                 <!-- Connection Type -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Connection Type</label
                     >
                     <select
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.connection_type}
                         required
                         disabled={loading}
@@ -227,11 +227,11 @@
 
                 <!-- Credential -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Credential</label
                     >
                     <select
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.auth.credential_id}
                         on:change={onCredentialChange}
                         required
@@ -248,12 +248,12 @@
 
                 <!-- Tags -->
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Tags (comma-separated)</label
                     >
                     <input
                         type="text"
-                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+                        class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
                         bind:value={formData.tagsString}
                         placeholder="production, web, east"
                         disabled={loading}
@@ -264,7 +264,7 @@
                 <div class="flex justify-end gap-2 mt-6">
                     <button
                         type="button"
-                        class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 cursor-pointer"
+                        class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 cursor-pointer"
                         on:click={handleClose}
                         disabled={loading}
                     >

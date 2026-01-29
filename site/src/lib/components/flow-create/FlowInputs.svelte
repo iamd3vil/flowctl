@@ -49,7 +49,7 @@
 <!-- Flow Inputs Section -->
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h3 class="text-base font-medium text-gray-900">Flow Inputs</h3>
+        <h3 class="text-base font-medium text-foreground">Flow Inputs</h3>
         <button
             onclick={addInput}
             class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
@@ -60,10 +60,10 @@
 
     <div class="space-y-4">
         {#each inputs as input, index (index)}
-            <div class="border border-gray-200 rounded-lg p-4 relative">
+            <div class="border border-border rounded-lg p-4 relative">
                 <button
                     onclick={() => removeInput(index)}
-                    class="absolute top-4 right-4 text-gray-400 hover:text-danger-600 cursor-pointer"
+                    class="absolute top-4 right-4 text-muted-foreground hover:text-danger-600 cursor-pointer"
                 >
                     <svg
                         class="w-5 h-5"
@@ -83,7 +83,7 @@
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Input Name *</label
                         >
                         <input
@@ -93,20 +93,20 @@
                                 (input.name = sanitizeName(
                                     e.currentTarget.value,
                                 ))}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             placeholder="input_name"
                             required
                         />
                     </div>
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Type *</label
                         >
                         <select
                             bind:value={input.type}
                             onchange={() => onInputTypeChange(input)}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             required
                         >
                             <option value="string">String</option>
@@ -120,52 +120,52 @@
                     </div>
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Label</label
                         >
                         <input
                             type="text"
                             bind:value={input.label}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             placeholder="Display Label"
                         />
                     </div>
                     <div class="col-span-2">
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Description</label
                         >
                         <input
                             type="text"
                             bind:value={input.description}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             placeholder="Help text for this input"
                         />
                     </div>
                     <div>
                         <label
                             class="block text-sm font-medium mb-1"
-                            class:text-gray-700={input.type !== "file"}
-                            class:text-gray-400={input.type === "file"}
+                            class:text-foreground={input.type !== "file"}
+                            class:text-muted-foreground={input.type === "file"}
                             >Default Value</label
                         >
                         <input
                             type="text"
                             bind:value={input.default}
                             disabled={input.type === "file"}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-subtle disabled:text-muted-foreground disabled:cursor-not-allowed"
                             placeholder={input.type === "file" ? "Not available for file inputs" : "Default value"}
                         />
                     </div>
                     <div class="col-span-2">
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Validation</label
                         >
                         <input
                             type="text"
                             bind:value={input.validation}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
                             placeholder="len(input_name) > 3"
                         />
                     </div>
@@ -173,52 +173,52 @@
                         <input
                             type="checkbox"
                             bind:checked={input.required}
-                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded"
                         />
-                        <label class="ml-2 block text-sm text-gray-700"
+                        <label class="ml-2 block text-sm text-foreground"
                             >Required</label
                         >
                     </div>
                 </div>
 
                 {#if input.type === "select"}
-                    <div class="mt-4 p-3 bg-gray-50 rounded-md">
+                    <div class="mt-4 p-3 bg-muted rounded-md">
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="block text-sm font-medium text-foreground mb-2"
                             >Options (one per line)</label
                         >
                         <textarea
                             bind:value={input.optionsText}
                             oninput={() => updateOptions(input)}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono h-20"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono h-20"
                             placeholder="option1&#10;option2&#10;option3"
                         ></textarea>
                     </div>
                 {/if}
 
                 {#if input.type === "file"}
-                    <div class="mt-4 p-3 bg-gray-50 rounded-md">
+                    <div class="mt-4 p-3 bg-muted rounded-md">
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="block text-sm font-medium text-foreground mb-2"
                             >Max File Size (MB)</label
                         >
                         <input
                             type="number"
                             bind:value={input.maxFileSizeMB}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             placeholder="Leave empty for default (100MB)"
                             min="1"
                         />
-                        <p class="text-xs text-gray-500 mt-1">Optional. Leave empty to use server default.</p>
+                        <p class="text-xs text-muted-foreground mt-1">Optional. Leave empty to use server default.</p>
                     </div>
                 {/if}
             </div>
         {/each}
 
         {#if inputs.length === 0}
-            <div class="text-center py-8 text-gray-500">
+            <div class="text-center py-8 text-muted-foreground">
                 <svg
-                    class="mx-auto h-12 w-12 text-gray-400 mb-3"
+                    class="mx-auto h-12 w-12 text-muted-foreground mb-3"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

@@ -18,15 +18,15 @@
 		purple: 'bg-primary-100 text-primary-600',
 		red: 'bg-danger-100 text-danger-600',
 		yellow: 'bg-warning-100 text-warning-600',
-		gray: 'bg-gray-100 text-gray-600'
+		gray: 'bg-subtle text-muted-foreground'
 	};
 </script>
 
-<div class="bg-white rounded-lg border border-gray-200 p-6">
+<div class="bg-card rounded-lg border border-border p-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<p class="text-sm font-medium text-gray-600">{title}</p>
-			<p class="text-2xl font-bold text-gray-900">{value}</p>
+			<p class="text-sm font-medium text-muted-foreground">{title}</p>
+			<p class="text-2xl font-bold text-foreground">{value}</p>
 		</div>
 		<div class="w-12 h-12 {colorClasses[color]} rounded-lg flex items-center justify-center">
 			{#if IconComponent}

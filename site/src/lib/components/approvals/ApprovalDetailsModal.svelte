@@ -96,7 +96,7 @@
 {#if open}
     <!-- Modal backdrop -->
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
         onclick={handleBackdropClick}
         onkeydown={(e) => e.key === "Escape" && closeModal()}
         role="dialog"
@@ -105,11 +105,11 @@
     >
         <!-- Modal content -->
         <div
-            class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            class="bg-card rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
         >
             <!-- Modal header -->
             <div
-                class="px-6 py-4 border-b border-gray-200 flex items-center justify-between"
+                class="px-6 py-4 border-b border-border flex items-center justify-between"
             >
                 <div class="flex items-center space-x-3">
                     <div
@@ -129,13 +129,13 @@
                             />
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900">
+                    <h3 class="text-lg font-semibold text-foreground">
                         Approval Details
                     </h3>
                 </div>
                 <button
                     onclick={closeModal}
-                    class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                    class="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     aria-label="Close modal"
                     use:autofocus
                 >
@@ -176,66 +176,66 @@
                 {:else if approval}
                     <div class="space-y-6">
                         <!-- Approval Overview -->
-                        <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="bg-muted rounded-lg p-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Action ID</span
                                     >
-                                    <span class="text-sm text-gray-900"
+                                    <span class="text-sm text-foreground"
                                         >{approval.action_id}</span
                                     >
                                 </div>
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Status</span
                                     >
                                     <span
-                                        class="text-sm text-gray-900 capitalize"
+                                        class="text-sm text-foreground capitalize"
                                         >{approval.status}</span
                                     >
                                 </div>
                                 <div>
-                                    <span class="block text-sm font-medium text-gray-700 mb-1">Execution ID</span>
+                                    <span class="block text-sm font-medium text-foreground mb-1">Execution ID</span>
                                     <a href="/view/{namespace}/results/{approval.flow_id}/{approval.exec_id}">
-                                        <span class="font-mono hover:underline text-sm text-blue-600 hover:text-blue-800">{approval.exec_id}</span>
+                                        <span class="font-mono hover:underline text-sm text-link hover:text-link-hover">{approval.exec_id}</span>
                                     </a>
                                 </div>
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Requested By</span
                                     >
-                                    <span class="text-sm text-gray-900"
+                                    <span class="text-sm text-foreground"
                                         >{approval.requested_by}</span
                                     >
                                 </div>
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Reviewer</span
                                     >
-                                    <span class="text-sm text-gray-900"
+                                    <span class="text-sm text-foreground"
                                         >{approval.approved_by || "N/A"}</span
                                     >
                                 </div>
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Flow</span
                                     >
-                                    <span class="text-sm text-gray-900"
+                                    <span class="text-sm text-foreground"
                                         >{approval.flow_name}</span
                                     >
                                 </div>
                                 <div>
                                     <span
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-medium text-foreground mb-1"
                                         >Created</span
                                     >
-                                    <span class="text-sm text-gray-900"
+                                    <span class="text-sm text-foreground"
                                         >{formatDateTime(approval.created_at, "Never")}</span
                                     >
                                 </div>
@@ -246,7 +246,7 @@
                         {#if approval.inputs}
                             <div>
                                 <h4
-                                    class="text-md font-semibold text-gray-900 mb-3"
+                                    class="text-base font-semibold text-foreground mb-3"
                                 >
                                     Execution Inputs
                                 </h4>
@@ -257,12 +257,12 @@
                         <!-- Action Buttons -->
                         {#if approval && approval.status === "pending"}
                             <div
-                                class="flex justify-end gap-3 pt-6 border-t border-gray-200"
+                                class="flex justify-end gap-3 pt-6 border-t border-border"
                             >
                                 <button
                                     onclick={handleReject}
                                     disabled={actionLoading}
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-lg hover:bg-gray-200 focus:outline-none focus:border-transparent disabled:opacity-50 cursor-pointer"
+                                    class="px-4 py-2 text-sm font-medium text-foreground bg-subtle border border-transparent rounded-lg hover:bg-subtle-hover focus:outline-none focus:border-transparent disabled:opacity-50 cursor-pointer"
                                 >
                                     {#if actionLoading}
                                         <svg

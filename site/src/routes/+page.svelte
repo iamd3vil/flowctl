@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { isAuthenticated, isLoading } from '$lib/stores/auth';
   import { getDefaultNamespace } from '$lib/utils/navigation';
-  import logo from '$lib/assets/full-logo.svg';
+  import Logo from '$lib/components/shared/Logo.svelte';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
 
   // Wait for auth loading to complete
@@ -26,9 +26,9 @@
   <title>Flowctl</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-white">
+<div class="min-h-screen flex items-center justify-center bg-card">
   <div class="flex flex-col items-center gap-6">
-    <img src={logo} alt="Flowctl" class="h-16 w-auto" />
+    <Logo height="h-16" />
     <LoadingSpinner label="Loading..." />
   </div>
 </div>

@@ -59,10 +59,10 @@
 <div>
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h3 class="text-base font-medium text-gray-900">
+            <h3 class="text-base font-medium text-foreground">
                 Flow Notifications
             </h3>
-            <p class="mt-1 text-sm text-gray-500">
+            <p class="mt-1 text-sm text-muted-foreground">
                 Configure notifications for flow execution events
             </p>
         </div>
@@ -76,10 +76,10 @@
 
     <div class="space-y-4">
         {#each notifications as notification, index (index)}
-            <div class="border border-gray-200 rounded-lg p-4 relative">
+            <div class="border border-border rounded-lg p-4 relative">
                 <button
                     onclick={() => removeNotification(index)}
-                    class="absolute top-4 right-4 text-gray-400 hover:text-danger-600 cursor-pointer"
+                    class="absolute top-4 right-4 text-muted-foreground hover:text-danger-600 cursor-pointer"
                 >
                     <svg
                         class="w-5 h-5"
@@ -100,14 +100,14 @@
                     <!-- Channel -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-foreground mb-1"
                             >Channel *</label
                         >
                         <select
                             bind:value={notification.channel}
                             disabled={loadingMessengers}
                             required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-subtle disabled:cursor-not-allowed"
                         >
                             <option value="">
                                 {loadingMessengers
@@ -128,7 +128,7 @@
                     <!-- Events -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="block text-sm font-medium text-foreground mb-2"
                             >Events *</label
                         >
                         <div class="space-y-2">
@@ -144,9 +144,9 @@
                                                 notification,
                                                 event.value,
                                             )}
-                                        class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                        class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded"
                                     />
-                                    <span class="ml-2 text-sm text-gray-700"
+                                    <span class="ml-2 text-sm text-foreground"
                                         >{event.label}</span
                                     >
                                 </label>
@@ -157,7 +157,7 @@
                     <!-- Receivers -->
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-2"
+                            class="block text-sm font-medium text-foreground mb-2"
                             >Receivers *</label
                         >
                         <MultiReceiverSelector
@@ -169,9 +169,9 @@
         {/each}
 
         {#if notifications.length === 0}
-            <div class="text-center py-8 text-gray-500">
+            <div class="text-center py-8 text-muted-foreground">
                 <svg
-                    class="mx-auto h-12 w-12 text-gray-400 mb-3"
+                    class="mx-auto h-12 w-12 text-muted-foreground mb-3"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

@@ -79,7 +79,7 @@
 			header: 'Flow Name',
 			sortable: true,
 			render: (_value: any, approval: ApprovalResp) => `
-				<div class="text-sm font-medium text-gray-900">${approval.flow_name}</div>
+				<div class="text-sm font-medium text-foreground">${approval.flow_name}</div>
 			`
 		},
 		{
@@ -87,7 +87,7 @@
 			header: 'Created',
 			sortable: true,
 			render: (_value: any, approval: ApprovalResp) => `
-			    <div class="text-sm text-gray-600">${formatDateTime(approval.created_at)}</div>
+			    <div class="text-sm text-muted-foreground">${formatDateTime(approval.created_at)}</div>
 			`
 		},
 		{
@@ -95,7 +95,7 @@
 			header: 'Requested By',
 			sortable: true,
 			render: (_value: any, approval: ApprovalResp) => `
-				<div class="text-sm font-medium text-gray-900">${approval.requested_by}</div>
+				<div class="text-sm font-medium text-foreground">${approval.requested_by}</div>
 			`
 		},
 		{
@@ -103,7 +103,7 @@
 			header: 'Execution',
 			sortable: true,
 			render: (_value: any, approval: ApprovalResp) => `
-				<span class="font-mono text-sm text-gray-600">${approval.exec_id.substring(0, 8)}</span>
+				<span class="font-mono text-sm text-muted-foreground">${approval.exec_id.substring(0, 8)}</span>
 			`
 		},
 		{
@@ -248,7 +248,7 @@
 			columns={tableColumns}
 			{loading}
 			emptyMessage="No approvals found. Approvals will appear here when workflows require approval."
-			emptyIcon='<svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			emptyIcon='<svg class="w-16 h-16 text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
 			</svg>'
 		/>

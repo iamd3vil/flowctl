@@ -54,8 +54,8 @@
 							${firstLetter}
 						</div>
 						<div>
-							<div class="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editNamespace', {detail: {id: '${namespace.id}'}}))">${namespace.name}</div>
-							<div class="text-sm text-gray-500">ID: ${namespace.id}</div>
+							<div class="text-sm font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editNamespace', {detail: {id: '${namespace.id}'}}))">${namespace.name}</div>
+							<div class="text-sm text-muted-foreground">ID: ${namespace.id}</div>
 						</div>
 					</div>
 				`;
@@ -67,7 +67,7 @@
 		{
 			label: 'Edit',
 			onClick: (namespace: NamespaceResp) => handleEdit(namespace.id),
-			className: 'text-primary-600 hover:text-primary-800'
+			className: 'text-link border border-link hover:bg-link-hover rounded px-2 py-1'
 		},
 		{
 			label: 'Delete',

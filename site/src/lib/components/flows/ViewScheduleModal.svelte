@@ -26,7 +26,7 @@
 
 <!-- Modal Backdrop -->
 <div
-	class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60"
+	class="fixed inset-0 z-50 flex items-center justify-center bg-overlay"
 	onclick={handleClose}
 	onkeydown={(e) => e.key === 'Escape' && handleClose()}
 	role="dialog"
@@ -35,21 +35,21 @@
 >
 	<!-- Modal Content -->
 	<div
-		class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
+		class="bg-card rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
 		onclick={(e) => e.stopPropagation()}
 	>
-		<h3 class="font-bold text-lg mb-4 text-gray-900">Schedule Details</h3>
+		<h3 class="font-bold text-lg mb-4 text-foreground">Schedule Details</h3>
 
 		<!-- Schedule Info Box -->
-		<div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+		<div class="bg-muted border border-border rounded-lg p-4 mb-4">
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<div class="text-xs font-medium text-gray-500 uppercase mb-1">Cron Expression</div>
-					<code class="bg-white px-2 py-1 rounded text-sm font-mono border border-gray-300">{schedule.cron}</code>
+					<div class="text-xs font-medium text-muted-foreground uppercase mb-1">Cron Expression</div>
+					<code class="bg-card px-2 py-1 rounded text-sm font-mono border border-input text-foreground">{schedule.cron}</code>
 				</div>
 				<div>
-					<div class="text-xs font-medium text-gray-500 uppercase mb-1">Timezone</div>
-					<div class="text-sm text-gray-900">{schedule.timezone}</div>
+					<div class="text-xs font-medium text-muted-foreground uppercase mb-1">Timezone</div>
+					<div class="text-sm text-foreground">{schedule.timezone}</div>
 				</div>
 			</div>
 		</div>
@@ -63,7 +63,7 @@
 		<div class="flex justify-end">
 			<button
 				type="button"
-				class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer"
+				class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover cursor-pointer"
 				onclick={handleClose}
 				use:autofocus
 			>

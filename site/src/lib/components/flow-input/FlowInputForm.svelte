@@ -104,10 +104,10 @@
 
 </script>
 
-<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-  <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-    <h2 class="text-lg font-semibold text-gray-900">Configuration Parameters</h2>
-    <p class="text-sm text-gray-600 mt-1">Configure the inputs for this flow execution</p>
+<div class="bg-card rounded-lg border border-border overflow-hidden">
+  <div class="px-6 py-4 border-b border-border bg-muted">
+    <h2 class="text-lg font-semibold text-foreground">Configuration Parameters</h2>
+    <p class="text-sm text-muted-foreground mt-1">Configure the inputs for this flow execution</p>
   </div>
 
   <form onsubmit={submit} class="p-6 space-y-6">
@@ -120,28 +120,28 @@
     <FlowInputFields inputs={mergedInputs} {errors} useFormData={true} />
 
     <!-- Schedule option -->
-    <div class="pt-4 border-t border-gray-200">
+    <div class="pt-4 border-t border-border">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <IconClock class="w-5 h-5 text-gray-500" />
-          <span class="text-sm font-medium text-gray-700">Schedule for later</span>
+          <IconClock class="w-5 h-5 text-muted-foreground" />
+          <span class="text-sm font-medium text-foreground">Schedule for later</span>
         </div>
         <button
           type="button"
           onclick={() => scheduleEnabled = !scheduleEnabled}
-          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {scheduleEnabled ? 'bg-primary-500' : 'bg-gray-200'}"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {scheduleEnabled ? 'bg-primary-500' : 'bg-input'}"
           role="switch"
           aria-checked={scheduleEnabled}
         >
           <span
-            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {scheduleEnabled ? 'translate-x-5' : 'translate-x-0'}"
+            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-card shadow ring-0 transition duration-200 ease-in-out {scheduleEnabled ? 'translate-x-5' : 'translate-x-0'}"
           ></span>
         </button>
       </div>
 
       {#if scheduleEnabled}
         <div class="mt-4">
-          <label for="scheduled_at" class="block text-sm font-medium text-gray-700 mb-2">
+          <label for="scheduled_at" class="block text-sm font-medium text-foreground mb-2">
             Run at
             <span class="text-red-500">*</span>
           </label>
@@ -151,18 +151,18 @@
             bind:value={scheduledAt}
             min={getMinDateTime()}
             required={scheduleEnabled}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
-          <p class="text-sm text-gray-500 mt-1">The flow will be queued and executed at the specified time</p>
+          <p class="text-sm text-muted-foreground mt-1">The flow will be queued and executed at the specified time</p>
         </div>
       {/if}
     </div>
 
-    <div class="flex gap-3 pt-6 border-t border-gray-200">
+    <div class="flex gap-3 pt-6 border-t border-border">
       <button
         type="button"
         onclick={() => window.history.back()}
-        class="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors cursor-pointer"
+        class="flex-1 px-4 py-2 bg-card border border-input text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
       >
         Cancel
       </button>

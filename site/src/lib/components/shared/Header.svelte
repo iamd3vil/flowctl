@@ -32,11 +32,11 @@
 </script>
 
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 px-6 py-4">
+<header class="bg-card border-b border-border px-6 py-4">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-5">
       {#if normalizedBreadcrumbs.length > 0}
-        <nav aria-label="Breadcrumb" class="flex items-center text-sm text-gray-500">
+        <nav aria-label="Breadcrumb" class="flex items-center text-sm text-muted-foreground">
           <ol class="flex items-center">
             {#each normalizedBreadcrumbs as crumb, index}
               <li class="flex items-center">
@@ -48,7 +48,7 @@
                     {crumb.label}
                   </button>
                 {:else}
-                  <span class={index === normalizedBreadcrumbs.length - 1 ? 'text-gray-900' : ''} aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined}>{crumb.label}</span>
+                  <span class={index === normalizedBreadcrumbs.length - 1 ? 'text-foreground' : ''} aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined}>{crumb.label}</span>
                 {/if}
                 {#if index < normalizedBreadcrumbs.length - 1}
                   <span class="mx-2" aria-hidden="true">/</span>
@@ -69,7 +69,7 @@
         <button
           onclick={action.onClick}
           title={action.tooltip || ''}
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : action.variant === 'danger' ? 'bg-danger-500 text-white hover:bg-danger-600' : action.variant === 'ghost' ? 'text-primary-500 hover:text-primary-600 font-medium' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : action.variant === 'danger' ? 'bg-danger-500 text-white hover:bg-danger-600' : action.variant === 'ghost' ? 'text-primary-500 hover:text-primary-600 font-medium' : 'bg-card border border-input text-foreground hover:bg-muted'}"
         >
           {#if action.icon}
             {@const Icon = action.icon}

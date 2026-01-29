@@ -54,8 +54,8 @@
 							${firstLetter}
 						</div>
 						<div>
-							<div class="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editGroup', {detail: {id: '${group.id}'}}))">${group.name}</div>
-							<div class="text-sm text-gray-500">${group.description || 'No description'}</div>
+							<div class="text-sm font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick="document.dispatchEvent(new CustomEvent('editGroup', {detail: {id: '${group.id}'}}))">${group.name}</div>
+							<div class="text-sm text-muted-foreground">${group.description || 'No description'}</div>
 						</div>
 					</div>
 				`;
@@ -66,7 +66,7 @@
 			header: 'Users',
 			render: (_value: any, group: Group) => {
 				const userCount = group.users?.length || 0;
-				return `<span class="text-gray-900">${userCount} ${userCount === 1 ? 'user' : 'users'}</span>`;
+				return `<span class="text-foreground">${userCount} ${userCount === 1 ? 'user' : 'users'}</span>`;
 			}
 		}
 	];
@@ -75,7 +75,7 @@
 		{
 			label: 'Edit',
 			onClick: (group: Group) => handleEdit(group.id),
-			className: 'text-primary-600 hover:text-primary-800'
+			className: 'text-link border border-link hover:bg-link-hover rounded px-2 py-1'
 		},
 		{
 			label: 'Delete',

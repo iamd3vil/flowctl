@@ -118,8 +118,8 @@
 <div class="space-y-4">
 	<div class="flex justify-between items-center">
 		<div>
-			<h3 class="text-lg font-medium text-gray-900">Flow Secrets</h3>
-			<p class="text-sm text-gray-500">
+			<h3 class="text-lg font-medium text-foreground">Flow Secrets</h3>
+			<p class="text-sm text-muted-foreground">
 				{flowId
 					? 'Manage encrypted secrets for this flow. Values are never displayed after creation.'
 					: 'Save the flow first to add secrets.'
@@ -143,46 +143,46 @@
 		</div>
 	{:else if !flowId}
 		<div class="text-center py-8">
-			<div class="text-gray-500">
-				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<div class="text-muted-foreground">
+				<svg class="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 				</svg>
-				<h3 class="mt-2 text-sm font-medium text-gray-900">No secrets yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Save the flow first to add secrets.</p>
+				<h3 class="mt-2 text-sm font-medium text-foreground">No secrets yet</h3>
+				<p class="mt-1 text-sm text-muted-foreground">Save the flow first to add secrets.</p>
 			</div>
 		</div>
 	{:else if secrets.length === 0}
 		<div class="text-center py-8">
-			<div class="text-gray-500">
-				<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<div class="text-muted-foreground">
+				<svg class="mx-auto h-12 w-12 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 				</svg>
-				<h3 class="mt-2 text-sm font-medium text-gray-900">No secrets yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Add your first secret to get started.</p>
+				<h3 class="mt-2 text-sm font-medium text-foreground">No secrets yet</h3>
+				<p class="mt-1 text-sm text-muted-foreground">Add your first secret to get started.</p>
 			</div>
 		</div>
 	{:else}
-		<div class="bg-white shadow overflow-hidden sm:rounded-md">
-			<ul role="list" class="divide-y divide-gray-200">
+		<div class="bg-card shadow overflow-hidden sm:rounded-md">
+			<ul role="list" class="divide-y divide-border">
 				{#each secrets as secret}
 					<li class="px-4 py-4 flex items-center justify-between">
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center space-x-3">
 								<div class="flex-shrink-0">
-									<svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<svg class="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 									</svg>
 								</div>
 								<div class="min-w-0 flex-1">
-									<p class="text-sm font-medium text-gray-900 truncate">
+									<p class="text-sm font-medium text-foreground truncate">
 										{secret.key}
 									</p>
 									{#if secret.description}
-										<p class="text-sm text-gray-500 truncate">
+										<p class="text-sm text-muted-foreground truncate">
 											{secret.description}
 										</p>
 									{/if}
-									<p class="text-xs text-gray-400">
+									<p class="text-xs text-muted-foreground">
 										Created: {formatDateTime(secret.created_at)}
 									</p>
 								</div>
@@ -239,10 +239,10 @@
 {/if}
 
 <!-- Namespace Secrets Section (Read-only) -->
-<div class="mt-8 pt-8 border-t border-gray-200">
+<div class="mt-8 pt-8 border-t border-border">
 	<div class="mb-4">
-		<h3 class="text-lg font-medium text-gray-900">Namespace Secrets</h3>
-		<p class="text-sm text-gray-500">
+		<h3 class="text-lg font-medium text-foreground">Namespace Secrets</h3>
+		<p class="text-sm text-muted-foreground">
 			These secrets are available to all flows in this namespace. Flow secrets with the same key will override these.
 		</p>
 	</div>
@@ -253,25 +253,25 @@
 		</div>
 	{:else if namespaceSecrets.length === 0}
 		<div class="text-center py-4">
-			<p class="text-sm text-gray-500">No namespace secrets configured.</p>
+			<p class="text-sm text-muted-foreground">No namespace secrets configured.</p>
 		</div>
 	{:else}
-		<div class="bg-gray-50 rounded-md border border-gray-200">
-			<ul role="list" class="divide-y divide-gray-200">
+		<div class="bg-muted rounded-md border border-border">
+			<ul role="list" class="divide-y divide-border">
 				{#each namespaceSecrets as secret}
 					<li class="px-4 py-3 flex items-center">
 						<div class="flex-shrink-0 mr-3">
-							<svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 							</svg>
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-sm font-medium text-gray-700">{secret.key}</p>
+							<p class="text-sm font-medium text-foreground">{secret.key}</p>
 							{#if secret.description}
-								<p class="text-xs text-gray-500">{secret.description}</p>
+								<p class="text-xs text-muted-foreground">{secret.description}</p>
 							{/if}
 						</div>
-						<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 rounded">namespace</span>
+						<span class="ml-2 px-2 py-0.5 text-xs font-medium bg-subtle text-muted-foreground rounded">namespace</span>
 					</li>
 				{/each}
 			</ul>

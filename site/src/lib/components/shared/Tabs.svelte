@@ -43,31 +43,31 @@
       };
 
       if (tab.disabled) {
-        return `${pillBaseClasses} ${pillSizeClasses[size]} bg-gray-100 text-gray-400 cursor-not-allowed`;
+        return `${pillBaseClasses} ${pillSizeClasses[size]} bg-subtle text-muted-foreground cursor-not-allowed`;
       }
 
       if (isActive) {
         return `${pillBaseClasses} ${pillSizeClasses[size]} bg-primary-500 text-white shadow-sm`;
       }
 
-      return `${pillBaseClasses} ${pillSizeClasses[size]} text-gray-600 hover:text-gray-900 hover:bg-gray-100`;
+      return `${pillBaseClasses} ${pillSizeClasses[size]} text-muted-foreground hover:text-foreground hover:bg-subtle`;
     }
 
     // Default variant
     if (tab.disabled) {
-      return `${baseClasses} ${sizeClasses[size]} border-transparent text-gray-400 cursor-not-allowed`;
+      return `${baseClasses} ${sizeClasses[size]} border-transparent text-muted-foreground cursor-not-allowed`;
     }
 
     if (isActive) {
-      return `${baseClasses} ${sizeClasses[size]} border-primary-600 text-primary-600`;
+      return `${baseClasses} ${sizeClasses[size]} border-link text-link`;
     }
 
-    return `${baseClasses} ${sizeClasses[size]} border-transparent text-gray-500 hover:text-gray-700`;
+    return `${baseClasses} ${sizeClasses[size]} border-transparent text-muted-foreground hover:text-foreground`;
   };
 
   const getContainerClasses = () => {
     if (variant === 'pills') {
-      return 'flex space-x-1 p-1 bg-gray-100 rounded-lg';
+      return 'flex space-x-1 p-1 bg-subtle rounded-lg';
     }
     return 'flex space-x-8 px-6';
   };
@@ -93,7 +93,7 @@
       <span class="whitespace-nowrap">
         {tab.label}
         {#if tab.badge}
-          <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {isActive && variant !== 'pills' ? 'bg-primary-100 text-primary-900' : variant === 'pills' && isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800'}">
+          <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {isActive && variant !== 'pills' ? 'bg-primary-100 text-primary-900' : variant === 'pills' && isActive ? 'bg-primary-600 text-white' : 'bg-subtle text-foreground'}">
             {tab.badge}
           </span>
         {/if}

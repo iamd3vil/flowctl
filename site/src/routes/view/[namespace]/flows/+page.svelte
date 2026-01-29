@@ -158,7 +158,7 @@
             </svg>
           </div>
           <div class="ml-4">
-            <a href="/view/${page.params.namespace}/flows/${row.slug}" class="text-sm hover:text-primary-600 hover:underline font-medium text-gray-900">
+            <a href="/view/${page.params.namespace}/flows/${row.slug}" class="text-sm hover:text-primary-600 hover:underline font-medium text-foreground">
               ${value}
             </a>
           </div>
@@ -169,13 +169,13 @@
             key: "description",
             header: "Description",
             render: (value: string) =>
-                `<div class="text-sm text-gray-600 max-w-xs truncate">${value}</div>`,
+                `<div class="text-sm text-muted-foreground max-w-xs truncate">${value}</div>`,
         },
         {
             key: "step_count",
             header: "Steps",
             render: (value: number) => `
-        <div class="flex items-center text-sm text-gray-500">
+        <div class="flex items-center text-sm text-muted-foreground">
           <span>${value || 0}</span>
           <span class="ml-1">steps</span>
         </div>
@@ -191,7 +191,7 @@
                 label: "Edit",
                 onClick: (row: FlowListItem) => goToEditFlow(row.slug),
                 className:
-                    "text-primary-600 border-primary-600 hover:bg-primary-100",
+                    "text-link border-link hover:bg-link-hover",
             });
         }
 
@@ -250,7 +250,7 @@
             ? "Try adjusting your search"
             : "No flows are available in this namespace"}
         emptyIcon={`
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="mx-auto h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
         </svg>
       `}
@@ -259,7 +259,7 @@
     <!-- Pagination and Count -->
     {#if flows.length > 0}
         <div class="mt-6 flex items-center justify-between">
-            <div class="text-sm text-gray-700">
+            <div class="text-sm text-foreground">
                 Showing {flows.length} of {totalCount} flows
             </div>
             <Pagination

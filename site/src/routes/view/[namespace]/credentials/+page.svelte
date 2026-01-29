@@ -83,8 +83,8 @@
                     }
 				</div>
 					<div>
-						<a href="#" class="text-sm hover:underline font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick="event.preventDefault(); document.dispatchEvent(new CustomEvent('editCredential', {detail: {id: '${credential.id}'}}))">${credential.name}</a>
-						<div class="text-sm text-gray-500">${credential.id}</div>
+						<a href="#" class="text-sm hover:underline font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick="event.preventDefault(); document.dispatchEvent(new CustomEvent('editCredential', {detail: {id: '${credential.id}'}}))">${credential.name}</a>
+						<div class="text-sm text-muted-foreground">${credential.id}</div>
 					</div>
 				</div>
 			`,
@@ -106,7 +106,7 @@
             header: "Last Accessed",
             sortable: true,
             render: (_value: any, credential: CredentialResp) => `
-			  <div class="text-sm text-gray-600">${formatDateTime(credential.last_accessed, "Never")}</div>
+			  <div class="text-sm text-muted-foreground">${formatDateTime(credential.last_accessed, "Never")}</div>
 			`,
         },
     ];
@@ -119,7 +119,7 @@
                 label: "Edit",
                 onClick: (credential: CredentialResp) =>
                     handleEdit(credential.id),
-                className: "text-primary-600 border-primary-600 hover:bg-primary-100",
+                className: "text-link border-link hover:bg-link-hover",
             });
         }
 

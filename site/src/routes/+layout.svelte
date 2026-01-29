@@ -2,10 +2,15 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { currentUser, isAuthenticated, isLoading } from '$lib/stores/auth';
+	import { resolvedTheme, applyTheme } from '$lib/stores/theme';
 	import NotificationPopup from '$lib/components/shared/NotificationPopup.svelte';
 	import GlobalLoadingIndicator from '$lib/components/shared/GlobalLoadingIndicator.svelte';
 
 	let { children, data } = $props();
+
+	$effect(() => {
+		applyTheme($resolvedTheme);
+	});
 
 	// Update stores when userPromise resolves
 	$effect(() => {

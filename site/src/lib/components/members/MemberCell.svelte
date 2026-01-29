@@ -15,10 +15,10 @@
   </div>
   <div class="transition-colors">
     {#if onClick}
-      <a href="#" class="text-sm hover:underline cursor-pointer hover:text-primary-600 font-medium text-gray-900" onclick={(e) => { e.preventDefault(); onClick(row); }}>{row.subject_name}</a>
+      <a href="#" class="text-sm hover:underline cursor-pointer hover:text-primary-600 font-medium text-foreground" onclick={(e) => { e.preventDefault(); onClick(row); }}>{row.subject_name}</a>
     {:else}
-      <div class="text-sm font-medium text-gray-900">{row.subject_name}</div>
+      <div class="text-sm font-medium text-foreground">{row.subject_name}</div>
     {/if}
-    <div class="text-sm text-gray-500">{row.subject_id}</div>
+    <div class="text-sm text-muted-foreground">{row.subject_id}</div>
   </div>
 </div>

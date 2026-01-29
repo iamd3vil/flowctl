@@ -63,26 +63,26 @@
 
 <!-- Modal Background -->
 <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-overlay"
     onclick={handleClose}
     role="dialog"
     aria-modal="true"
 >
     <!-- Modal Content -->
     <div
-        class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
+        class="bg-card rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}
         role="document"
     >
-        <h3 class="font-bold text-lg mb-4 text-gray-900">
+        <h3 class="font-bold text-lg mb-4 text-foreground">
             {isEditMode ? "Edit User" : "Add New User"}
         </h3>
 
         <form onsubmit={handleSubmit}>
             <!-- Name Field -->
             <div class="mb-4">
-                <label for="name" class="block mb-1 font-medium text-gray-900"
+                <label for="name" class="block mb-1 font-medium text-foreground"
                     >Name</label
                 >
                 <input
@@ -91,7 +91,7 @@
                     bind:value={name}
                     required
                     disabled={saving}
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-subtle disabled:cursor-not-allowed"
                     use:autofocus
                 />
             </div>
@@ -100,7 +100,7 @@
             <div class="mb-4">
                 <label
                     for="username"
-                    class="block mb-1 font-medium text-gray-900">Email</label
+                    class="block mb-1 font-medium text-foreground">Email</label
                 >
                 <input
                     type="text"
@@ -108,13 +108,13 @@
                     bind:value={username}
                     required
                     disabled={saving}
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-subtle disabled:cursor-not-allowed"
                 />
             </div>
 
             <!-- Groups Field -->
             <div class="mb-4">
-                <span class="block mb-1 font-medium text-gray-900">Groups</span>
+                <span class="block mb-1 font-medium text-foreground">Groups</span>
                 <GroupSelector
                     bind:selectedGroups
                     disabled={saving}
@@ -128,7 +128,7 @@
                     type="button"
                     onclick={handleClose}
                     disabled={saving}
-                    class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    class="px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                     Cancel
                 </button>

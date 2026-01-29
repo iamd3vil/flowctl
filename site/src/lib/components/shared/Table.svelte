@@ -127,14 +127,14 @@
     });
 </script>
 
-<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+<div class="bg-card rounded-lg border border-border overflow-hidden">
     {#if title || subtitle}
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div class="px-6 py-4 border-b border-border bg-muted">
             {#if title}
-                <h3 class="text-lg font-semibold text-gray-900">{title}</h3>
+                <h3 class="text-lg font-semibold text-foreground">{title}</h3>
             {/if}
             {#if subtitle}
-                <p class="text-sm text-gray-600 mt-1">{subtitle}</p>
+                <p class="text-sm text-muted-foreground mt-1">{subtitle}</p>
             {/if}
         </div>
     {/if}
@@ -150,14 +150,14 @@
     {:else if data.length === 0}
         <div class="flex flex-col items-center justify-center h-64 text-center">
             {#if EmptyIconComponent}
-                <div class="text-gray-400 mb-4">
+                <div class="text-muted-foreground mb-4">
                     <EmptyIconComponent size={emptyIconSize} />
                 </div>
             {:else if emptyIcon}
                 {@html emptyIcon}
             {:else}
                 <svg
-                    class="w-16 h-16 text-gray-400 mb-4"
+                    class="w-16 h-16 text-muted-foreground mb-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -170,22 +170,22 @@
                     />
                 </svg>
             {/if}
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
+            <h3 class="text-lg font-medium text-foreground mb-2">
                 {emptyMessage}
             </h3>
         </div>
     {:else}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+            <table class="min-w-full divide-y divide-border">
+                <thead class="bg-muted">
                 <tr>
                     {#each columns as column}
                         <th
                             scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider {column.width
+                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider {column.width
                                 ? column.width
                                 : ''} {column.sortable
-                                ? 'cursor-pointer select-none hover:bg-gray-100'
+                                ? 'cursor-pointer select-none hover:bg-subtle'
                                 : ''}"
                             onclick={() => handleSort(column)}
                             aria-sort={sortKey === column.key
@@ -206,7 +206,7 @@
                                                 column.key &&
                                             sortDirection === 'asc'
                                                 ? 'text-primary-500'
-                                                : 'text-gray-400'}"
+                                                : 'text-muted-foreground'}"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
                                         >
@@ -221,7 +221,7 @@
                                                 column.key &&
                                             sortDirection === 'desc'
                                                 ? 'text-primary-500'
-                                                : 'text-gray-400'}"
+                                                : 'text-muted-foreground'}"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
                                         >
@@ -239,24 +239,24 @@
                     {#if actions.length > 0}
                         <th
                             scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32"
+                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32"
                         >
                             Actions
                         </th>
                     {/if}
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-card divide-y divide-border">
                 {#each sortedData as row}
                     <tr
-                        class="hover:bg-gray-50 {onRowClick
+                        class="hover:bg-muted {onRowClick
                             ? 'cursor-pointer'
                             : ''}"
                         onclick={() => handleRowClick(row)}
                     >
                         {#each columns as column}
                             <td
-                                class="px-6 py-4 whitespace-nowrap {column.width
+                                class="px-6 py-4 whitespace-nowrap text-sm text-foreground {column.width
                                     ? column.width
                                     : ''}"
                             >

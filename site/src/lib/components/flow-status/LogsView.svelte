@@ -77,8 +77,8 @@
         const baseClasses = "rounded-lg p-4 font-mono min-h-128 max-h-128 overflow-y-auto overflow-x-auto";
         const themeClasses =
             theme === "dark"
-                ? "bg-gray-900 text-gray-300"
-                : "bg-gray-50 text-gray-900 border border-gray-200";
+                ? "bg-gray-900 dark:bg-gray-950 text-gray-300"
+                : "bg-muted text-foreground border border-border";
         const fontClasses = {
             xs: "text-xs",
             sm: "text-sm",
@@ -89,7 +89,7 @@
 
     const getCursorClasses = () => {
         const cursorColor = theme === "dark" ? "text-primary-400" : "text-primary-600";
-        const blinkColor = theme === "dark" ? "text-gray-500" : "text-gray-400";
+        const blinkColor = theme === "dark" ? "text-muted-foreground" : "text-muted-foreground";
         return { cursor: cursorColor, blink: blinkColor };
     };
 
@@ -180,16 +180,16 @@
                 <input
                     type="checkbox"
                     bind:checked={showTimestamp}
-                    class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    class="rounded border-input text-primary-600 focus:ring-primary-500"
                 />
-                <span class="text-gray-900">Show Timestamp</span>
+                <span class="text-foreground">Show Timestamp</span>
             </label>
         </div>
     {/if}
 
     <div class={getContainerClasses()} bind:this={scrollContainer} onscroll={handleScroll}>
         {#if filterByActionId && processedLogs.length === 0 && !isRunning}
-            <div class="flex items-center justify-center h-full text-gray-500 text-sm">
+            <div class="flex items-center justify-center h-full text-muted-foreground text-sm">
                 No logs available for this action
             </div>
         {:else if processedLogs.length > 0}
@@ -197,7 +197,7 @@
                 <div style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({offsetY}px);">
                     {#each visibleLogs as logMsg, i (startIndex + i)}
                         <div class="whitespace-nowrap" style="height: {ITEM_HEIGHT}px; line-height: {ITEM_HEIGHT}px;">
-                            {#if showTimestamp && logMsg.timestamp}<span class="text-gray-500">[{logMsg.timestamp}]</span>{/if}{#if logMsg.nodeId}<span class="font-semibold {logMsg.nodeColor}">[{logMsg.nodeId}]</span>{/if}{logMsg.value}
+                            {#if showTimestamp && logMsg.timestamp}<span class="text-muted-foreground">[{logMsg.timestamp}]</span>{/if}{#if logMsg.nodeId}<span class="font-semibold {logMsg.nodeColor}">[{logMsg.nodeId}]</span>{/if}{logMsg.value}
                         </div>
                     {/each}
                 </div>
@@ -213,7 +213,7 @@
                 {/if}
             </div>
         {:else}
-            <div class="flex items-center justify-center h-full text-gray-500 text-sm">
+            <div class="flex items-center justify-center h-full text-muted-foreground text-sm">
                 {#if isRunning}
                     Waiting for logs...
                 {:else}

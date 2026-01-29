@@ -30,17 +30,17 @@
 </script>
 
 {#if hasData}
-  <div class="bg-white rounded-lg border border-gray-300">
+  <div class="bg-card rounded-lg border border-input">
     <button
-      class="w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+      class="w-full flex items-center justify-between px-6 py-3 hover:bg-muted transition-colors duration-200 cursor-pointer"
       onclick={toggleExpanded}
       type="button"
     >
-      <span class="font-bold text-base text-gray-800">{title}</span>
+      <span class="font-bold text-base text-foreground">{title}</span>
       <div class="flex items-center space-x-2">
-        <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">JSON</span>
+        <span class="text-xs text-muted-foreground bg-subtle px-2 py-1 rounded">JSON</span>
         <svg
-          class="w-4 h-4 text-gray-500 transition-transform duration-200 {isExpanded ? 'transform rotate-180' : ''}"
+          class="w-4 h-4 text-muted-foreground transition-transform duration-200 {isExpanded ? 'transform rotate-180' : ''}"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -52,7 +52,7 @@
 
     {#if isExpanded}
       <div class="p-4">
-        <pre class="bg-gray-900 text-gray-100 p-4 rounded-md text-sm overflow-x-auto font-mono leading-relaxed whitespace-pre-wrap">{jsonString}</pre>
+        <pre class="bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 rounded-md text-sm overflow-x-auto font-mono leading-relaxed whitespace-pre-wrap">{jsonString}</pre>
       </div>
     {/if}
   </div>

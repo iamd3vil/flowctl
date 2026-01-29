@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
     --font-sans:
         "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
@@ -68,4 +70,97 @@
     --color-info-950: hsl(197 78.7% 15.7%);
 
     --radius: 0.5rem;
+
+    --color-background: var(--bg);
+    --color-foreground: var(--fg);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-fg);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-fg);
+    --color-subtle: var(--subtle);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-overlay: var(--overlay);
+    --color-link: var(--link);
+    --color-link-hover: var(--link-hover);
+    --color-subtle-hover: var(--subtle-hover);
+
+    --color-badge-success-bg: var(--badge-success-bg);
+    --color-badge-success-text: var(--badge-success-text);
+    --color-badge-warning-bg: var(--badge-warning-bg);
+    --color-badge-warning-text: var(--badge-warning-text);
+    --color-badge-danger-bg: var(--badge-danger-bg);
+    --color-badge-danger-text: var(--badge-danger-text);
+    --color-badge-info-bg: var(--badge-info-bg);
+    --color-badge-info-text: var(--badge-info-text);
+}
+
+@layer base {
+    :root {
+        --bg: #ffffff;
+        --fg: #111827;
+        --card: #ffffff;
+        --card-fg: #111827;
+        --muted: #f9fafb;
+        --muted-fg: #6b7280;
+        --subtle: #f3f4f6;
+        --border: #e5e7eb;
+        --input: #d1d5db;
+        --ring: hsl(221.3 97.5% 53.5%);
+        --overlay: rgb(17 24 39 / 0.6);
+        --link: hsl(221.4 97.3% 44.1%);
+        --link-hover: hsl(220.9 95.7% 91%);
+        --subtle-hover: #e5e7eb;
+
+        --badge-success-bg: hsl(149 80.4% 90%);
+        --badge-success-text: hsl(164 85.7% 16.5%);
+        --badge-warning-bg: hsl(48 96.5% 88.8%);
+        --badge-warning-text: hsl(21.7 77.8% 26.5%);
+        --badge-danger-bg: hsl(0 93.3% 94.1%);
+        --badge-danger-text: hsl(0 62.8% 30.6%);
+        --badge-info-bg: hsl(220.8 100% 95.1%);
+        --badge-info-text: hsl(196 63.6% 23.7%);
+    }
+
+    .dark {
+        --bg: #030712;
+        --fg: #f9fafb;
+        --card: #111827;
+        --card-fg: #f9fafb;
+        --muted: #0d1420;
+        --muted-fg: #9ca3af;
+        --subtle: #374151;
+        --border: #374151;
+        --input: #4b5563;
+        --ring: hsl(221.4 97.9% 63.1%);
+        --overlay: rgb(0 0 0 / 0.7);
+        --link: hsl(221.4 97.9% 63.1%);
+        --link-hover: hsl(220.9 95.7% 91%);
+        --subtle-hover: #4b5563;
+
+        --badge-success-bg: hsl(164 85.7% 16.5% / 0.3);
+        --badge-success-text: hsl(156 71.6% 66.9%);
+        --badge-warning-bg: hsl(21.7 77.8% 26.5% / 0.3);
+        --badge-warning-text: hsl(45.9 96.7% 64.5%);
+        --badge-danger-bg: hsl(0 62.8% 30.6% / 0.3);
+        --badge-danger-text: hsl(0 93.5% 81.8%);
+        --badge-info-bg: hsl(221.3 97.5% 53.5% / 0.25);
+        --badge-info-text: hsl(221.1 97.9% 81%);
+    }
+
+    ::placeholder {
+        color: var(--muted-fg);
+        opacity: 1;
+    }
+
+    select {
+        color: var(--fg);
+        background-color: var(--card);
+    }
+
+    option {
+        color: var(--fg);
+        background-color: var(--card);
+    }
 }

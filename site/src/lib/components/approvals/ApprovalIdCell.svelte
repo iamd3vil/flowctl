@@ -11,7 +11,7 @@
     </svg>
   </div>
   <div>
-    <a href="#" class="text-sm hover:underline font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors" onclick={(e) => { e.preventDefault(); onClick?.(row); }}>{row.action_id}</a>
-    <div class="text-sm text-gray-500">{row.id}</div>
+    <a href="#" class="text-sm hover:underline font-medium text-foreground cursor-pointer hover:text-primary-600 transition-colors" onclick={(e) => { e.preventDefault(); onClick?.(row); }}>{row.action_id}</a>
+    <div class="text-sm text-muted-foreground">{row.id}</div>
   </div>
 </div>

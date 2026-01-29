@@ -626,7 +626,7 @@
     <title>Flow Execution - {flowName || "Loading..."}</title>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-muted">
     <main class="flex-1 flex flex-col overflow-hidden">
         <Header
             breadcrumbs={[
@@ -672,14 +672,14 @@
         >
             {#snippet children()}
                 <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-500">Status:</span>
+                    <span class="text-sm text-muted-foreground">Status:</span>
                     <StatusBadge value={status} />
                 </div>
             {/snippet}
         </Header>
 
         <!-- Page Content -->
-        <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div class="flex-1 overflow-y-auto p-6 bg-muted">
             <div class="max-w-7xl mx-auto">
                 <FlowInfoCard
                     flowName={flowName || "Loading..."}
@@ -714,11 +714,11 @@
                     <!-- Right Panel: Terminal / Logs -->
                     <div class="col-span-12 md:col-span-8 lg:col-span-9 h-full">
                         <div
-                            class="bg-white rounded-lg border border-gray-300 h-full flex flex-col overflow-hidden"
+                            class="bg-card rounded-lg border border-input h-full flex flex-col overflow-hidden"
                         >
-                            <div class="px-6 py-5 border-b border-gray-300">
+                            <div class="px-6 py-5 border-b border-input">
                                 <h2
-                                    class="text-base font-semibold text-gray-900"
+                                    class="text-base font-semibold text-foreground"
                                 >
                                     {#if selectedActionId}
                                         {actionsList.find(
@@ -750,10 +750,10 @@
                 <!-- Execution Output -->
                 {#if Object.keys(results).length > 0}
                     <div
-                        class="mb-6 bg-white rounded-lg border border-gray-300 overflow-hidden"
+                        class="mb-6 bg-card rounded-lg border border-input overflow-hidden"
                     >
-                        <div class="px-6 py-5 border-b border-gray-300">
-                            <h2 class="text-base font-semibold text-gray-900">
+                        <div class="px-6 py-5 border-b border-input">
+                            <h2 class="text-base font-semibold text-foreground">
                                 Execution Output
                             </h2>
                         </div>

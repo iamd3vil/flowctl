@@ -21,9 +21,9 @@
 
 <header class="flex items-center justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">{title}</h1>
+    <h1 class="text-2xl font-bold text-foreground">{title}</h1>
     {#if subtitle}
-      <p class="text-gray-600">{subtitle}</p>
+      <p class="text-muted-foreground">{subtitle}</p>
     {/if}
   </div>
 
@@ -32,7 +32,7 @@
       {#each actions as action}
         <button
           onclick={action.onClick}
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-md transition-colors cursor-pointer {action.variant === 'primary' ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-card border border-input text-foreground hover:bg-muted'}"
           aria-label={action.label}
         >
           {#if action.IconComponent}

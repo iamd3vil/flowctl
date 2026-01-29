@@ -4,13 +4,13 @@
   function getRoleClasses(role: string) {
     switch (role) {
       case 'user':
-        return 'bg-success-100 text-success-800';
+        return 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-300';
       case 'reviewer':
-        return 'bg-warning-100 text-warning-800';
+        return 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300';
       case 'admin':
-        return 'bg-danger-100 text-danger-800';
+        return 'bg-danger-100 text-danger-800 dark:bg-danger-900/30 dark:text-danger-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-subtle text-foreground';
     }
   }
   

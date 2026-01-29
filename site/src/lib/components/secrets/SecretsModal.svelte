@@ -74,20 +74,20 @@
 <!-- Modal overlay -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60" onclick={onClose} role="dialog" aria-modal="true">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay" onclick={onClose} role="dialog" aria-modal="true">
 	<!-- Modal content -->
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onclick={(e) => e.stopPropagation()}>
+	<div class="bg-card rounded-lg shadow-xl w-full max-w-md mx-4" onclick={(e) => e.stopPropagation()}>
 		<div class="p-6">
-			<h2 class="text-xl font-semibold mb-4">
+			<h2 class="text-xl font-semibold mb-4 text-foreground">
 				{isEditMode ? 'Edit Secret' : 'Add New Secret'}
 			</h2>
 			
 			<form onsubmit={handleSubmit} class="space-y-4">
 				<!-- Secret Key -->
 				<div>
-					<label for="key" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="key" class="block text-sm font-medium text-foreground mb-1">
 						Key <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -96,18 +96,18 @@
 						bind:value={formData.key}
 						required
 						disabled={loading || isEditMode}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-subtle disabled:text-muted-foreground"
 						placeholder="SECRET_KEY"
 						use:autofocus
 					/>
 					{#if isEditMode}
-						<p class="mt-1 text-xs text-gray-500">Key cannot be changed. Delete and recreate the secret to use a different key.</p>
+						<p class="mt-1 text-xs text-muted-foreground">Key cannot be changed. Delete and recreate the secret to use a different key.</p>
 					{/if}
 				</div>
 
 				<!-- Secret Value -->
 				<div>
-					<label for="value" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="value" class="block text-sm font-medium text-foreground mb-1">
 						Value <span class="text-red-500">*</span>
 					</label>
 					<div class="relative">
@@ -117,13 +117,13 @@
 							bind:value={formData.value}
 							required
 							disabled={loading}
-							class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+							class="w-full px-3 py-2 pr-10 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 							placeholder={isEditMode ? 'Enter new value to update' : 'Enter secret value'}
 						/>
 						<button
 							type="button"
 							onclick={() => showValue = !showValue}
-							class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+							class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
 							title={showValue ? 'Hide value' : 'Show value'}
 						>
 							{#if showValue}
@@ -134,13 +134,13 @@
 						</button>
 					</div>
 					{#if isEditMode}
-						<p class="mt-1 text-xs text-gray-500">Enter a new value to update. Previous value is not shown for security.</p>
+						<p class="mt-1 text-xs text-muted-foreground">Enter a new value to update. Previous value is not shown for security.</p>
 					{/if}
 				</div>
 
 				<!-- Description -->
 				<div>
-					<label for="description" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="description" class="block text-sm font-medium text-foreground mb-1">
 						Description
 					</label>
 					<textarea
@@ -148,7 +148,7 @@
 						bind:value={formData.description}
 						disabled={loading}
 						rows="3"
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						placeholder="Optional description"
 					></textarea>
 				</div>
@@ -159,7 +159,7 @@
 						type="button"
 						onclick={onClose}
 						disabled={loading}
-						class="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 cursor-pointer"
+						class="px-4 py-2 text-muted-foreground bg-subtle rounded hover:bg-subtle-hover disabled:opacity-50 cursor-pointer"
 					>
 						Cancel
 					</button>

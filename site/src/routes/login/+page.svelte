@@ -9,6 +9,7 @@
   import Logo from '$lib/components/shared/Logo.svelte';
   import LoginCard from '$lib/components/login/LoginCard.svelte';
   import Footer from '$lib/components/login/Footer.svelte';
+  import ThemeToggle from '$lib/components/shared/ThemeToggle.svelte';
 
   let username = $state('');
   let password = $state('');
@@ -52,7 +53,7 @@
   <title>Login - Flowctl</title>
 </svelte:head>
 
-<main class="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+<main class="min-h-screen flex items-center justify-center bg-muted px-4 relative">
   <section class="w-full max-w-md">
     <div class="mb-8 flex justify-center p-4">
       <Logo height="h-14" />
@@ -67,4 +68,7 @@
     />
     <Footer />
   </section>
+  <div class="absolute bottom-4 right-4">
+    <ThemeToggle collapsed={true} />
+  </div>
 </main>

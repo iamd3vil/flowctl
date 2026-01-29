@@ -106,11 +106,11 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <!-- Modal Backdrop -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4" onclick={handleClose} onkeydown={(e) => e.key === 'Escape' && handleClose()} role="dialog" aria-modal="true" tabindex="-1">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4" onclick={handleClose} onkeydown={(e) => e.key === 'Escape' && handleClose()} role="dialog" aria-modal="true" tabindex="-1">
   <!-- Modal Content -->
-  <div class="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
+  <div class="bg-card rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
       <div class="p-6">
-        <h3 class="font-bold text-lg mb-4 text-gray-900">
+        <h3 class="font-bold text-lg mb-4 text-foreground">
           {isEditMode ? 'Edit Member' : 'Add Member'}
         </h3>
 
@@ -118,11 +118,11 @@
         <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <!-- Subject Type Selection -->
           <div class="mb-4">
-            <label class="block mb-1 font-medium text-gray-900">Member Type *</label>
+            <label class="block mb-1 font-medium text-foreground">Member Type *</label>
             <select
               bind:value={memberForm.subject_type}
               onchange={onSubjectTypeChange}
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+              class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
               required
               disabled={loading || isEditMode}
               use:autofocus
@@ -131,18 +131,18 @@
               <option value="group">Group</option>
             </select>
             {#if isEditMode}
-              <p class="text-xs text-gray-500 mt-1">Member type cannot be changed when editing.</p>
+              <p class="text-xs text-muted-foreground mt-1">Member type cannot be changed when editing.</p>
             {/if}
           </div>
 
           <!-- User/Group Selection -->
           <div class="mb-4">
-            <label class="block mb-1 font-medium text-gray-900">
+            <label class="block mb-1 font-medium text-foreground">
               {memberForm.subject_type === 'user' ? 'User' : 'Group'} *
             </label>
             {#if isEditMode && memberData}
               <!-- Show selected member in edit mode -->
-              <div class="p-3 bg-gray-50 rounded-lg border">
+              <div class="p-3 bg-muted rounded-lg border">
                 <div class="flex items-center">
                   <div class="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-primary-100">
                     {#if memberData.subject_type === 'user'}
@@ -152,12 +152,12 @@
                     {/if}
                   </div>
                   <div>
-                    <div class="text-sm font-medium text-gray-900">{memberData.subject_name}</div>
-                    <div class="text-xs text-gray-500">{memberData.subject_id}</div>
+                    <div class="text-sm font-medium text-foreground">{memberData.subject_name}</div>
+                    <div class="text-xs text-muted-foreground">{memberData.subject_id}</div>
                   </div>
                 </div>
               </div>
-              <p class="text-xs text-gray-500 mt-1">Member cannot be changed when editing.</p>
+              <p class="text-xs text-muted-foreground mt-1">Member cannot be changed when editing.</p>
             {:else}
               <UserGroupSelector
                 bind:type={memberForm.subject_type}
@@ -170,10 +170,10 @@
 
           <!-- Role Selection -->
           <div class="mb-4">
-            <label class="block mb-1 font-medium text-gray-900">Role *</label>
+            <label class="block mb-1 font-medium text-foreground">Role *</label>
             <select
               bind:value={memberForm.role}
-              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
+              class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block w-full p-2.5"
               required
               disabled={loading}
             >
@@ -188,7 +188,7 @@
             <button
               type="button"
               onclick={handleClose}
-              class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 cursor-pointer"
+              class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 cursor-pointer"
               disabled={loading}
             >
               Cancel

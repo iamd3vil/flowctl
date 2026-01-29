@@ -148,7 +148,7 @@
             render: (value) => `
         <a
           href="/view/${namespace}/results/${flowId}/${value}"
-          class="text-sm text-primary-600 hover:underline hover:text-primary-800 font-mono block"
+          class="text-sm text-link hover:underline font-mono block"
         >
           ${value.substring(0, 8)}
         </a>
@@ -159,13 +159,13 @@
             header: "Started At",
             width: "w-40",
             render: (_value, row) =>
-                `<div class="text-sm text-gray-600">${formatDateTime(getStartTime(row))}</div>`,
+                `<div class="text-sm text-muted-foreground">${formatDateTime(getStartTime(row))}</div>`,
         },
         {
             key: "duration",
             header: "Duration",
             render: (_value, row) =>
-                `<div class="text-sm text-gray-600">${formatDuration(getStartTime(row), row.completed_at)}</div>`,
+                `<div class="text-sm text-muted-foreground">${formatDuration(getStartTime(row), row.completed_at)}</div>`,
         },
         {
             key: "status",
@@ -177,7 +177,7 @@
             header: "Triggered By",
             width: "w-32",
             render: (value) =>
-                `<div class="text-sm text-gray-900">${value || "System"}</div>`,
+                `<div class="text-sm text-foreground">${value || "System"}</div>`,
         },
         {
             key: "trigger_type",
@@ -229,24 +229,24 @@
     description={data.flowMeta?.meta?.description || ""}
 />
 
-<div class="bg-white border-b border-gray-200 px-6">
+<div class="bg-card border-b border-border px-6">
     <div class="max-w-4xl mx-auto">
         <Tabs {tabs} bind:activeTab />
     </div>
 </div>
 
 <!-- Tab Content -->
-<div class="px-6 py-8 bg-gray-50">
+<div class="px-6 py-8 bg-muted">
     {#if activeTab === "run"}
         <div class="max-w-2xl mx-auto">
             {#if showRerunBanner}
                 <div class="mb-6">
                     <div
-                        class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between"
+                        class="bg-info-50 border border-info-100 rounded-lg p-4 flex items-start justify-between dark:bg-info-900/20 dark:border-info-800"
                     >
                         <div class="flex items-start gap-3">
                             <svg
-                                class="w-5 h-5 text-blue-600 mt-0.5"
+                                class="w-5 h-5 text-info-600 dark:text-info-400 mt-0.5"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -259,14 +259,14 @@
                                 />
                             </svg>
                             <div class="flex-1">
-                                <h3 class="text-sm font-medium text-blue-900">
+                                <h3 class="text-sm font-medium text-info-900 dark:text-info-300">
                                     Rerunning execution
                                 </h3>
-                                <p class="text-sm text-blue-700 mt-1">
+                                <p class="text-sm text-info-700 dark:text-info-400 mt-1">
                                     Inputs have been prepopulated from execution
                                     <a
                                         href="/view/{namespace}/results/{flowId}/{rerunFromExecId}"
-                                        class="font-mono underline hover:text-blue-900"
+                                        class="font-mono underline hover:text-info-900 dark:hover:text-info-200"
                                     >
                                         {rerunFromExecId.substring(0, 8)}
                                     </a>
@@ -275,7 +275,7 @@
                         </div>
                         <button
                             onclick={() => (showRerunBanner = false)}
-                            class="text-blue-400 hover:text-blue-600"
+                            class="text-info-400 hover:text-info-600 dark:text-info-500 dark:hover:text-info-300"
                             aria-label="Dismiss"
                         >
                             <svg
@@ -348,7 +348,7 @@
 
             {#if historyPageCount > 1}
                 <div class="flex items-center justify-between mt-6">
-                    <div class="text-sm text-gray-700">
+                    <div class="text-sm text-foreground">
                         Showing {(historyCurrentPage - 1) *
                             historyItemsPerPage +
                             1} to {Math.min(

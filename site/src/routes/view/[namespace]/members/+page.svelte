@@ -80,7 +80,7 @@
 			header: 'Added',
 			sortable: true,
 			render: (_value: any, member: NamespaceMemberResp) => `
-			  <div class="text-sm text-gray-600">${formatDateTime(member.created_at)}</div>
+			  <div class="text-sm text-muted-foreground">${formatDateTime(member.created_at)}</div>
 			`
 		}
 	]);
@@ -92,7 +92,7 @@
 			actionsList.push({
 				label: 'Edit',
 				onClick: (member: NamespaceMemberResp) => handleEdit(member),
-				className: 'text-primary-600 border-primary-600 hover:bg-primary-100'
+				className: 'text-link border-link hover:bg-link-hover'
 			});
 		}
 

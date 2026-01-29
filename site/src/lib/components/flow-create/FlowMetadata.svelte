@@ -93,7 +93,7 @@
         <div>
             <label
                 for="flow-name"
-                class="block text-sm font-medium text-gray-700 mb-2"
+                class="block text-sm font-medium text-foreground mb-2"
                 >Flow Name *</label
             >
             <input
@@ -101,8 +101,8 @@
                 id="flow-name"
                 value={metadata.name}
                 oninput={(e) => updateName(e.currentTarget.value)}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent {updatemode
-                    ? 'bg-gray-50 cursor-not-allowed'
+                class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent {updatemode
+                    ? 'bg-muted cursor-not-allowed'
                     : ''}"
                 placeholder="My Flow Name"
                 disabled={updatemode}
@@ -112,35 +112,35 @@
         <div>
             <label
                 for="flow-description"
-                class="block text-sm font-medium text-gray-700 mb-2"
+                class="block text-sm font-medium text-foreground mb-2"
                 >Description</label
             >
             <textarea
                 id="flow-description"
                 value={metadata.description}
                 oninput={(e) => updateDescription(e.currentTarget.value)}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none h-20"
+                class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none h-20"
                 placeholder="Describe what this flow does..."
             ></textarea>
         </div>
     </div>
 
     <!-- Scheduling Subsection -->
-    <div class="mt-8 pt-6 border-t border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Scheduling</h3>
+    <div class="mt-8 pt-6 border-t border-border">
+        <h3 class="text-lg font-semibold text-foreground mb-4">Scheduling</h3>
 
         <div class="mb-6">
             <label class="flex items-center space-x-2 cursor-pointer">
                 <input
                     type="checkbox"
                     bind:checked={metadata.allow_overlap}
-                    class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                    class="w-4 h-4 text-primary-600 border-input rounded focus:ring-primary-500 cursor-pointer"
                 />
-                <span class="text-sm font-medium text-gray-700"
+                <span class="text-sm font-medium text-foreground"
                     >Allow Overlapping Executions</span
                 >
             </label>
-            <p class="text-xs text-gray-500 mt-1 ml-6">
+            <p class="text-xs text-muted-foreground mt-1 ml-6">
                 If enabled, new executions can start even if a previous
                 execution is still running / waiting for approval.
             </p>
@@ -152,13 +152,13 @@
                     <input
                         type="checkbox"
                         bind:checked={metadata.user_schedulable}
-                        class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                        class="w-4 h-4 text-primary-600 border-input rounded focus:ring-primary-500 cursor-pointer"
                     />
-                    <span class="text-sm font-medium text-gray-700"
+                    <span class="text-sm font-medium text-foreground"
                         >Allow User Schedules</span
                     >
                 </label>
-                <p class="text-xs text-gray-500 mt-1 ml-6">
+                <p class="text-xs text-muted-foreground mt-1 ml-6">
                     Users can create their own cron schedules for this flow
                 </p>
             </div>
@@ -167,9 +167,9 @@
         {#if isSchedulable}
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-sm font-medium text-gray-700">
+                    <label class="block text-sm font-medium text-foreground">
                         Cron Schedules
-                        <span class="text-sm text-gray-500 font-normal"
+                        <span class="text-sm text-muted-foreground font-normal"
                             >(optional)</span
                         >
                     </label>
@@ -185,14 +185,14 @@
                 <div class="space-y-4">
                     {#each metadata.schedules || [] as schedule, index}
                         {@const validation = scheduleValidations[index]}
-                        <div class="border border-gray-200 rounded-md p-4">
+                        <div class="border border-border rounded-md p-4">
                             <div class="flex items-start gap-2 mb-3">
                                 <div
                                     class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3"
                                 >
                                     <div>
                                         <label
-                                            class="block text-xs font-medium text-gray-700 mb-1"
+                                            class="block text-xs font-medium text-foreground mb-1"
                                         >
                                             Cron Expression
                                         </label>
@@ -205,7 +205,7 @@
                                                     e.currentTarget.value,
                                                 )}
                                             class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 {validation?.isValid
-                                                ? 'border-gray-300 focus:ring-primary-500 focus:border-transparent'
+                                                ? 'border-input focus:ring-primary-500 focus:border-transparent'
                                                 : 'border-danger-300 focus:ring-danger-500 focus:border-transparent'}"
                                             placeholder="0 2 * * *"
                                         />
@@ -221,7 +221,7 @@
                                     </div>
                                     <div>
                                         <label
-                                            class="block text-xs font-medium text-gray-700 mb-1"
+                                            class="block text-xs font-medium text-foreground mb-1"
                                         >
                                             Timezone
                                         </label>
@@ -234,7 +234,7 @@
                                                     index,
                                                     e.currentTarget.value,
                                                 )}
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                             placeholder="Search or select timezone..."
                                         />
                                         <datalist id="timezone-list-{index}">
@@ -249,7 +249,7 @@
                                 <button
                                     type="button"
                                     onclick={() => removeSchedule(index)}
-                                    class="mt-6 text-gray-400 hover:text-danger-600 cursor-pointer flex-shrink-0"
+                                    class="mt-6 text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
                                 >
                                     <svg
                                         class="w-5 h-5"
@@ -271,10 +271,10 @@
 
                     {#if !metadata.schedules || metadata.schedules.length === 0}
                         <div
-                            class="text-center py-6 border-2 border-dashed border-gray-300 rounded-md"
+                            class="text-center py-6 border-2 border-dashed border-input rounded-md"
                         >
                             <svg
-                                class="mx-auto h-8 w-8 text-gray-400 mb-2"
+                                class="mx-auto h-8 w-8 text-muted-foreground mb-2"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -286,7 +286,7 @@
                                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                             </svg>
-                            <p class="text-sm text-gray-500 mb-2">
+                            <p class="text-sm text-muted-foreground mb-2">
                                 No schedules defined
                             </p>
                             <button
@@ -300,14 +300,14 @@
                     {/if}
                 </div>
 
-                <p class="text-xs text-gray-500 mt-2">
+                <p class="text-xs text-muted-foreground mt-2">
                     Use cron expression format. You can add multiple schedules
                     for different execution times.
                     <br />
                     Examples:
-                    <code class="bg-gray-100 px-1 rounded">0 2 * * *</code>
+                    <code class="bg-subtle px-1 rounded">0 2 * * *</code>
                     (daily 2AM),
-                    <code class="bg-gray-100 px-1 rounded">0 */6 * * *</code> (every
+                    <code class="bg-subtle px-1 rounded">0 */6 * * *</code> (every
                     6 hours)
                 </p>
             </div>

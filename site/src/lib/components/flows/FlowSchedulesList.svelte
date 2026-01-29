@@ -99,11 +99,11 @@
   }
 </script>
 
-<div class="bg-white rounded-lg border border-gray-200">
-  <div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
+<div class="bg-card rounded-lg border border-border">
+  <div class="px-4 py-4 border-b border-border flex items-center justify-between">
     <div>
-      <h3 class="text-sm font-semibold text-gray-900">Schedules</h3>
-      <p class="text-xs text-gray-500 mt-0.5">{schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}</p>
+      <h3 class="text-sm font-semibold text-foreground">Schedules</h3>
+      <p class="text-xs text-muted-foreground mt-0.5">{schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}</p>
     </div>
     {#if canCreateSchedule}
       <button
@@ -119,8 +119,8 @@
 
   {#if schedules.length === 0}
     <div class="flex flex-col items-center py-12">
-      <IconClock class="w-12 h-12 text-gray-400 mb-3" />
-      <p class="text-sm text-gray-500">No schedules configured</p>
+      <IconClock class="w-12 h-12 text-muted-foreground mb-3" />
+      <p class="text-sm text-muted-foreground">No schedules configured</p>
       {#if canCreateSchedule}
         <button
           type="button"
@@ -133,23 +133,23 @@
     </div>
   {:else}
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full divide-y divide-border">
+        <thead class="bg-muted">
           <tr>
-            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cron</th>
-            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timezone</th>
-            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Actions</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Cron</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Timezone</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+            <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">Actions</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-card divide-y divide-border">
           {#each schedules as schedule}
-            <tr class="hover:bg-gray-50 transition-colors">
+            <tr class="hover:bg-muted transition-colors">
               <td class="px-4 py-3 whitespace-nowrap">
-                <code class="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{schedule.cron}</code>
+                <code class="bg-subtle px-2 py-0.5 rounded text-xs font-mono text-foreground">{schedule.cron}</code>
               </td>
-              <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{schedule.timezone}</td>
+              <td class="px-4 py-3 whitespace-nowrap text-sm text-foreground">{schedule.timezone}</td>
               <td class="px-4 py-3 whitespace-nowrap">
                 <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded {schedule.is_user_created ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
                   {schedule.is_user_created ? 'User' : 'System'}
@@ -157,11 +157,11 @@
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
                 {#if schedule.is_user_created}
-                  <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded {schedule.is_active ? 'bg-success-100 text-success-800' : 'bg-gray-100 text-gray-800'}">
+                  <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded {schedule.is_active ? 'bg-success-100 text-success-800' : 'bg-subtle text-foreground'}">
                     {schedule.is_active ? 'Active' : 'Inactive'}
                   </span>
                 {:else}
-                  <span class="text-sm text-gray-400">-</span>
+                  <span class="text-sm text-muted-foreground">-</span>
                 {/if}
               </td>
               <td class="px-4 py-3 whitespace-nowrap text-right relative">
@@ -170,7 +170,7 @@
                     <DropdownMenu items={getMenuItems(schedule)} />
                   </div>
                 {:else}
-                  <span class="text-gray-400">-</span>
+                  <span class="text-muted-foreground">-</span>
                 {/if}
               </td>
             </tr>

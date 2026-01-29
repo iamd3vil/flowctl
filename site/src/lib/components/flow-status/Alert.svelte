@@ -31,13 +31,13 @@
 
     switch (alertType) {
       case 'success':
-        return `${baseClasses} bg-success-50 border-success-100`;
+        return `${baseClasses} bg-success-50 border-success-100 dark:bg-success-900/20 dark:border-success-800`;
       case 'warning':
-        return `${baseClasses} bg-warning-50 border-warning-100`;
+        return `${baseClasses} bg-warning-50 border-warning-100 dark:bg-warning-900/20 dark:border-warning-800`;
       case 'error':
-        return `${baseClasses} bg-danger-50 border-danger-100`;
+        return `${baseClasses} bg-danger-50 border-danger-100 dark:bg-danger-900/20 dark:border-danger-800`;
       default:
-        return `${baseClasses} bg-info-50 border-info-100`;
+        return `${baseClasses} bg-info-50 border-info-100 dark:bg-info-900/20 dark:border-info-800`;
     }
   };
 
@@ -59,13 +59,13 @@
   const getTextClasses = (alertType: AlertType) => {
     switch (alertType) {
       case 'success':
-        return { title: 'text-success-900', message: 'text-success-800' };
+        return { title: 'text-success-900 dark:text-success-300', message: 'text-success-800 dark:text-success-400' };
       case 'warning':
-        return { title: 'text-warning-900', message: 'text-warning-800' };
+        return { title: 'text-warning-900 dark:text-warning-300', message: 'text-warning-800 dark:text-warning-400' };
       case 'error':
-        return { title: 'text-danger-900', message: 'text-danger-800' };
+        return { title: 'text-danger-900 dark:text-danger-300', message: 'text-danger-800 dark:text-danger-400' };
       default:
-        return { title: 'text-info-900', message: 'text-info-800' };
+        return { title: 'text-info-900 dark:text-info-300', message: 'text-info-800 dark:text-info-400' };
     }
   };
 
@@ -88,24 +88,24 @@
     if (primary) {
       switch (alertType) {
         case 'success':
-          return `${baseClasses} bg-success-500 text-white hover:bg-success-600`;
+          return `${baseClasses} bg-success-500 text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500`;
         case 'warning':
-          return `${baseClasses} bg-warning-500 text-white hover:bg-warning-600`;
+          return `${baseClasses} bg-warning-500 text-white hover:bg-warning-600 dark:bg-warning-600 dark:hover:bg-warning-500`;
         case 'error':
-          return `${baseClasses} bg-danger-500 text-white hover:bg-danger-600`;
+          return `${baseClasses} bg-danger-500 text-white hover:bg-danger-600 dark:bg-danger-600 dark:hover:bg-danger-500`;
         default:
-          return `${baseClasses} bg-info-500 text-white hover:bg-info-600`;
+          return `${baseClasses} bg-info-500 text-white hover:bg-info-600 dark:bg-info-600 dark:hover:bg-info-500`;
       }
     } else {
       switch (alertType) {
         case 'success':
-          return `${baseClasses} bg-success-100 text-success-900 hover:bg-success-200`;
+          return `${baseClasses} bg-success-100 text-success-900 hover:bg-success-200 dark:bg-success-900/30 dark:text-success-300 dark:hover:bg-success-900/40`;
         case 'warning':
-          return `${baseClasses} bg-warning-100 text-warning-900 hover:bg-warning-200`;
+          return `${baseClasses} bg-warning-100 text-warning-900 hover:bg-warning-200 dark:bg-warning-900/30 dark:text-warning-300 dark:hover:bg-warning-900/40`;
         case 'error':
-          return `${baseClasses} bg-danger-100 text-danger-900 hover:bg-danger-200`;
+          return `${baseClasses} bg-danger-100 text-danger-900 hover:bg-danger-200 dark:bg-danger-900/30 dark:text-danger-300 dark:hover:bg-danger-900/40`;
         default:
-          return `${baseClasses} bg-info-100 text-info-900 hover:bg-info-200`;
+          return `${baseClasses} bg-info-100 text-info-900 hover:bg-info-200 dark:bg-info-900/30 dark:text-info-300 dark:hover:bg-info-900/40`;
       }
     }
   };
@@ -163,7 +163,7 @@
     {/if}
 
     {#if dismissible}
-      <button onclick={handleDismiss} class="ml-4 inline-flex text-gray-400 hover:text-gray-600 cursor-pointer">
+      <button onclick={handleDismiss} class="ml-4 inline-flex text-muted-foreground hover:text-foreground cursor-pointer">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>

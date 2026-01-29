@@ -27,6 +27,7 @@
         IconChevronsRight,
     } from "@tabler/icons-svelte";
     import UserDropdown from "./UserDropdown.svelte";
+    import ThemeToggle from "./ThemeToggle.svelte";
     import Logo from "./Logo.svelte";
     import { APP_VERSION, APP_COMMIT } from "$lib/constants";
 
@@ -272,7 +273,7 @@
 
 <!-- Sidebar Navigation -->
 <nav
-    class="relative bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out {isCollapsed
+    class="relative bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out {isCollapsed
         ? 'w-20'
         : 'w-60'}"
     aria-label="Main navigation"
@@ -284,7 +285,7 @@
                 <Logo height="h-6" iconOnly={true} />
             {:else}
                 <Logo height="h-8" />
-                <div class="text-xs text-gray-400 mt-1">{APP_VERSION}-{APP_COMMIT}</div>
+                <div class="text-xs text-muted-foreground mt-1">{APP_VERSION}-{APP_COMMIT}</div>
             {/if}
         </div>
     </a>
@@ -295,7 +296,7 @@
             <div class="relative">
                 <label
                     for="namespace-search"
-                    class="block text-xs font-medium text-gray-500 mb-1 uppercase"
+                    class="block text-xs font-medium text-muted-foreground mb-1 uppercase"
                     >Namespace</label
                 >
                 <div class="relative">
@@ -306,7 +307,7 @@
                         oninput={handleSearchInput}
                         onfocus={handleSearchFocus}
                         placeholder={currentNamespace || "Search namespaces..."}
-                        class="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors outline-none pr-8"
+                        class="w-full px-3 py-2 text-sm font-medium text-foreground bg-card border border-input rounded-lg hover:border-input focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors outline-none pr-8"
                         autocomplete="off"
                     />
 
@@ -315,7 +316,7 @@
                             class="absolute right-3 top-1/2 transform -translate-y-1/2"
                         >
                             <svg
-                                class="animate-spin h-4 w-4 text-gray-400"
+                                class="animate-spin h-4 w-4 text-muted-foreground"
                                 xmlns="http://www.w3.org/2000/svg"
                                 fill="none"
                                 viewBox="0 0 24 24"
@@ -337,7 +338,7 @@
                         </div>
                     {:else}
                         <IconChevronDown
-                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 transition-transform {namespaceDropdownOpen
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground transition-transform {namespaceDropdownOpen
                                 ? 'rotate-180'
                                 : ''}"
                             size={16}
@@ -348,7 +349,7 @@
                 <!-- Dropdown Menu -->
                 {#if namespaceDropdownOpen}
                     <div
-                        class="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto"
+                        class="absolute z-50 w-full mt-1 bg-card rounded-lg shadow-lg border border-border max-h-48 overflow-y-auto"
                         role="listbox"
                         aria-label="Namespace selection"
                     >
@@ -359,7 +360,7 @@
                                     role="option"
                                     aria-selected={ns.name === namespace}
                                     onclick={() => selectNamespace(ns)}
-                                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                                    class="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-subtle transition-colors cursor-pointer"
                                     class:bg-primary-50={ns.name === namespace}
                                     class:text-primary-600={ns.name ===
                                         namespace}
@@ -369,7 +370,7 @@
                             {/each}
                             {#if searchResults.length === 0 && !searchLoading}
                                 <div
-                                    class="px-3 py-2 text-sm text-gray-500 text-center"
+                                    class="px-3 py-2 text-sm text-muted-foreground text-center"
                                 >
                                     {searchQuery
                                         ? "No namespaces found"
@@ -378,7 +379,7 @@
                             {/if}
                             {#if searchLoading}
                                 <div
-                                    class="px-3 py-2 text-sm text-gray-500 text-center"
+                                    class="px-3 py-2 text-sm text-muted-foreground text-center"
                                 >
                                     Searching...
                                 </div>
@@ -401,8 +402,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("flows")}
                     class:text-primary-600={isActiveLink("flows")}
-                    class:text-gray-700={!isActiveLink("flows")}
-                    class:hover:bg-gray-100={!isActiveLink("flows")}
+                    class:text-foreground={!isActiveLink("flows")}
+                    class:hover:bg-subtle={!isActiveLink("flows")}
                     aria-current={isActiveLink("flows") ? "page" : undefined}
                     title={isCollapsed ? "Flows" : ""}
                 >
@@ -428,8 +429,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("nodes")}
                     class:text-primary-600={isActiveLink("nodes")}
-                    class:text-gray-700={!isActiveLink("nodes")}
-                    class:hover:bg-gray-100={!isActiveLink("nodes")}
+                    class:text-foreground={!isActiveLink("nodes")}
+                    class:hover:bg-subtle={!isActiveLink("nodes")}
                     aria-current={isActiveLink("nodes") ? "page" : undefined}
                     title={isCollapsed ? "Nodes" : ""}
                 >
@@ -455,8 +456,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("credentials")}
                     class:text-primary-600={isActiveLink("credentials")}
-                    class:text-gray-700={!isActiveLink("credentials")}
-                    class:hover:bg-gray-100={!isActiveLink("credentials")}
+                    class:text-foreground={!isActiveLink("credentials")}
+                    class:hover:bg-subtle={!isActiveLink("credentials")}
                     aria-current={isActiveLink("credentials")
                         ? "page"
                         : undefined}
@@ -484,8 +485,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("secrets")}
                     class:text-primary-600={isActiveLink("secrets")}
-                    class:text-gray-700={!isActiveLink("secrets")}
-                    class:hover:bg-gray-100={!isActiveLink("secrets")}
+                    class:text-foreground={!isActiveLink("secrets")}
+                    class:hover:bg-subtle={!isActiveLink("secrets")}
                     aria-current={isActiveLink("secrets")
                         ? "page"
                         : undefined}
@@ -513,8 +514,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("members")}
                     class:text-primary-600={isActiveLink("members")}
-                    class:text-gray-700={!isActiveLink("members")}
-                    class:hover:bg-gray-100={!isActiveLink("members")}
+                    class:text-foreground={!isActiveLink("members")}
+                    class:hover:bg-subtle={!isActiveLink("members")}
                     aria-current={isActiveLink("members") ? "page" : undefined}
                     title={isCollapsed ? "Members" : ""}
                 >
@@ -540,8 +541,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("approvals")}
                     class:text-primary-600={isActiveLink("approvals")}
-                    class:text-gray-700={!isActiveLink("approvals")}
-                    class:hover:bg-gray-100={!isActiveLink("approvals")}
+                    class:text-foreground={!isActiveLink("approvals")}
+                    class:hover:bg-subtle={!isActiveLink("approvals")}
                     aria-current={isActiveLink("approvals")
                         ? "page"
                         : undefined}
@@ -569,8 +570,8 @@
                         : 'px-4 py-3'}"
                     class:bg-primary-50={isActiveLink("history")}
                     class:text-primary-600={isActiveLink("history")}
-                    class:text-gray-700={!isActiveLink("history")}
-                    class:hover:bg-gray-100={!isActiveLink("history")}
+                    class:text-foreground={!isActiveLink("history")}
+                    class:hover:bg-subtle={!isActiveLink("history")}
                     aria-current={isActiveLink("history") ? "page" : undefined}
                     title={isCollapsed ? "History" : ""}
                 >
@@ -589,56 +590,44 @@
         {/if}
     </ul>
 
-    <!-- Settings (only show for superusers) -->
-    {#if $currentUser && $currentUser.role === "superuser"}
-        <div class="px-4 py-2 border-t border-gray-200">
-            <a
-                href="/settings"
-                class="flex items-center text-sm font-medium rounded-lg transition-colors {isCollapsed
-                    ? 'justify-center px-4 py-3'
-                    : 'px-4 py-3'}"
-                class:bg-primary-50={isActiveLink("settings")}
-                class:text-primary-600={isActiveLink("settings")}
-                class:text-gray-700={!isActiveLink("settings")}
-                class:hover:bg-gray-100={!isActiveLink("settings")}
-                aria-current={isActiveLink("settings") ? "page" : undefined}
-                title={isCollapsed ? "Settings" : ""}
-            >
-                <IconSettings
-                    class="text-xl flex-shrink-0 {isCollapsed ? '' : 'mr-3'}"
-                    size={20}
-                    aria-hidden="true"
-                />
-                {#if !isCollapsed}
-                    Settings
-                {/if}
-            </a>
-        </div>
-    {/if}
-
-    <!-- Collapse Toggle Button -->
-    <div class="px-4 py-2">
-        <button
-            type="button"
-            onclick={toggleCollapse}
-            class="w-full flex items-center text-sm font-medium p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer {isCollapsed
-                ? 'justify-center'
-                : 'justify-start px-4'}"
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-            {#if isCollapsed}
-                <IconChevronsRight size={20} aria-hidden="true" />
-            {:else}
-                <IconChevronsLeft class="mr-3" size={20} aria-hidden="true" />
-                Collapse
+    <div class="px-4 py-2 border-t border-border">
+        <div class="flex items-center {isCollapsed ? 'flex-col gap-2' : 'justify-between'}">
+            {#if $currentUser && $currentUser.role === "superuser"}
+                <a
+                    href="/settings"
+                    class="flex items-center justify-center p-2 rounded-lg transition-colors"
+                    class:bg-primary-50={isActiveLink("settings")}
+                    class:text-primary-600={isActiveLink("settings")}
+                    class:text-muted-foreground={!isActiveLink("settings")}
+                    class:hover:bg-subtle={!isActiveLink("settings")}
+                    aria-current={isActiveLink("settings") ? "page" : undefined}
+                    title="Settings"
+                >
+                    <IconSettings size={20} aria-hidden="true" />
+                </a>
             {/if}
-        </button>
+
+            <ThemeToggle collapsed={true} />
+
+            <button
+                type="button"
+                onclick={toggleCollapse}
+                class="flex items-center justify-center p-2 text-muted-foreground hover:bg-subtle rounded-lg transition-colors cursor-pointer"
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+                {#if isCollapsed}
+                    <IconChevronsRight size={20} aria-hidden="true" />
+                {:else}
+                    <IconChevronsLeft size={20} aria-hidden="true" />
+                {/if}
+            </button>
+        </div>
     </div>
 
     <!-- User Profile Section -->
     {#if $currentUser}
-        <div class="px-4 py-4 border-t border-gray-200">
+        <div class="px-4 py-4 border-t border-border">
             <UserDropdown {isCollapsed} />
         </div>
     {/if}

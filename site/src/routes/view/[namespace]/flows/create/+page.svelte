@@ -199,7 +199,7 @@
     <title>Create Flow - {namespace} | Flowctl</title>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-muted">
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <Header
@@ -211,22 +211,22 @@
         />
 
         <!-- Page Content -->
-        <div class="flex-1 overflow-y-auto bg-gray-50">
+        <div class="flex-1 overflow-y-auto bg-muted">
             <div class="max-w-6xl mx-auto px-6 py-8">
                 <!-- Page Title -->
                 <div class="mb-8">
-                    <h1 class="text-2xl font-bold text-gray-900">
+                    <h1 class="text-2xl font-bold text-foreground">
                         Create Flow
                     </h1>
-                    <p class="mt-1 text-sm text-gray-600">
+                    <p class="mt-1 text-sm text-muted-foreground">
                         Define a new workflow
                     </p>
                 </div>
 
                 <!-- Main Card -->
-                <div class="bg-white rounded-lg border border-gray-300">
+                <div class="bg-card rounded-lg border border-input">
                     <!-- Tab Navigation -->
-                    <div class="border-b border-gray-200">
+                    <div class="border-b border-border">
                         <Tabs bind:activeTab {tabs} />
                     </div>
 
@@ -259,12 +259,12 @@
 
                     <!-- Action Buttons -->
                     <div
-                        class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3"
+                        class="px-6 py-4 bg-muted border-t border-border flex justify-end gap-3"
                     >
                         <button
                             type="button"
                             onclick={() => goto(`/view/${namespace}/flows`)}
-                            class="px-6 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400"
+                            class="px-6 py-2 text-sm font-medium cursor-pointer text-foreground bg-card border border-input rounded-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400"
                         >
                             Cancel
                         </button>

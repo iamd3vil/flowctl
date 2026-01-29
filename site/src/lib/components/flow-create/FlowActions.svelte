@@ -161,7 +161,7 @@
 <!-- Flow Actions Section -->
 <div>
     <div class="flex items-center justify-between mb-6">
-        <h3 class="text-base font-medium text-gray-900">Flow Actions</h3>
+        <h3 class="text-base font-medium text-foreground">Flow Actions</h3>
         <button
             onclick={handleAddAction}
             class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
@@ -173,21 +173,21 @@
     <div class="space-y-4">
         {#each actions as action, index (action.tempId)}
             <div
-                class="border border-gray-200 rounded-lg overflow-hidden transition-colors"
+                class="border border-border rounded-lg overflow-hidden transition-colors"
                 ondragover={dragOver}
                 ondragleave={dragLeave}
                 ondrop={(e) => drop(e, index)}
             >
                 <!-- Action Header -->
                 <div
-                    class="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-move"
+                    class="bg-muted px-4 py-3 flex items-center justify-between cursor-move"
                     draggable="true"
                     ondragstart={(e) => dragStart(e, index)}
                     ondragend={dragEnd}
                 >
                     <div class="flex items-center gap-3">
                         <svg
-                            class="w-5 h-5 text-gray-400"
+                            class="w-5 h-5 text-muted-foreground"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -199,11 +199,11 @@
                                 d="M4 6h16M4 12h16M4 18h16"
                             />
                         </svg>
-                        <span class="font-medium text-gray-900"
+                        <span class="font-medium text-foreground"
                             >{action.name || "Untitled Action"}</span
                         >
                         <span
-                            class="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full"
+                            class="text-xs px-2 py-1 bg-subtle text-foreground rounded-full"
                         >
                             {action.executor || "No executor"}
                         </span>
@@ -212,7 +212,7 @@
                         <button
                             onclick={() =>
                                 (action.collapsed = !action.collapsed)}
-                            class="text-gray-400 hover:text-gray-600 cursor-pointer"
+                            class="text-muted-foreground hover:text-foreground cursor-pointer"
                         >
                             <svg
                                 class="w-5 h-5 transform transition-transform {action.collapsed
@@ -232,7 +232,7 @@
                         </button>
                         <button
                             onclick={() => duplicateAction(index)}
-                            class="text-gray-400 hover:text-primary-600 cursor-pointer"
+                            class="text-muted-foreground hover:text-primary-600 cursor-pointer"
                         >
                             <svg
                                 class="w-5 h-5"
@@ -250,7 +250,7 @@
                         </button>
                         <button
                             onclick={() => removeAction(index)}
-                            class="text-gray-400 hover:text-danger-600 cursor-pointer"
+                            class="text-muted-foreground hover:text-danger-600 cursor-pointer"
                         >
                             <svg
                                 class="w-5 h-5"
@@ -276,7 +276,7 @@
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <label
-                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    class="block text-sm font-medium text-foreground mb-1"
                                     >Action Name *</label
                                 >
                                 <input
@@ -287,7 +287,7 @@
                                             action,
                                             e.currentTarget.value,
                                         )}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                     placeholder="Action Display Name"
                                     required
                                 />
@@ -297,13 +297,13 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label
-                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    class="block text-sm font-medium text-foreground mb-1"
                                     >Executor *</label
                                 >
                                 <select
                                     bind:value={action.executor}
                                     onchange={() => onExecutorChange(action)}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                     required
                                 >
                                     <option value="">Select Executor</option>
@@ -317,7 +317,7 @@
                             </div>
                             <div>
                                 <label
-                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    class="block text-sm font-medium text-foreground mb-1"
                                     >Run On</label
                                 >
                                 <NodeSelector
@@ -333,10 +333,10 @@
                             <div class="space-y-4">
                                 <div class="border-t pt-4">
                                     <h4
-                                        class="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2"
+                                        class="text-sm font-medium text-foreground mb-3 flex items-center gap-2"
                                     >
                                         <svg
-                                            class="w-4 h-4 text-gray-500"
+                                            class="w-4 h-4 text-muted-foreground"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -398,12 +398,12 @@
                                                                         .currentTarget
                                                                         .checked,
                                                                 )}
-                                                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-0.5"
+                                                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded mt-0.5"
                                                         />
                                                         <div class="ml-2">
                                                             <label
                                                                 for="config-{action.tempId}-{key}"
-                                                                class="text-sm text-gray-700"
+                                                                class="text-sm text-foreground"
                                                             >
                                                                 {label}
                                                                 {#if isRequired}<span
@@ -413,7 +413,7 @@
                                                             </label>
                                                             {#if description}
                                                                 <p
-                                                                    class="text-xs text-gray-500 mt-1"
+                                                                    class="text-xs text-muted-foreground mt-1"
                                                                 >
                                                                     {description}
                                                                 </p>
@@ -424,7 +424,7 @@
                                                     <div>
                                                         <label
                                                             for="config-{action.tempId}-{key}"
-                                                            class="block text-sm font-medium text-gray-700 mb-1"
+                                                            class="block text-sm font-medium text-foreground mb-1"
                                                         >
                                                             {label}
                                                             {#if isRequired}<span
@@ -445,7 +445,7 @@
                                                                         .currentTarget
                                                                         .value,
                                                                 )}
-                                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                                         >
                                                             <option value=""
                                                                 >Select...</option
@@ -459,7 +459,7 @@
                                                         </select>
                                                         {#if description}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-500"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 {description}
                                                             </p>
@@ -469,7 +469,7 @@
                                                     <div>
                                                         <label
                                                             for="config-{action.tempId}-{key}"
-                                                            class="block text-sm font-medium text-gray-700 mb-1"
+                                                            class="block text-sm font-medium text-foreground mb-1"
                                                         >
                                                             {label}
                                                             {#if isRequired}<span
@@ -507,11 +507,11 @@
                                                             min={property.minimum}
                                                             max={property.maximum}
                                                             {placeholder}
-                                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                                         />
                                                         {#if description}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-500"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 {description}
                                                             </p>
@@ -520,7 +520,7 @@
                                                 {:else if property.widget === "codeeditor"}
                                                     <div>
                                                         <label
-                                                            class="block text-sm font-medium text-gray-700 mb-1"
+                                                            class="block text-sm font-medium text-foreground mb-1"
                                                         >
                                                             {label}
                                                             {#if isRequired}<span
@@ -542,7 +542,7 @@
                                                         />
                                                         {#if description}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-500"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 {description}
                                                             </p>
@@ -552,7 +552,7 @@
                                                     <div>
                                                         <label
                                                             for="config-{action.tempId}-{key}"
-                                                            class="block text-sm font-medium text-gray-700 mb-1"
+                                                            class="block text-sm font-medium text-foreground mb-1"
                                                         >
                                                             {label}
                                                             {#if isRequired}<span
@@ -582,18 +582,18 @@
                                                                       ? "Array values"
                                                                       : "Multi-line text")}
                                                             rows="4"
-                                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+                                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
                                                         ></textarea>
                                                         {#if description}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-500"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 {description}
                                                             </p>
                                                         {/if}
                                                         {#if property.type === "object" || property.type === "array"}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-400"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 Enter as JSON
                                                                 format
@@ -604,7 +604,7 @@
                                                     <div>
                                                         <label
                                                             for="config-{action.tempId}-{key}"
-                                                            class="block text-sm font-medium text-gray-700 mb-1"
+                                                            class="block text-sm font-medium text-foreground mb-1"
                                                         >
                                                             {label}
                                                             {#if isRequired}<span
@@ -630,11 +630,11 @@
                                                                         .value,
                                                                 )}
                                                             {placeholder}
-                                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                                         />
                                                         {#if description}
                                                             <p
-                                                                class="mt-1 text-xs text-gray-500"
+                                                                class="mt-1 text-xs text-muted-foreground"
                                                             >
                                                                 {description}
                                                             </p>
@@ -652,7 +652,7 @@
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <label
-                                    class="block text-sm font-medium text-gray-700"
+                                    class="block text-sm font-medium text-foreground"
                                     >Environment Variables</label
                                 >
                                 <button
@@ -684,9 +684,9 @@
                                                 ].name = e.currentTarget.value;
                                             }}
                                             placeholder="VAR_NAME"
-                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+                                            class="flex-1 px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
                                         />
-                                        <span class="text-gray-500">=</span>
+                                        <span class="text-muted-foreground">=</span>
                                         <input
                                             type="text"
                                             value={variable.value}
@@ -705,7 +705,7 @@
                                                 ].value = e.currentTarget.value;
                                             }}
                                             placeholder="value OR {'{{'}inputs.name{'}}'}"
-                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+                                            class="flex-1 px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
                                         />
                                         {#if action.variables && action.variables.length > 0}
                                             <button
@@ -715,7 +715,7 @@
                                                         varIndex,
                                                     )}
                                                 type="button"
-                                                class="text-gray-400 hover:text-danger-600 cursor-pointer"
+                                                class="text-muted-foreground hover:text-danger-600 cursor-pointer"
                                             >
                                                 <svg
                                                     class="w-4 h-4"
@@ -743,9 +743,9 @@
                             <input
                                 type="checkbox"
                                 bind:checked={action.approval}
-                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded"
                             />
-                            <label class="ml-2 block text-sm text-gray-700"
+                            <label class="ml-2 block text-sm text-foreground"
                                 >Require approval before execution</label
                             >
                         </div>
@@ -756,10 +756,10 @@
 
         {#if actions.length === 0}
             <div
-                class="text-center py-12 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg"
+                class="text-center py-12 text-muted-foreground border-2 border-dashed border-input rounded-lg"
             >
                 <svg
-                    class="mx-auto h-12 w-12 text-gray-400 mb-3"
+                    class="mx-auto h-12 w-12 text-muted-foreground mb-3"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

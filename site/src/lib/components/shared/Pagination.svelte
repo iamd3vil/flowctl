@@ -57,7 +57,7 @@
       <button
         onclick={() => handlePageChange(currentPage - 1)}
         disabled={isPreviousDisabled}
-        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        class="px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-input rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       >
         Previous
       </button>
@@ -66,8 +66,8 @@
         <button
           onclick={() => handlePageChange(page)}
           disabled={disabled || loading}
-          class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg disabled:cursor-not-allowed cursor-pointer
-                 {page === currentPage ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-white text-gray-700 hover:bg-gray-50'}"
+          class="px-3 py-2 text-sm font-medium border border-input rounded-lg disabled:cursor-not-allowed cursor-pointer
+                 {page === currentPage ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-card text-foreground hover:bg-muted'}"
         >
           {page}
         </button>
@@ -76,7 +76,7 @@
       <button
         onclick={() => handlePageChange(currentPage + 1)}
         disabled={isNextDisabled}
-        class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        class="px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-input rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       >
         Next
       </button>

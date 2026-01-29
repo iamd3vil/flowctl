@@ -9,21 +9,18 @@
   const getStatusClasses = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-success-100 text-success-900';
       case 'approved':
-        return 'bg-success-100 text-success-900';
+        return 'bg-badge-success-bg text-badge-success-text';
       case 'pending':
-        return 'bg-warning-100 text-warning-900';
-      case 'running':
-        return 'bg-primary-100 text-info-900';
       case 'cancelled':
-        return 'bg-warning-100 text-warning-900';
+        return 'bg-badge-warning-bg text-badge-warning-text';
+      case 'running':
+        return 'bg-badge-info-bg text-badge-info-text';
       case 'errored':
-        return 'bg-danger-100 text-danger-900';
       case 'rejected':
-        return 'bg-danger-100 text-danger-900';
+        return 'bg-badge-danger-bg text-badge-danger-text';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-subtle text-foreground';
     }
   };
 
@@ -44,7 +41,7 @@
       case 'rejected':
         return 'bg-danger-500';
       default:
-        return 'bg-gray-400';
+        return 'bg-muted-foreground';
     }
   };
 </script>

@@ -10,18 +10,17 @@
   import { oneDark } from '@codemirror/theme-one-dark';
   import { keymap } from '@codemirror/view';
   import { indentWithTab } from '@codemirror/commands';
+  import { resolvedTheme } from '$lib/stores/theme';
 
   let {
     value = $bindable(''),
     language = 'shell',
-    theme = 'light',
     height = '300px',
     readonly = false,
     onchange
   }: {
     value: string;
     language?: string;
-    theme?: string;
     height?: string;
     readonly?: boolean;
     onchange?: (value: string) => void;
@@ -82,7 +81,7 @@
       EditorView.editable.of(!readonly),
     ];
 
-    if (theme === 'dark') {
+    if ($resolvedTheme === 'dark') {
       extensions.push(oneDark);
     }
 
@@ -135,7 +134,7 @@
         EditorView.editable.of(!readonly),
       ];
 
-      if (theme === 'dark') {
+      if ($resolvedTheme === 'dark') {
         newExtensions.push(oneDark);
       }
 
@@ -193,14 +192,14 @@
   <!-- Language selector -->
   <div class="flex items-center justify-between mb-2">
     <div class="flex items-center gap-2">
-      <label for="language-select" class="text-sm font-medium text-gray-700">
+      <label for="language-select" class="text-sm font-medium text-foreground">
         Language:
       </label>
       <select
         id="language-select"
         value={language}
         onchange={handleLanguageChange}
-        class="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="px-2 py-1 text-sm text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       >
         {#each languageOptions as option}
           <option value={option.value}>{option.label}</option>
@@ -208,7 +207,7 @@
       </select>
     </div>
 
-    <div class="flex items-center gap-2 text-xs text-gray-500">
+    <div class="flex items-center gap-2 text-xs text-muted-foreground">
       <span>Ctrl+Space for suggestions</span>
     </div>
   </div>
@@ -217,7 +216,7 @@
   <div class="editor-container-wrapper">
     <div
       bind:this={editorContainer}
-      class="border border-gray-300 rounded-t-md overflow-auto"
+      class="border border-input rounded-t-md overflow-auto"
       style="height: {currentHeight}"
       onwheel={(e) => e.stopPropagation()}
     ></div>
@@ -246,8 +245,8 @@
 
   .resize-handle {
     height: 12px;
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
+    background: var(--subtle);
+    border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 0.375rem 0.375rem;
     cursor: ns-resize;
@@ -259,22 +258,22 @@
   }
 
   .resize-handle:hover {
-    background: #e5e7eb;
+    background: var(--muted);
   }
 
   .resize-handle:active {
-    background: #d1d5db;
+    background: var(--border);
   }
 
   .resize-handle-line {
     width: 40px;
     height: 3px;
-    background: #9ca3af;
+    background: var(--muted-fg);
     border-radius: 2px;
   }
 
   .resize-handle:hover .resize-handle-line {
-    background: #6b7280;
+    background: var(--fg);
   }
 
   /* Ensure CodeMirror editor fills the container */

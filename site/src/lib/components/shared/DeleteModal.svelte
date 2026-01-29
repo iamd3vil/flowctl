@@ -48,10 +48,10 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <!-- Modal Background -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60" onclick={handleClose} role="dialog" aria-modal="true">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay" onclick={handleClose} role="dialog" aria-modal="true">
 	<!-- Modal Content -->
 	<div 
-		class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 m-4"
+		class="bg-card rounded-lg shadow-lg w-full max-w-md p-6 m-4"
 		onclick={(e) => e.stopPropagation()}
 		role="document"
 	>
@@ -60,19 +60,19 @@
 				<IconAlertTriangle class="text-2xl text-danger-600" size={24} />
 			</div>
 			<div>
-				<h3 class="text-lg font-semibold text-gray-900">
+				<h3 class="text-lg font-semibold text-foreground">
 					{title}
 				</h3>
-				<p class="text-sm text-gray-600">This action cannot be undone.</p>
+				<p class="text-sm text-muted-foreground">This action cannot be undone.</p>
 			</div>
 		</div>
 
-		<p class="text-gray-700 mb-6">
+		<p class="text-foreground mb-6">
 			Are you sure you want to delete "<span class="font-medium">{itemName}</span>"?
 		</p>
 
 		{#if description}
-			<p class="text-gray-700 mb-6 font-bold">
+			<p class="text-foreground mb-6 font-bold">
 				{description}
 			</p>
 		{/if}
@@ -82,7 +82,7 @@
 			<button
 				onclick={handleClose}
 				disabled={deleting}
-				class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+				class="px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				use:autofocus
 			>
 				Cancel

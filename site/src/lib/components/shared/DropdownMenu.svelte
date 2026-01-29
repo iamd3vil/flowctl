@@ -57,15 +57,15 @@
     type="button"
     bind:this={buttonElement}
     onclick={toggleDropdown}
-    class="p-1 hover:bg-gray-100 rounded cursor-pointer"
+    class="p-1 hover:bg-subtle rounded cursor-pointer"
     aria-label="Actions menu"
   >
-    <IconDotsVertical class="w-5 h-5 text-gray-500" />
+    <IconDotsVertical class="w-5 h-5 text-muted-foreground" />
   </button>
 
   {#if isOpen}
     <div
-      class="fixed w-36 bg-white rounded-md shadow-lg border border-gray-200 z-50"
+      class="fixed w-36 bg-card rounded-md shadow-lg border border-border z-50"
       style="top: {dropdownPosition.top}px; {position === 'right' ? `right: ${dropdownPosition.right}px` : `left: ${dropdownPosition.left}px`}"
       role="menu"
     >
@@ -74,7 +74,7 @@
           <button
             type="button"
             onclick={() => handleItemClick(item)}
-            class="w-full text-left px-4 py-2 text-sm cursor-pointer block {item.variant === 'danger' ? 'text-danger-600 hover:bg-danger-50' : 'text-gray-700 hover:bg-gray-100'}"
+            class="w-full text-left px-4 py-2 text-sm cursor-pointer block {item.variant === 'danger' ? 'text-danger-600 hover:bg-danger-50' : 'text-foreground hover:bg-subtle'}"
             role="menuitem"
           >
             {item.label}

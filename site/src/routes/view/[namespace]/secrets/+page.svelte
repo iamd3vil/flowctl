@@ -152,38 +152,38 @@
 	<!-- Secrets List -->
 	{#if loading}
 		<div class="flex items-center justify-center py-8">
-			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
 		</div>
 	{:else if secrets.length === 0}
 		<div class="text-center py-8">
-			<div class="text-gray-500">
-				<IconLock size={48} class="mx-auto h-12 w-12 text-gray-400" />
-				<h3 class="mt-2 text-sm font-medium text-gray-900">No namespace secrets yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Add secrets that will be available to all flows in this namespace.</p>
+			<div class="text-muted-foreground">
+				<IconLock size={48} class="mx-auto h-12 w-12 text-muted-foreground" />
+				<h3 class="mt-2 text-sm font-medium text-foreground">No namespace secrets yet</h3>
+				<p class="mt-1 text-sm text-muted-foreground">Add secrets that will be available to all flows in this namespace.</p>
 			</div>
 		</div>
 	{:else}
-		<div class="bg-white shadow overflow-hidden sm:rounded-md">
-			<ul role="list" class="divide-y divide-gray-200">
+		<div class="bg-card border border-border shadow overflow-hidden sm:rounded-md">
+			<ul role="list" class="divide-y divide-border">
 				{#each secrets as secret}
 					<li class="px-4 py-4 flex items-center justify-between">
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center space-x-3">
 								<div class="flex-shrink-0">
-									<svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<svg class="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 									</svg>
 								</div>
 								<div class="min-w-0 flex-1">
-									<p class="text-sm font-medium text-gray-900 truncate">
+									<p class="text-sm font-medium text-foreground truncate">
 										{secret.key}
 									</p>
 									{#if secret.description}
-										<p class="text-sm text-gray-500 truncate">
+										<p class="text-sm text-muted-foreground truncate">
 											{secret.description}
 										</p>
 									{/if}
-									<p class="text-xs text-gray-400">
+									<p class="text-xs text-muted-foreground">
 										Created: {formatDateTime(secret.created_at)}
 									</p>
 								</div>

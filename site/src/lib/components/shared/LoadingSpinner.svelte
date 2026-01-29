@@ -39,6 +39,6 @@
 		></path>
 	</svg>
 	{#if label}
-		<span class="text-sm text-gray-500">{label}</span>
+		<span class="text-sm text-muted-foreground">{label}</span>
 	{/if}
 </div>

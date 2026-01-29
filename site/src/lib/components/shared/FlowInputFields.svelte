@@ -18,7 +18,7 @@
 	<div class="space-y-4">
 	{#each inputs as input (input.name)}
 		<div>
-			<label for={input.name} class="block text-sm font-medium text-gray-700 mb-2">
+			<label for={input.name} class="block text-sm font-medium text-foreground mb-2">
 				{input.label || input.name}
 				{#if input.required}
 					<span class="text-red-500">*</span>
@@ -38,7 +38,7 @@
 						value={values[input.name] ?? input.default ?? ''}
 						placeholder={input.description || ''}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					/>
 				{:else}
 					<input
@@ -46,7 +46,7 @@
 						bind:value={values[input.name]}
 						placeholder={input.description || ''}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					/>
 				{/if}
 			{:else if input.type === 'checkbox'}
@@ -58,13 +58,13 @@
 							name={input.name}
 							value="true"
 							checked={values[input.name] ?? input.default === 'true'}
-							class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+							class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded"
 						/>
 					{:else}
 						<input
 							type="checkbox"
 							bind:checked={values[input.name]}
-							class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+							class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-input rounded"
 						/>
 					{/if}
 				</div>
@@ -75,7 +75,7 @@
 						name={input.name}
 						required={input.required}
 						value={values[input.name] ?? input.default ?? ''}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					>
 						<option value="">Select an option</option>
 						{#each input.options as option}
@@ -88,7 +88,7 @@
 					<select
 						bind:value={values[input.name]}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					>
 						<option value="">Select an option</option>
 						{#each input.options as option}
@@ -103,10 +103,10 @@
 						id={input.name}
 						name={input.name}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
 					/>
 					{#if input.max_file_size}
-						<p class="text-xs text-gray-500 mt-1">
+						<p class="text-xs text-muted-foreground mt-1">
 							Max size: {Math.round(input.max_file_size / (1024 * 1024))}MB
 						</p>
 					{/if}
@@ -120,14 +120,14 @@
 							name={input.name}
 							value={values[input.name] ?? input.default ?? ''}
 							required={input.required}
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+							class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						/>
 					{:else}
 						<input
 							type="datetime-local"
 							bind:value={values[input.name]}
 							required={input.required}
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+							class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						/>
 					{/if}
 				</div>
@@ -140,14 +140,14 @@
 							name={input.name}
 							value={values[input.name] ?? input.default ?? ''}
 							required={input.required}
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+							class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						/>
 					{:else}
 						<input
 							type="password"
 							bind:value={values[input.name]}
 							required={input.required}
-							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+							class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 						/>
 					{/if}
 				</div>
@@ -161,7 +161,7 @@
 						value={values[input.name] ?? input.default ?? ''}
 						placeholder={input.description || ''}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					/>
 				{:else}
 					<input
@@ -169,13 +169,13 @@
 						bind:value={values[input.name]}
 						placeholder={input.description || ''}
 						required={input.required}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 					/>
 				{/if}
 			{/if}
 
 			{#if input.description}
-				<p class="text-sm text-gray-500 mt-1">{input.description}</p>
+				<p class="text-sm text-muted-foreground mt-1">{input.description}</p>
 			{/if}
 		</div>
 	{/each}

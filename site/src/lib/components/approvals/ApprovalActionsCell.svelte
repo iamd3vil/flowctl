@@ -32,6 +32,6 @@
       Reject
     </button>
   {:else}
-    <span class="text-gray-400">No actions</span>
+    <span class="text-muted-foreground">No actions</span>
   {/if}
 </div>

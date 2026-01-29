@@ -42,18 +42,18 @@
 </script>
 
 <!-- Login Card -->
-<article class="p-8 rounded-lg border bg-white border-slate-200 shadow-sm">
+<article class="p-8 rounded-lg border bg-card border-border shadow-sm">
   <form onsubmit={onSubmit} class="space-y-6" aria-label="Login form">
     <!-- Error Message -->
     {#if error}
-      <div class="p-3 rounded-md bg-danger-50 border border-danger-200" role="alert" aria-live="assertive">
-        <div class="text-sm text-danger-900">{error}</div>
+      <div class="p-3 rounded-md bg-danger-50 border border-danger-200 dark:bg-danger-900/20 dark:border-danger-800" role="alert" aria-live="assertive">
+        <div class="text-sm text-danger-900 dark:text-danger-300">{error}</div>
       </div>
     {/if}
 
     <!-- Username Field -->
     <div>
-      <label for="username" class="block text-sm font-medium mb-2 text-slate-900">
+      <label for="username" class="block text-sm font-medium mb-2 text-foreground">
         Username
       </label>
       <input
@@ -62,14 +62,14 @@
         id="username"
         name="username"
         required
-        class="w-full px-3 py-2 text-sm rounded-md border bg-white border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
+        class="w-full px-3 py-2 text-sm rounded-md border text-foreground bg-card border-border focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
         placeholder="Enter your username"
       />
     </div>
 
     <!-- Password Field -->
     <div>
-      <label for="password" class="block text-sm font-medium mb-2 text-slate-900">
+      <label for="password" class="block text-sm font-medium mb-2 text-foreground">
         Password
       </label>
       <input
@@ -78,7 +78,7 @@
         id="password"
         name="password"
         required
-        class="w-full px-3 py-2 text-sm rounded-md border bg-white border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
+        class="w-full px-3 py-2 text-sm rounded-md border text-foreground bg-card border-border focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
         placeholder="Enter your password"
       />
     </div>
@@ -107,7 +107,7 @@
         type="button"
         onclick={() => handleOIDCLogin(provider.id)}
         disabled={oidcLoadingProvider !== null}
-        class="w-full px-4 py-2 text-sm font-medium rounded-md border transition-all duration-300 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full px-4 py-2 text-sm font-medium rounded-md border transition-all duration-300 bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground hover:border-input disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label={provider.label}
       >
         {#if oidcLoadingProvider === provider.id}

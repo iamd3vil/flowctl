@@ -165,7 +165,7 @@
             <select
                 bind:value={searchType}
                 onchange={handleTypeChange}
-                class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                class="px-3 py-2 text-sm text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 {disabled}
             >
                 <option value="user">User</option>
@@ -181,7 +181,7 @@
                     placeholder={searchType === "user"
                         ? "Search users or enter email..."
                         : "Search groups..."}
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10"
+                    class="w-full px-3 py-2 text-sm text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10"
                     autocomplete="off"
                     {disabled}
                 />
@@ -191,7 +191,7 @@
                         class="absolute right-3 top-1/2 transform -translate-y-1/2"
                     >
                         <svg
-                            class="animate-spin h-4 w-4 text-gray-400"
+                            class="animate-spin h-4 w-4 text-muted-foreground"
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
                             viewBox="0 0 24 24"
@@ -213,7 +213,7 @@
                     </div>
                 {:else}
                     <svg
-                        class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                        class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -230,12 +230,12 @@
                 <!-- Dropdown -->
                 {#if showDropdown}
                     <div
-                        class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                        class="absolute z-10 w-full mt-1 bg-card border border-input rounded-lg shadow-lg max-h-48 overflow-y-auto"
                     >
                         {#if showAddEmailOption}
                             <button
                                 type="button"
-                                class="w-full px-4 py-2 hover:bg-primary-50 cursor-pointer border-b border-gray-200 text-left bg-gray-50"
+                                class="w-full px-4 py-2 hover:bg-primary-50 cursor-pointer border-b border-border text-left bg-muted"
                                 onclick={addCustomEmail}
                             >
                                 <div class="flex items-center">
@@ -248,11 +248,11 @@
                                     </div>
                                     <div>
                                         <div
-                                            class="text-sm font-medium text-gray-900"
+                                            class="text-sm font-medium text-foreground"
                                         >
                                             Add "{searchQuery}"
                                         </div>
-                                        <div class="text-xs text-gray-500">
+                                        <div class="text-xs text-muted-foreground">
                                             Add external email
                                         </div>
                                     </div>
@@ -263,7 +263,7 @@
                             {#each searchResults as subject}
                                 <button
                                     type="button"
-                                    class="w-full px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 text-left"
+                                    class="w-full px-4 py-2 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 text-left"
                                     onclick={() => selectSubject(subject)}
                                 >
                                     <div class="flex items-center">
@@ -282,13 +282,13 @@
                                         </div>
                                         <div>
                                             <div
-                                                class="text-sm font-medium text-gray-900"
+                                                class="text-sm font-medium text-foreground"
                                             >
                                                 {"name" in subject
                                                     ? subject.name
                                                     : subject.username}
                                             </div>
-                                            <div class="text-xs text-gray-500">
+                                            <div class="text-xs text-muted-foreground">
                                                 {subject.id}
                                             </div>
                                         </div>
@@ -297,7 +297,7 @@
                             {/each}
                         {:else if !loading && !showAddEmailOption}
                             <div
-                                class="px-4 py-3 text-sm text-gray-500 text-center"
+                                class="px-4 py-3 text-sm text-muted-foreground text-center"
                             >
                                 {searchType === "user"
                                     ? "No users found. Enter a valid email to add."
@@ -315,20 +315,20 @@
         <div class="flex flex-wrap gap-2">
             {#each selectedItems as item, index (item.value)}
                 <div
-                    class="inline-flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm"
+                    class="inline-flex items-center gap-1 px-3 py-1 bg-card border border-input rounded-md text-sm"
                 >
                     <div class="w-4 h-4 flex items-center justify-center">
                         {#if item.type === "user"}
-                            <IconUser class="w-3 h-3 text-gray-600" />
+                            <IconUser class="w-3 h-3 text-muted-foreground" />
                         {:else}
-                            <IconUsers class="w-3 h-3 text-gray-600" />
+                            <IconUsers class="w-3 h-3 text-muted-foreground" />
                         {/if}
                     </div>
-                    <span class="text-gray-700">{item.name}</span>
+                    <span class="text-foreground">{item.name}</span>
                     <button
                         type="button"
                         onclick={() => removeReceiver(index)}
-                        class="ml-1 text-gray-400 hover:text-gray-600"
+                        class="ml-1 text-muted-foreground hover:text-foreground"
                         {disabled}
                     >
                         <IconX class="w-3 h-3" />
@@ -337,7 +337,7 @@
             {/each}
         </div>
     {:else}
-        <div class="text-center text-sm text-gray-500">
+        <div class="text-center text-sm text-muted-foreground">
             No receivers selected
         </div>
     {/if}

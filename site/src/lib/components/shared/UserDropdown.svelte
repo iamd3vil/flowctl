@@ -39,7 +39,7 @@
   <button
     type="button"
     onclick={() => userSettingsOpen = !userSettingsOpen}
-    class="w-full flex items-center text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer {isCollapsed ? 'justify-center p-2' : 'px-3 py-2'}"
+    class="w-full flex items-center text-sm font-medium text-foreground bg-card border border-input rounded-lg hover:bg-muted transition-colors cursor-pointer {isCollapsed ? 'justify-center p-2' : 'px-3 py-2'}"
     aria-label="User menu toggle"
     title={isCollapsed ? $currentUser?.name || 'User menu' : ''}
   >
@@ -50,11 +50,11 @@
     </div>
     {#if !isCollapsed}
       <div class="ml-3 flex-1 text-left">
-        <div class="text-sm font-medium text-gray-900">{$currentUser?.name || 'Loading...'}</div>
-        <div class="text-xs text-gray-500 capitalize">{$currentUser?.role || ''}</div>
+        <div class="text-sm font-medium text-foreground">{$currentUser?.name || 'Loading...'}</div>
+        <div class="text-xs text-muted-foreground capitalize">{$currentUser?.role || ''}</div>
       </div>
       <IconChevronDown
-        class="text-gray-500 transition-transform flex-shrink-0 {userSettingsOpen ? 'rotate-180' : ''}"
+        class="text-muted-foreground transition-transform flex-shrink-0 {userSettingsOpen ? 'rotate-180' : ''}"
         size={16}
       />
     {/if}
@@ -63,7 +63,7 @@
   <!-- Dropdown Menu -->
   {#if userSettingsOpen}
     <div
-      class="absolute bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 {isCollapsed ? 'left-0 w-32' : 'left-0 w-full'}"
+      class="absolute bottom-full mb-1 bg-card rounded-lg shadow-lg border border-border {isCollapsed ? 'left-0 w-32' : 'left-0 w-full'}"
       role="menu"
       aria-label="User menu"
     >
@@ -71,7 +71,7 @@
         <button
           type="button"
           onclick={logout}
-          class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+          class="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-subtle transition-colors cursor-pointer"
           role="menuitem"
         >
           Logout

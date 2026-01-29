@@ -61,25 +61,25 @@
 
 <!-- Modal Background -->
 <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-overlay"
     onclick={handleClose}
     role="dialog"
     aria-modal="true"
 >
     <!-- Modal Content -->
     <div
-        class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
+        class="bg-card rounded-lg shadow-lg w-full max-w-lg p-6 m-4"
         onclick={(e) => e.stopPropagation()}
         role="document"
     >
-        <h3 class="font-bold text-lg mb-4 text-gray-900">
+        <h3 class="font-bold text-lg mb-4 text-foreground">
             {isEditMode ? "Edit Group" : "Add New Group"}
         </h3>
 
         <form onsubmit={handleSubmit}>
             <!-- Name Field -->
             <div class="mb-4">
-                <label for="name" class="block mb-1 font-medium text-gray-900"
+                <label for="name" class="block mb-1 font-medium text-foreground"
                     >Name</label
                 >
                 <input
@@ -88,7 +88,7 @@
                     bind:value={name}
                     required
                     disabled={saving}
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-subtle disabled:cursor-not-allowed"
                     use:autofocus
                 />
             </div>
@@ -97,7 +97,7 @@
             <div class="mb-4">
                 <label
                     for="description"
-                    class="block mb-1 font-medium text-gray-900"
+                    class="block mb-1 font-medium text-foreground"
                     >Description</label
                 >
                 <input
@@ -105,7 +105,7 @@
                     id="description"
                     bind:value={description}
                     disabled={saving}
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-subtle disabled:cursor-not-allowed"
                     placeholder="Optional description"
                 />
             </div>
@@ -113,24 +113,24 @@
             <!-- Users List (Edit Mode Only) -->
             {#if isEditMode}
                 <div class="mb-4">
-                    <label class="block mb-1 font-medium text-gray-900"
+                    <label class="block mb-1 font-medium text-foreground"
                         >Members ({users.length})</label
                     >
                     {#if users.length > 0}
                         <div
-                            class="border border-gray-300 rounded-lg max-h-40 overflow-y-auto"
+                            class="border border-input rounded-lg max-h-40 overflow-y-auto"
                         >
                             {#each users as user}
                                 <div
-                                    class="flex justify-between px-3 py-2 border-b border-gray-100 last:border-b-0 text-sm"
+                                    class="flex justify-between px-3 py-2 border-b border-border last:border-b-0 text-sm"
                                 >
-                                    <span class="text-gray-900">{user.name}</span>
-                                    <span class="text-gray-500">{user.username}</span>
+                                    <span class="text-foreground">{user.name}</span>
+                                    <span class="text-muted-foreground">{user.username}</span>
                                 </div>
                             {/each}
                         </div>
                     {:else}
-                        <p class="text-sm text-gray-500 italic">
+                        <p class="text-sm text-muted-foreground italic">
                             No members in this group
                         </p>
                     {/if}
@@ -143,7 +143,7 @@
                     type="button"
                     onclick={handleClose}
                     disabled={saving}
-                    class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    class="px-5 py-2.5 text-sm font-medium text-foreground bg-subtle rounded-lg hover:bg-subtle-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                     Cancel
                 </button>
