@@ -19,10 +19,6 @@ type qsshClient struct {
 	conn      *qssh.QSSHConnection
 }
 
-func init() {
-	remoteclient.Register("qssh", NewRemoteClient)
-}
-
 func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient, error) {
 	var qconfig qssh.Config
 

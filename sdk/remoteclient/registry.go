@@ -27,7 +27,7 @@ var (
 	mu       sync.RWMutex
 )
 
-// Register is called by remote client modules to make themselves available.
+// Register registers a remote client new func for the given protocol name.
 func Register(protocolName string, factory NewRemoteClientFunc) {
 	mu.Lock()
 	defer mu.Unlock()

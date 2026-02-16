@@ -112,6 +112,8 @@ func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) (map[strin
 
 // initializeSharedComponents sets up all shared components (DB, scheduler, core, etc.)
 func initializeSharedComponents() *SharedComponents {
+	registerPlugins()
+
 	loglevel := slog.LevelInfo
 	if os.Getenv("DEBUG_LOG") == "true" {
 		loglevel = slog.LevelDebug

@@ -22,7 +22,7 @@ func isValidName(name string) bool {
 	return validNameRegex.MatchString(name)
 }
 
-// RegisterExecutor should be called by executor modules their init() function.
+// RegisterExecutor registers an executor new func under the given name.
 func RegisterExecutor(name string, factory NewExecutorFunc) {
 	mu.Lock()
 	defer mu.Unlock()

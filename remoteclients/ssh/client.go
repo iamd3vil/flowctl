@@ -18,10 +18,6 @@ type sshClient struct {
 	client *ssh.Client
 }
 
-func init() {
-	remoteclient.Register("ssh", NewRemoteClient)
-}
-
 // NewRemoteClient creates a new client for interacting with a remote node based on the
 // provided node configuration.
 func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient, error) {

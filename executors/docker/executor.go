@@ -63,11 +63,6 @@ type DockerRunnerOptions struct {
 	KeepContainer     bool
 }
 
-func init() {
-	executor.RegisterExecutor("docker", NewDockerExecutor)
-	executor.RegisterSchema("docker", GetSchema())
-}
-
 func NewDockerExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
 	jobName := slug.Make(fmt.Sprintf("%s-%s", name, xid.New().String()))
 

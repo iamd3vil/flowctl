@@ -30,11 +30,6 @@ type ScriptExecutor struct {
 	execID           string
 }
 
-func init() {
-	executor.RegisterExecutor("script", NewScriptExecutor)
-	executor.RegisterSchema("script", GetSchema())
-}
-
 func GetSchema() interface{} {
 	return jsonschema.Reflect(&ScriptWithConfig{})
 }
