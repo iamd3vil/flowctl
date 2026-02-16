@@ -982,7 +982,7 @@ func (c *Core) SyncScheduledFlowJobs(ctx context.Context) ([]scheduler.Scheduled
 			continue
 		}
 
-		input := applyDefaultInputValues(schedulerFlow.Inputs)
+		input := make(map[string]interface{})
 
 		if flow.IsUserCreated && flow.Inputs.Valid {
 			var userInputs map[string]interface{}
@@ -1026,17 +1026,6 @@ func (c *Core) SyncScheduledFlowJobs(ctx context.Context) ([]scheduler.Scheduled
 	}
 
 	return jobs, nil
-}
-
-// applyDefaultInputValues creates an input map using default values from flow inputs
-func applyDefaultInputValues(inputs []scheduler.Input) map[string]interface{} {
-	result := make(map[string]interface{})
-	for _, input := range inputs {
-		if input.Default != "" {
-			result[input.Name] = input.Default
-		}
-	}
-	return result
 }
 
 func (c *Core) CreateSchedule(ctx context.Context, flowID, cron, timezone string, inputs map[string]interface{}, userUUID, namespaceID string) (models.Schedule, error) {

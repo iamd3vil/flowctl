@@ -38,6 +38,8 @@ type FlowExecutionHandler struct {
 	executionTimeout time.Duration
 	metrics          *metrics.Manager
 	taskQueuer       TaskQueuer
+	executorKeys     map[string]string // executor_name → API token
+	apiBaseURL       string
 }
 
 // FlowHandlerConfig holds configuration for FlowExecutionHandler
@@ -48,6 +50,8 @@ type FlowHandlerConfig struct {
 	Logger               *slog.Logger
 	Metrics              *metrics.Manager
 	FlowExecutionTimeout time.Duration
+	ExecutorKeys         map[string]string // executor_name → API token
+	APIBaseURL           string
 }
 
 // NewFlowExecutionHandler creates a new flow execution handler
@@ -63,6 +67,8 @@ func NewFlowExecutionHandler(cfg FlowHandlerConfig) *FlowExecutionHandler {
 		logger:           cfg.Logger,
 		metrics:          cfg.Metrics,
 		executionTimeout: cfg.FlowExecutionTimeout,
+		executorKeys:     cfg.ExecutorKeys,
+		apiBaseURL:       cfg.APIBaseURL,
 	}
 }
 
@@ -147,6 +153,12 @@ func (h *FlowExecutionHandler) executeFlow(ctx context.Context, execID string, p
 		payload.StartingActionIdx = len(payload.Workflow.Actions)
 	}
 
+	// Apply default input values for any inputs not provided by the caller
+	if payload.Input == nil {
+		payload.Input = make(map[string]any)
+	}
+	applyDefaultInputs(payload.Workflow.Inputs, payload.Input)
+
 	// Create temporary directory for artifacts shared across all actions in this flow
 	artifactDir := filepath.Join(os.TempDir(), fmt.Sprintf("artifacts-store-%s", execID))
 	if err := os.MkdirAll(artifactDir, 0700); err != nil {
@@ -185,7 +197,7 @@ func (h *FlowExecutionHandler) executeFlow(ctx context.Context, execID string, p
 	for i := payload.StartingActionIdx; i < len(payload.Workflow.Actions); i++ {
 		action := payload.Workflow.Actions[i]
 
-		res, err := h.executeSingleAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets, outputs, execID, payload.NamespaceID)
+		res, err := h.executeSingleAction(ctx, action, payload.Workflow.Meta.SrcDir, payload.Input, streamLogger, artifactDir, flowSecrets, outputs, execID, payload.NamespaceID, payload.UserUUID, payload.Workflow.Meta.Namespace)
 		if err != nil {
 			return err
 		}
@@ -293,7 +305,7 @@ func (h *FlowExecutionHandler) copyFlowFilesToArtifacts(flowDir string, artifact
 }
 
 // executeSingleAction executes a single action within a flow, handling approval and error checkpointing
-func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action Action, srcDir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any, execID string, namespaceID string) (map[string]string, error) {
+func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action Action, srcDir string, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any, execID string, namespaceID string, userUUID string, namespaceName string) (map[string]string, error) {
 	// Check for context cancellation
 	if ctx.Err() != nil {
 		if err := streamLogger.Checkpoint("", "", "execution cancelled", streamlogger.CancelledMessageType); err != nil {
@@ -326,7 +338,7 @@ func (h *FlowExecutionHandler) executeSingleAction(ctx context.Context, action A
 	h.logger.Debug("action retry count", "action", action.ID, "retry", row.RetryCount)
 
 	// Run the action
-	res, err := h.runAction(ctx, execID, action, input, streamLogger, artifactDir, secrets, outputs)
+	res, err := h.runAction(ctx, execID, action, input, streamLogger, artifactDir, secrets, outputs, userUUID, namespaceName)
 	if err != nil {
 		// Check if the error is due to context cancellation
 		if errors.Is(err, context.Canceled) {
@@ -367,7 +379,7 @@ func processActionResults(results map[string]string, outputs map[string]any) {
 }
 
 // executeOnNode executes an action on a single node and returns the results
-func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string) ExecResults {
+func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string, userUUID string, namespaceName string) ExecResults {
 	nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
 
 	// Create a separate executor instance for each node
@@ -437,11 +449,20 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 	// Transform file paths for remote execution
 	execInputVars := h.transformPaths(inputVars, artifactDir, exec)
 
+	var apiKey string
+	if key, ok := h.executorKeys[action.Executor]; ok {
+		apiKey = key
+	}
+
 	res, err := exec.Execute(ctx, executor.ExecutionContext{
-		Inputs:     execInputVars,
-		WithConfig: withConfig,
-		Stdout:     nodeLogger,
-		Stderr:     nodeLogger,
+		Inputs:        execInputVars,
+		WithConfig:    withConfig,
+		Stdout:        nodeLogger,
+		Stderr:        nodeLogger,
+		UserUUID:      userUUID,
+		NamespaceName: namespaceName,
+		APIKey:        apiKey,
+		APIBaseURL:    h.apiBaseURL,
 	})
 
 	// Pull all artifacts from this node after execution
@@ -519,7 +540,7 @@ func (h *FlowExecutionHandler) interpolateVariables(action Action, input map[str
 }
 
 // runAction executes a single action
-func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, action Action, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any) (map[string]string, error) {
+func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, action Action, input map[string]any, streamLogger streamlogger.Logger, artifactDir string, secrets map[string]string, outputs map[string]any, userUUID string, namespaceName string) (map[string]string, error) {
 	streamLogger.SetActionID(action.ID)
 
 	jobCtx, cancel := context.WithTimeout(ctx, h.executionTimeout)
@@ -547,7 +568,7 @@ func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, act
 		wg.Add(1)
 		go func(node Node) {
 			defer wg.Done()
-			result := h.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir)
+			result := h.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir, userUUID, namespaceName)
 			resChan <- result
 		}(node)
 	}
@@ -869,6 +890,20 @@ func (h *FlowExecutionHandler) enqueueNotifications(ctx context.Context, execID 
 			h.logger.Error("failed to queue notification", "execID", execID, "channel", notify.Channel, "error", err)
 		} else {
 			h.logger.Debug("notification queued", "execID", execID, "channel", notify.Channel, "event", event)
+		}
+	}
+}
+
+// applyDefaultInputs sets default values from the flow's input definitions
+// for any inputs that are missing or empty.
+func applyDefaultInputs(definitions []Input, inputs map[string]any) {
+	for _, inp := range definitions {
+		if inp.Default == "" {
+			continue
+		}
+		v, exists := inputs[inp.Name]
+		if !exists || v == "" || v == nil {
+			inputs[inp.Name] = inp.Default
 		}
 	}
 }

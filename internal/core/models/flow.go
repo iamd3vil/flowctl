@@ -63,7 +63,7 @@ type Notify struct {
 type Action struct {
 	ID        string         `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
 	Name      string         `yaml:"name" huml:"name" validate:"required"`
-	Executor  string         `yaml:"executor" huml:"executor" validate:"required,oneof=script docker"`
+	Executor  string         `yaml:"executor" huml:"executor" validate:"required,oneof=script docker flow"`
 	With      map[string]any `yaml:"with" huml:"with" validate:"required"`
 	Approval  bool           `yaml:"approval" huml:"approval"`
 	Variables []Variable     `yaml:"variables" huml:"variables"`

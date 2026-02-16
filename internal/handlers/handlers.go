@@ -32,12 +32,13 @@ type OIDCAuthConfig struct {
 }
 
 type Handler struct {
-	co         *core.Core
-	validate   *validator.Validate
-	sessMgr    *simplesessions.Manager
-	authconfig map[string]OIDCAuthConfig
-	logger     *slog.Logger
-	config     config.Config
+	co                  *core.Core
+	validate            *validator.Validate
+	sessMgr             *simplesessions.Manager
+	authconfig          map[string]OIDCAuthConfig
+	logger              *slog.Logger
+	config              config.Config
+	executorSigningKey  []byte
 }
 
 func getCookie(name string, r interface{}) (*http.Cookie, error) {
@@ -51,7 +52,7 @@ func setCookie(cookie *http.Cookie, w interface{}) error {
 	return nil
 }
 
-func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Config) (*Handler, error) {
+func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Config, executorSigningKey []byte) (*Handler, error) {
 	validate := validator.New()
 	validate.RegisterValidation("alphanum_underscore", models.AlphanumericUnderscore)
 	validate.RegisterValidation("alphanum_whitespace", models.AlphanumericSpace)
@@ -83,7 +84,7 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 		time.Sleep(SessionTimeout / 2)
 	}()
 
-	h := &Handler{co: co, validate: validate, logger: logger, sessMgr: sessMgr, config: cfg, authconfig: make(map[string]OIDCAuthConfig)}
+	h := &Handler{co: co, validate: validate, logger: logger, sessMgr: sessMgr, config: cfg, authconfig: make(map[string]OIDCAuthConfig), executorSigningKey: executorSigningKey}
 	if err := h.initOIDC(); err != nil {
 		return nil, fmt.Errorf("error initializing oidc config: %w", err)
 	}

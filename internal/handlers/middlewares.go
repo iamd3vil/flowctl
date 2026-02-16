@@ -5,13 +5,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// Check for executor API key first
+		executorName, err := h.authenticateExecutor(c)
+		if err != nil {
+			return wrapError(ErrAuthenticationFailed, "invalid executor token", err, nil)
+		}
+		if executorName != "" {
+			c.Set("executor_name", executorName)
+			c.Set("is_executor", true)
+			return next(c)
+		}
+
 		sess, err := h.sessMgr.Acquire(nil, c, c)
 		if err != nil {
 			return wrapError(ErrAuthenticationFailed, "could not get user session", err, nil)
@@ -63,6 +76,32 @@ func (h *Handler) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+// authenticateExecutor validates the executor API key from the Authorization header,
+// resolves the user from X-User-UUID, and sets the user in the context.
+// Returns the executor name if valid, or empty string if not an executor request.
+func (h *Handler) authenticateExecutor(c echo.Context) (string, error) {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "+core.ExecutorTokenPrefix) {
+		return "", nil
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	executorName, err := core.ValidateExecutorToken(token, h.executorSigningKey)
+	if err != nil {
+		return "", err
+	}
+
+	// Resolve user from X-User-UUID
+	if userUUID := c.Request().Header.Get("X-User-UUID"); userUUID != "" {
+		userWithGroups, err := h.co.GetUserWithUUIDWithGroups(c.Request().Context(), userUUID)
+		if err == nil {
+			c.Set("user", userWithGroups.ToUserInfo())
+		}
+	}
+
+	return executorName, nil
+}
+
 func (h *Handler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -84,6 +123,11 @@ func (h *Handler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
 func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action models.RBACAction) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// skip RBAC for executors
+			if isExecutor, _ := c.Get("is_executor").(bool); isExecutor {
+				return next(c)
+			}
+
 			user, err := h.getUserInfo(c)
 			if err != nil {
 				return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
@@ -159,7 +203,7 @@ func (h *Handler) AuthorizeAction(resource models.Resource, action models.RBACAc
 	}
 }
 
-// Updated NamespaceMiddleware for simpler access check
+// NamespaceMiddleware resolves the namespace name to ID and checks user access
 func (h *Handler) NamespaceMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		namespace := c.Param("namespace")
@@ -170,6 +214,12 @@ func (h *Handler) NamespaceMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		ns, err := h.co.GetNamespaceByName(c.Request().Context(), namespace)
 		if err != nil {
 			return wrapError(ErrResourceNotFound, "could not find namespace", err, nil)
+		}
+
+		// skip permission checks for executors
+		if isExecutor, _ := c.Get("is_executor").(bool); isExecutor {
+			c.Set("namespace", ns.ID)
+			return next(c)
 		}
 
 		user, err := h.getUserInfo(c)
@@ -193,6 +243,11 @@ func (h *Handler) NamespaceMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func (h *Handler) getUserInfo(c echo.Context) (models.UserInfo, error) {
+	// Check context first (set by Authenticate for both executor and session requests)
+	if user, ok := c.Get("user").(models.UserInfo); ok {
+		return user, nil
+	}
+
 	sess, err := h.sessMgr.Acquire(nil, c, c)
 	if err != nil {
 		return models.UserInfo{}, err

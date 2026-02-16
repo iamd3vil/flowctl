@@ -680,7 +680,7 @@ type FlowInputReq struct {
 
 type FlowActionReq struct {
 	Name      string           `json:"name" validate:"required,alphanum_whitespace,min=1,max=150"`
-	Executor  string           `json:"executor" validate:"required,oneof=script docker"`
+	Executor  string           `json:"executor" validate:"required,oneof=script docker flow"`
 	With      map[string]any   `json:"with" validate:"required"`
 	Approval  bool             `json:"approval"`
 	Variables []map[string]any `json:"variables"`

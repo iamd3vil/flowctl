@@ -21,10 +21,14 @@ type NodeAuth struct {
 
 type ExecutionContext struct {
 	// WithConfig is the yaml config passed to the executor
-	WithConfig []byte
-	Inputs     map[string]any
-	Stdout     io.Writer
-	Stderr     io.Writer
+	WithConfig    []byte
+	Inputs        map[string]any
+	Stdout        io.Writer
+	Stderr        io.Writer
+	UserUUID      string
+	NamespaceName string // human-readable namespace name for API calls
+	APIKey        string // executor API key for authenticating with the server
+	APIBaseURL    string // server base URL for API calls
 }
 
 type Executor interface {

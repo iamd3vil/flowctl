@@ -131,7 +131,7 @@ type Input struct {
 type Action struct {
 	ID        string         `yaml:"id" validate:"required,alphanum_underscore"`
 	Name      string         `yaml:"name" validate:"required"`
-	Executor  string         `yaml:"executor" validate:"required,oneof=script docker"`
+	Executor  string         `yaml:"executor" validate:"required,oneof=script docker flow"`
 	With      map[string]any `yaml:"with" validate:"required"`
 	Approval  bool           `yaml:"approval"`
 	Variables []Variable     `yaml:"variables"`

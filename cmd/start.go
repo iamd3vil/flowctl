@@ -56,7 +56,7 @@ var startCmd = &cobra.Command{
 			startWorker(shared.Scheduler, shared.Logger)
 		}()
 		// start server
-		startServer(shared.DB, shared.Core, shared.Metrics, shared.Logger)
+		startServer(shared.DB, shared.Core, shared.Metrics, shared.Logger, shared.ExecutorSigningKey)
 		wg.Wait()
 	},
 }
@@ -67,13 +67,14 @@ func init() {
 
 // SharedComponents holds components that are shared between server and worker
 type SharedComponents struct {
-	DB         *sqlx.DB
-	Core       *core.Core
-	Scheduler  *scheduler.Scheduler
-	Metrics    *metrics.Manager
-	Logger     *slog.Logger
-	Keeper     *secrets.Keeper
-	Messengers map[string]messengers.Messenger
+	DB                  *sqlx.DB
+	Core                *core.Core
+	Scheduler           *scheduler.Scheduler
+	Metrics             *metrics.Manager
+	Logger              *slog.Logger
+	Keeper              *secrets.Keeper
+	Messengers          map[string]messengers.Messenger
+	ExecutorSigningKey  []byte
 }
 
 // Cleanup cleans up all shared resources
@@ -112,8 +113,6 @@ func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) (map[strin
 
 // initializeSharedComponents sets up all shared components (DB, scheduler, core, etc.)
 func initializeSharedComponents() *SharedComponents {
-	registerPlugins()
-
 	loglevel := slog.LevelInfo
 	if os.Getenv("DEBUG_LOG") == "true" {
 		loglevel = slog.LevelDebug
@@ -201,6 +200,12 @@ func initializeSharedComponents() *SharedComponents {
 	}
 	co.LogManager = fileLogManager
 
+	executorSigningKey, err := core.GenerateSigningKey()
+	if err != nil {
+		log.Fatalf("failed to generate executor signing key: %v", err)
+	}
+	executorKeys := registerPlugins(executorSigningKey)
+
 	// Create flow execution handler with core's secrets provider
 	flowHandler := scheduler.NewFlowExecutionHandler(scheduler.FlowHandlerConfig{
 		Store:                s,
@@ -209,6 +214,8 @@ func initializeSharedComponents() *SharedComponents {
 		Logger:               logger.WithGroup("flow_handler"),
 		Metrics:              metricsManager,
 		FlowExecutionTimeout: appConfig.Scheduler.FlowExecutionTimeout,
+		ExecutorKeys:         executorKeys,
+		APIBaseURL:           appConfig.App.RootURL,
 	})
 
 	// Set handler and queue config on scheduler
@@ -250,18 +257,19 @@ func initializeSharedComponents() *SharedComponents {
 	sch.SetJobSyncer(co.SyncScheduledFlowJobs)
 
 	return &SharedComponents{
-		DB:         db,
-		Core:       co,
-		Scheduler:  sch,
-		Metrics:    metricsManager,
-		Logger:     logger,
-		Keeper:     keeper,
-		Messengers: messengersMap,
+		DB:                 db,
+		Core:               co,
+		Scheduler:          sch,
+		Metrics:            metricsManager,
+		Logger:             logger,
+		Keeper:             keeper,
+		Messengers:         messengersMap,
+		ExecutorSigningKey: executorSigningKey,
 	}
 }
 
-func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, logger *slog.Logger) {
-	h, err := handlers.NewHandler(logger, db.DB, co, appConfig)
+func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, logger *slog.Logger, executorSigningKey []byte) {
+	h, err := handlers.NewHandler(logger, db.DB, co, appConfig, executorSigningKey)
 	if err != nil {
 		log.Fatal(err)
 	}
