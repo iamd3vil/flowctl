@@ -6,7 +6,7 @@ export type ResolvedTheme = 'light' | 'dark';
 
 const getInitialTheme = (): Theme => {
     if (!browser) return 'system';
-    return (localStorage.getItem('theme') as Theme) || 'system';
+    return (localStorage.getItem('flowctl.theme') as Theme) || 'system';
 };
 
 function createThemeStore() {
@@ -15,7 +15,7 @@ function createThemeStore() {
     return {
         subscribe,
         set: (theme: Theme) => {
-            if (browser) localStorage.setItem('theme', theme);
+            if (browser) localStorage.setItem('flowctl.theme', theme);
             set(theme);
         },
     };
