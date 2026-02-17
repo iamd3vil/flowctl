@@ -31,6 +31,15 @@ type ExecutionContext struct {
 	APIBaseURL    string // server base URL for API calls
 }
 
+type Capability uint64
+
+const (
+	RemoteExecution Capability = 1 << iota
+	EnvironmentVariables
+	FileTransfer
+	StreamingOutput
+)
+
 type Executor interface {
 	Execute(ctx context.Context, execCtx ExecutionContext) (outputs map[string]string, err error)
 	GetArtifactsDir() string

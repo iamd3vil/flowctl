@@ -14,8 +14,9 @@ import (
 )
 
 type executorDef struct {
-	New    executor.NewExecutorFunc
-	Schema interface{}
+	New          executor.NewExecutorFunc
+	Schema       interface{}
+	Capabilities executor.Capability
 }
 
 var executors = make(map[string]executorDef)
@@ -24,9 +25,9 @@ var remoteClients = make(map[string]remoteclient.NewRemoteClientFunc)
 // registerPlugins registers all executors and remote clients.
 // It generates an API token per executor and returns them as a map.
 func registerPlugins(signingKey []byte) map[string]string {
-	executors["docker"] = executorDef{New: docker.NewDockerExecutor, Schema: docker.GetSchema()}
-	executors["script"] = executorDef{New: script.NewScriptExecutor, Schema: script.GetSchema()}
-	executors["flow"] = executorDef{New: flow.NewFlowExecutor, Schema: flow.GetSchema()}
+	executors["docker"] = executorDef{New: docker.NewDockerExecutor, Schema: docker.GetSchema(), Capabilities: docker.GetCapabilities()}
+	executors["script"] = executorDef{New: script.NewScriptExecutor, Schema: script.GetSchema(), Capabilities: script.GetCapabilities()}
+	executors["flow"] = executorDef{New: flow.NewFlowExecutor, Schema: flow.GetSchema(), Capabilities: flow.GetCapabilities()}
 
 	executorKeys := make(map[string]string)
 	for name, e := range executors {
@@ -34,6 +35,7 @@ func registerPlugins(signingKey []byte) map[string]string {
 		if e.Schema != nil {
 			executor.RegisterSchema(name, e.Schema)
 		}
+		executor.RegisterCapabilities(name, e.Capabilities)
 
 		token, err := core.GenerateExecutorToken(name, signingKey)
 		if err != nil {

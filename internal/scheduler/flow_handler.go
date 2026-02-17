@@ -380,8 +380,6 @@ func processActionResults(results map[string]string, outputs map[string]any) {
 
 // executeOnNode executes an action on a single node and returns the results
 func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string, userUUID string, namespaceName string) ExecResults {
-	nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
-
 	// Create a separate executor instance for each node
 	var exec executor.Executor
 	nodeExecutorID := fmt.Sprintf("%s-%s", action.ID, node.Name)
@@ -389,8 +387,13 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 		nodeExecutorID = action.ID
 	}
 
-	// Check if node is accessible
-	// Ignore local node
+	// Reset to local execution if the executor doesn't support remote execution
+	if caps, err := executor.GetCapabilities(action.Executor); err == nil && caps&executor.RemoteExecution == 0 {
+		node = Node{}
+	}
+
+	nodeLogger := streamlogger.NewNodeContextLogger(streamLogger, action.ID, node.Name)
+
 	if node.Name != "" {
 		if err := node.CheckConnectivity(); err != nil {
 			h.logger.Debug("node connectivity", "error", err)

@@ -58,6 +58,10 @@ func (s *ScriptExecutor) GetArtifactsDir() string {
 	return s.artifactsDir
 }
 
+func GetCapabilities() executor.Capability {
+	return executor.RemoteExecution | executor.EnvironmentVariables | executor.FileTransfer | executor.StreamingOutput
+}
+
 func (s *ScriptExecutor) Execute(ctx context.Context, execCtx executor.ExecutionContext) (map[string]string, error) {
 	var config ScriptWithConfig
 	if err := yaml.Unmarshal(execCtx.WithConfig, &config); err != nil {

@@ -80,6 +80,10 @@ func (d *DockerExecutor) GetArtifactsDir() string {
 	return ArtifactsDir
 }
 
+func GetCapabilities() executor.Capability {
+	return executor.RemoteExecution | executor.EnvironmentVariables | executor.FileTransfer | executor.StreamingOutput
+}
+
 func GetSchema() interface{} {
 	return jsonschema.Reflect(&DockerWithConfig{})
 }

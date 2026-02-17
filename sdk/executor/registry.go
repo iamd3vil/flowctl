@@ -12,8 +12,10 @@ type NewExecutorFunc func(name string, driver NodeDriver, execID string) (Execut
 var (
 	registry       = make(map[string]NewExecutorFunc)
 	schemaRegistry = make(map[string]interface{})
+	capRegistry    = make(map[string]Capability)
 	mu             sync.RWMutex
 	smu            sync.RWMutex
+	cmu            sync.RWMutex
 )
 
 var validNameRegex = regexp.MustCompile(`^[a-zA-Z_]+$`)
@@ -56,6 +58,32 @@ func RegisterSchema(name string, schema interface{}) {
 		panic(fmt.Sprintf("schema with name '%s' is already registered", name))
 	}
 	schemaRegistry[name] = schema
+}
+
+// RegisterCapabilities registers the capabilities for a named executor.
+func RegisterCapabilities(name string, caps Capability) {
+	cmu.Lock()
+	defer cmu.Unlock()
+
+	mu.RLock()
+	if _, exists := registry[name]; !exists {
+		panic(fmt.Sprintf("executor '%s' is not registered, cannot register capabilities", name))
+	}
+	mu.RUnlock()
+
+	capRegistry[name] = caps
+}
+
+// GetCapabilities returns the capabilities of a named executor.
+func GetCapabilities(name string) (Capability, error) {
+	cmu.RLock()
+	defer cmu.RUnlock()
+
+	caps, ok := capRegistry[name]
+	if !ok {
+		return 0, fmt.Errorf("capabilities for executor '%s' are not registered", name)
+	}
+	return caps, nil
 }
 
 // GetSchema returns the config schema of the executor
