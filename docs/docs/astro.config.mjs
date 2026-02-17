@@ -28,7 +28,10 @@ export default defineConfig({
           label: "General",
           items: [
             { label: "Flows", slug: "general/flows" },
-            { label: "Nodes", slug: "general/nodes-and-executors" },
+            {
+              label: "Nodes and Executors",
+              slug: "general/nodes-and-executors",
+            },
             { label: "Access Control", slug: "general/access-control" },
           ],
         },

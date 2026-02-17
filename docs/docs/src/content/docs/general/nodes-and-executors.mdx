@@ -11,7 +11,7 @@ Flowctl allows you to execute workflows both locally and on remote nodes.
 
 ## Executors
 
-Executors define how your actions run. Flowctl provides two built-in executors:
+Executors define how your actions run. Flowctl provides three built-in executors:
 
 ### Docker Executor
 
@@ -68,6 +68,37 @@ The Script executor runs shell scripts directly on the host system (local or rem
   Script executor actions run with the permissions of the flowctl process on
   local nodes and the user configured on remote nodes. Ensure proper security
   measures are in place.
+</Aside>
+
+### Flow Executor
+
+The Flow executor triggers another flow as a child execution. Use it to compose workflows.
+
+**Configuration:**
+
+```yaml
+- id: run_tests
+  name: Run Test Suite
+  executor: flow
+  with:
+    flow_id: my-test-flow
+    params: '{"env": "staging"}'
+    wait: true
+```
+
+**Config:**
+
+- **`flow_id`** (required): ID of the flow to trigger
+- **`params`**: JSON string of parameters to pass to the child flow
+- **`wait`**: If `true`, blocks until the child flow completes. Defaults to `false`
+
+**Outputs:**
+
+- **`exec_id`**: Execution ID of the triggered flow
+- **`status`**: Final status of the child flow (only when `wait: true`). One of `completed`, `errored`, or `cancelled`
+
+<Aside type="note">
+  The flow executor runs on the local node only and cannot be used with remote nodes.
 </Aside>
 
 ## Remote Nodes
