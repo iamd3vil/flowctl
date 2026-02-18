@@ -5,8 +5,18 @@ import (
 	"log/slog"
 
 	"github.com/cvhariharan/flowctl/internal/config"
+	"github.com/invopop/jsonschema"
 	"github.com/knadh/smtppool/v2"
 )
+
+// EmailNotifyConfig defines the messenger-specific configuration schema for email notifications.
+type EmailNotifyConfig struct {
+	Receivers []string `json:"receivers" jsonschema:"title=Recipients,description=Users or groups to notify" jsonschema_extras:"widget=userselector"`
+}
+
+func GetEmailNotifySchema() interface{} {
+	return jsonschema.Reflect(&EmailNotifyConfig{})
+}
 
 // EmailMessenger sends emails using an SMTP connection pool
 type EmailMessenger struct {

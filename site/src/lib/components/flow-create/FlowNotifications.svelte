@@ -1,35 +1,17 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import MultiReceiverSelector from "$lib/components/shared/MultiReceiverSelector.svelte";
 
     let {
         notifications = $bindable(),
         addNotification,
+        availableMessengers,
+        messengerConfigs,
     }: {
         notifications: any[];
         addNotification: () => void;
+        availableMessengers: string[];
+        messengerConfigs: Record<string, any>;
     } = $props();
-
-    let messengers: string[] = $state([]);
-    let loadingMessengers = $state(true);
-
-    onMount(async () => {
-        try {
-            const response = await fetch("/api/v1/messengers");
-            if (response.ok) {
-                const data = await response.json();
-                messengers = data.messengers || [];
-            } else {
-                console.error("Failed to fetch messengers");
-                messengers = [];
-            }
-        } catch (error) {
-            console.error("Error fetching messengers:", error);
-            messengers = [];
-        } finally {
-            loadingMessengers = false;
-        }
-    });
 
     function removeNotification(index: number) {
         notifications.splice(index, 1);
@@ -105,18 +87,15 @@
                         >
                         <select
                             bind:value={notification.channel}
-                            disabled={loadingMessengers}
                             required
-                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm disabled:bg-subtle disabled:cursor-not-allowed"
+                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                         >
                             <option value="">
-                                {loadingMessengers
-                                    ? "Loading..."
-                                    : messengers.length === 0
-                                      ? "No messengers available"
-                                      : "Select channel"}
+                                {availableMessengers.length === 0
+                                    ? "No messengers available"
+                                    : "Select channel"}
                             </option>
-                            {#each messengers as messenger}
+                            {#each availableMessengers as messenger}
                                 <option value={messenger}>
                                     {messenger.charAt(0).toUpperCase() +
                                         messenger.slice(1)}
@@ -154,16 +133,60 @@
                         </div>
                     </div>
 
-                    <!-- Receivers -->
-                    <div>
-                        <label
-                            class="block text-sm font-medium text-foreground mb-2"
-                            >Receivers *</label
-                        >
-                        <MultiReceiverSelector
-                            bind:selectedReceivers={notification.receivers}
-                        />
-                    </div>
+                    <!-- Dynamic messenger config fields -->
+                    {#if notification.channel && messengerConfigs[notification.channel]?.properties}
+                        {@const schema =
+                            messengerConfigs[notification.channel]}
+                        {#each Object.entries(schema.properties) as [key, property]}
+                            {@const isRequired =
+                                schema.required?.includes(key)}
+                            {@const label = property.title || key}
+                            {@const description = property.description || ""}
+
+                            <div>
+                                {#if property.widget === "userselector"}
+                                    <label
+                                        class="block text-sm font-medium text-foreground mb-2"
+                                    >
+                                        {label}
+                                        {#if isRequired}<span
+                                                class="text-red-500"
+                                                >*</span
+                                            >{/if}
+                                    </label>
+                                    <MultiReceiverSelector
+                                        bind:selectedReceivers={notification[
+                                            key
+                                        ]}
+                                    />
+                                {:else}
+                                    <label
+                                        class="block text-sm font-medium text-foreground mb-1"
+                                    >
+                                        {label}
+                                        {#if isRequired}<span
+                                                class="text-red-500"
+                                                >*</span
+                                            >{/if}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        bind:value={notification[key]}
+                                        placeholder={property.placeholder ||
+                                            ""}
+                                        class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                    />
+                                {/if}
+                                {#if description}
+                                    <p
+                                        class="mt-1 text-xs text-muted-foreground"
+                                    >
+                                        {description}
+                                    </p>
+                                {/if}
+                            </div>
+                        {/each}
+                    {/if}
                 </div>
             </div>
         {/each}

@@ -51,9 +51,13 @@
     let loading = $state(true);
     let saving = $state(false);
     const availableExecutors = data.availableExecutors;
+    const availableMessengers = data.availableMessengers || [];
 
     // Executor configs for actions
     let executorConfigs = $state({} as Record<string, any>);
+
+    // Messenger configs for notifications (pre-loaded in page loader)
+    const messengerConfigs = data.messengerConfigs || {};
 
     // Tab state
     let activeTab = $state("metadata");
@@ -156,6 +160,7 @@
             if (flow.actions.length > 0) {
                 await loadExecutorConfigs(flow.actions);
             }
+
         } catch (error: any) {
             handleInlineError(error, "Error loading flow config");
         } finally {
@@ -361,6 +366,8 @@
                                 <FlowNotifications
                                     bind:notifications={flow.notifications}
                                     {addNotification}
+                                    {availableMessengers}
+                                    {messengerConfigs}
                                 />
                             {:else if activeTab === "secrets"}
                                 <SecretsTab {namespace} {flowId} />

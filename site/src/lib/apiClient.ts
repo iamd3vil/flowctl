@@ -412,6 +412,11 @@ export const apiClient = {
       baseFetch<ExecutorConfigResponse>(`/api/v1/executors/${executor}/config`),
   },
 
+  // Messengers
+  messengers: {
+    list: () => baseFetch<Record<string, any>>('/api/v1/messengers'),
+  },
+
   // Utility endpoints
   ping: () => baseFetch<string>('/ping'),
 };

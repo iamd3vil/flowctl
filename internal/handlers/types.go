@@ -873,10 +873,6 @@ type FlowCancellationResp struct {
 	ExecID  string `json:"execID"`
 }
 
-type MessengersResp struct {
-	Messengers []string `json:"messengers"`
-}
-
 type ScheduleCreateReq struct {
 	FlowID   string                 `param:"flowID" validate:"required"`
 	Cron     string                 `json:"cron" validate:"required,cron"`

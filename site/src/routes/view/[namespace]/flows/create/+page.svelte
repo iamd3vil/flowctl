@@ -49,9 +49,13 @@
     // Loading states
     let saving = $state(false);
     const availableExecutors = data.availableExecutors;
+    const availableMessengers = data.availableMessengers || [];
 
     // Executor configs for actions
     let executorConfigs = $state({} as Record<string, any>);
+
+    // Messenger configs for notifications (pre-loaded in page loader)
+    const messengerConfigs = data.messengerConfigs || {};
 
     // Tab state
     let activeTab = $state("metadata");
@@ -251,6 +255,8 @@
                             <FlowNotifications
                                 bind:notifications={flow.notifications}
                                 {addNotification}
+                                {availableMessengers}
+                                {messengerConfigs}
                             />
                         {:else if activeTab === "secrets"}
                             <SecretsTab {namespace} disabled={true} />

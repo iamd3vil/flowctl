@@ -67,14 +67,14 @@ func init() {
 
 // SharedComponents holds components that are shared between server and worker
 type SharedComponents struct {
-	DB                  *sqlx.DB
-	Core                *core.Core
-	Scheduler           *scheduler.Scheduler
-	Metrics             *metrics.Manager
-	Logger              *slog.Logger
-	Keeper              *secrets.Keeper
-	Messengers          map[string]messengers.Messenger
-	ExecutorSigningKey  []byte
+	DB                 *sqlx.DB
+	Core               *core.Core
+	Scheduler          *scheduler.Scheduler
+	Metrics            *metrics.Manager
+	Logger             *slog.Logger
+	Keeper             *secrets.Keeper
+	Messengers         map[string]messengers.Messenger
+	ExecutorSigningKey []byte
 }
 
 // Cleanup cleans up all shared resources
@@ -92,10 +92,9 @@ func (s *SharedComponents) Cleanup() {
 	}
 }
 
-// initMessengers creates and returns all enabled messengers as a map keyed by channel name
-func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) (map[string]messengers.Messenger, []string) {
+// initMessengers creates and returns all enabled messengers as a map keyed by channel name.
+func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) map[string]messengers.Messenger {
 	m := make(map[string]messengers.Messenger)
-	names := make([]string, 0)
 
 	if cfg.Email.Enabled {
 		emailMessenger, err := messengers.NewEmailMessenger(cfg.Email, logger.WithGroup("email_messenger"))
@@ -103,12 +102,12 @@ func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) (map[strin
 			logger.Error("failed to create email messenger", "error", err)
 		} else {
 			m["email"] = emailMessenger
-			names = append(names, "email")
+			messengers.RegisterSchema("email", messengers.GetEmailNotifySchema())
 			logger.Info("email messenger initialized")
 		}
 	}
 
-	return m, names
+	return m
 }
 
 // initializeSharedComponents sets up all shared components (DB, scheduler, core, etc.)
@@ -191,10 +190,10 @@ func initializeSharedComponents() *SharedComponents {
 	}
 
 	// Initialize messengers
-	messengersMap, messengerNames := initMessengers(appConfig.Messengers, logger)
+	messengersMap := initMessengers(appConfig.Messengers, logger)
 
 	// Create core with scheduler
-	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer, messengerNames)
+	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer)
 	if err != nil {
 		log.Fatal(err)
 	}

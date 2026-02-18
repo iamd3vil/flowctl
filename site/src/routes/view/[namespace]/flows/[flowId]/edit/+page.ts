@@ -26,20 +26,38 @@ export const load: PageLoad = async ({ parent }) => {
   }
   
   try {
-    const data = await apiClient.executors.list();
-    
-    const availableExecutors = data.executors.map(name => ({
+    const [executorData, messengerSchemas] = await Promise.all([
+      apiClient.executors.list(),
+      apiClient.messengers.list(),
+    ]);
+
+    const availableExecutors = executorData.executors.map(name => ({
       name: name,
       display_name: name.charAt(0).toUpperCase() + name.slice(1)
     }));
 
+    // Resolve $defs/$ref in each messenger schema
+    const messengerConfigs: Record<string, any> = {};
+    for (const [name, schema] of Object.entries(messengerSchemas)) {
+      if (schema.$defs && schema.$ref) {
+        const refPath = schema.$ref.replace('#/$defs/', '');
+        messengerConfigs[name] = schema.$defs[refPath] || schema;
+      } else {
+        messengerConfigs[name] = schema;
+      }
+    }
+
     return {
-      availableExecutors
+      availableExecutors,
+      availableMessengers: Object.keys(messengerSchemas),
+      messengerConfigs,
     };
   } catch (loadError) {
-    console.error('Error loading executors:', loadError);
+    console.error('Error loading executors/messengers:', loadError);
     return {
-      availableExecutors: []
+      availableExecutors: [],
+      availableMessengers: [],
+      messengerConfigs: {},
     };
   }
 };

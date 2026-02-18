@@ -32,13 +32,13 @@ type OIDCAuthConfig struct {
 }
 
 type Handler struct {
-	co                  *core.Core
-	validate            *validator.Validate
-	sessMgr             *simplesessions.Manager
-	authconfig          map[string]OIDCAuthConfig
-	logger              *slog.Logger
-	config              config.Config
-	executorSigningKey  []byte
+	co                 *core.Core
+	validate           *validator.Validate
+	sessMgr            *simplesessions.Manager
+	authconfig         map[string]OIDCAuthConfig
+	logger             *slog.Logger
+	config             config.Config
+	executorSigningKey []byte
 }
 
 func getCookie(name string, r interface{}) (*http.Cookie, error) {
@@ -93,12 +93,6 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 
 func (h *Handler) HandlePing(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
-}
-
-func (h *Handler) HandleGetMessengers(c echo.Context) error {
-	return c.JSON(http.StatusOK, MessengersResp{
-		Messengers: h.co.GetMessengers(c.Request().Context()),
-	})
 }
 
 func formatValidationErrors(err error) string {
