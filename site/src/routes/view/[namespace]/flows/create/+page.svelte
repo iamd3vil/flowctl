@@ -109,7 +109,7 @@
         flow.notifications.push({
             channel: "",
             events: [],
-            receivers: [],
+            config: {},
         });
     }
 
@@ -176,7 +176,7 @@
                     .map((notification) => ({
                         channel: notification.channel,
                         events: notification.events || [],
-                        receivers: notification.receivers || [],
+                        config: notification.config || {},
                     })),
             };
 

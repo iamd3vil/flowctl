@@ -194,9 +194,9 @@ const (
 )
 
 type Notify struct {
-	Channel   string        `yaml:"channel" json:"channel"`
-	Receivers []string      `yaml:"receivers" json:"receivers"`
-	Events    []NotifyEvent `yaml:"events" json:"events"`
+	Channel string         `yaml:"channel" json:"channel"`
+	Config  map[string]any `yaml:"config" json:"config"`
+	Events  []NotifyEvent  `yaml:"events" json:"events"`
 }
 
 type Flow struct {

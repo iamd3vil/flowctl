@@ -150,7 +150,7 @@
                 flow.notifications = config.notify.map((notification) => ({
                     channel: notification.channel || "email",
                     events: notification.events || [],
-                    receivers: notification.receivers || [],
+                    config: notification.config || {},
                 }));
             } else {
                 flow.notifications = [];
@@ -201,9 +201,9 @@
 
     function addNotification() {
         flow.notifications.push({
-            channel: "email",
+            channel: "",
             events: [],
-            receivers: [],
+            config: {},
         });
     }
 
@@ -266,7 +266,7 @@
                     .map((notification) => ({
                         channel: notification.channel,
                         events: notification.events || [],
-                        receivers: notification.receivers || [],
+                        config: notification.config || {},
                     })),
             };
 

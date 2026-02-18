@@ -55,9 +55,9 @@ const (
 )
 
 type Notify struct {
-	Channel   string        `yaml:"channel" huml:"channel" json:"channel" validate:"required,oneof=email"`
-	Receivers []string      `yaml:"receivers" huml:"receivers" json:"receivers" validate:"required,min=1,dive,notification_receiver"`
-	Events    []NotifyEvent `yaml:"events" huml:"events" json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
+	Channel string         `yaml:"channel" huml:"channel" json:"channel" validate:"required,oneof=email webhook"`
+	Config  map[string]any `yaml:"config" huml:"config" json:"config" validate:"required"`
+	Events  []NotifyEvent  `yaml:"events" huml:"events" json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
 }
 
 type Action struct {
@@ -195,7 +195,6 @@ func (f Flow) Validate() error {
 	validate := validator.New()
 
 	validate.RegisterValidation("alphanum_underscore", AlphanumericUnderscore)
-	validate.RegisterValidation("notification_receiver", ValidNotificationReceiver)
 
 	actionsIDs := make(map[string]int)
 	for _, action := range f.Actions {
@@ -555,9 +554,9 @@ func ConvertToSchedulerFlow(ctx context.Context, f Flow, namespaceUUID uuid.UUID
 			events = append(events, scheduler.NotifyEvent(e))
 		}
 		notify = append(notify, scheduler.Notify{
-			Channel:   n.Channel,
-			Receivers: n.Receivers,
-			Events:    events,
+			Channel: n.Channel,
+			Config:  n.Config,
+			Events:  events,
 		})
 	}
 

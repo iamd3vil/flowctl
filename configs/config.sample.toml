@@ -145,3 +145,13 @@ from_name = "Flowctl Notifications"
 max_conns = 10
 # (required) SSL/TLS mode: none, tls (implicit TLS), or starttls (explicit TLS)
 ssl = "none"
+
+# Webhook notifications
+# Uses Standard Webhooks (https://www.standardwebhooks.com/) format
+[messengers.webhook]
+# (required) Enable or disable webhook notifications
+enabled = false
+# (required) Signing secret for Standard Webhooks (base64-encoded, optionally prefixed with whsec_)
+secret = ""
+# (optional) HTTP request timeout (default: 30s)
+timeout = "30s"

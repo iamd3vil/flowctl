@@ -93,17 +93,28 @@ func (s *SharedComponents) Cleanup() {
 }
 
 // initMessengers creates and returns all enabled messengers as a map keyed by channel name.
-func initMessengers(cfg config.MessengersConfig, logger *slog.Logger) map[string]messengers.Messenger {
+func initMessengers(cfg config.MessengersConfig, groupResolver messengers.GroupResolver, logger *slog.Logger) map[string]messengers.Messenger {
 	m := make(map[string]messengers.Messenger)
 
 	if cfg.Email.Enabled {
-		emailMessenger, err := messengers.NewEmailMessenger(cfg.Email, logger.WithGroup("email_messenger"))
+		emailMessenger, err := messengers.NewEmailMessenger(cfg.Email, groupResolver, logger.WithGroup("email_messenger"), appConfig.App.RootURL)
 		if err != nil {
 			logger.Error("failed to create email messenger", "error", err)
 		} else {
 			m["email"] = emailMessenger
 			messengers.RegisterSchema("email", messengers.GetEmailNotifySchema())
 			logger.Info("email messenger initialized")
+		}
+	}
+
+	if cfg.Webhook.Enabled {
+		webhookMessenger, err := messengers.NewWebhookMessenger(cfg.Webhook, logger.WithGroup("webhook_messenger"))
+		if err != nil {
+			logger.Error("failed to create webhook messenger", "error", err)
+		} else {
+			m["webhook"] = webhookMessenger
+			messengers.RegisterSchema("webhook", messengers.GetWebhookNotifySchema())
+			logger.Info("webhook messenger initialized")
 		}
 	}
 
@@ -189,15 +200,14 @@ func initializeSharedComponents() *SharedComponents {
 		log.Fatal(err)
 	}
 
-	// Initialize messengers
-	messengersMap := initMessengers(appConfig.Messengers, logger)
-
 	// Create core with scheduler
 	co, err := core.NewCore(appConfig.App.FlowsDirectory, s, sch, keeper, enforcer)
 	if err != nil {
 		log.Fatal(err)
 	}
 	co.LogManager = fileLogManager
+
+	messengersMap := initMessengers(appConfig.Messengers, co, logger)
 
 	executorSigningKey, err := core.GenerateSigningKey()
 	if err != nil {
@@ -228,10 +238,7 @@ func initializeSharedComponents() *SharedComponents {
 
 	if len(messengersMap) > 0 {
 		// Create and register notification handler
-		notificationHandler, err := scheduler.NewNotificationHandler(messengersMap, s, logger.WithGroup("notification_handler"), appConfig.App.RootURL)
-		if err != nil {
-			log.Fatal(err)
-		}
+		notificationHandler := scheduler.NewNotificationHandler(messengersMap, s, logger.WithGroup("notification_handler"))
 		if err := sch.SetHandler(notificationHandler); err != nil {
 			log.Fatal(err)
 		}

@@ -24,6 +24,27 @@
         { value: "on_cancelled", label: "On Cancelled" },
     ];
 
+    function onChannelChange(notification: any) {
+        // Initialize config keys from the schema so bindings work immediately
+        const schema = messengerConfigs[notification.channel];
+        if (!schema?.properties) {
+            notification.config = {};
+            return;
+        }
+        const config: Record<string, any> = {};
+        for (const [key, property] of Object.entries(schema.properties) as [string, any][]) {
+            // Preserve existing value if present, otherwise set a typed default
+            if (notification.config && notification.config[key] !== undefined) {
+                config[key] = notification.config[key];
+            } else if (property.type === "array" || property.widget === "userselector") {
+                config[key] = [];
+            } else {
+                config[key] = "";
+            }
+        }
+        notification.config = config;
+    }
+
     function toggleEvent(notification: any, eventValue: string) {
         if (!notification.events) {
             notification.events = [];
@@ -87,6 +108,7 @@
                         >
                         <select
                             bind:value={notification.channel}
+                            onchange={() => onChannelChange(notification)}
                             required
                             class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                         >
@@ -155,9 +177,8 @@
                                             >{/if}
                                     </label>
                                     <MultiReceiverSelector
-                                        bind:selectedReceivers={notification[
-                                            key
-                                        ]}
+                                        bind:selectedReceivers={notification
+                                            .config[key]}
                                     />
                                 {:else}
                                     <label
@@ -171,7 +192,7 @@
                                     </label>
                                     <input
                                         type="text"
-                                        bind:value={notification[key]}
+                                        bind:value={notification.config[key]}
                                         placeholder={property.placeholder ||
                                             ""}
                                         class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"

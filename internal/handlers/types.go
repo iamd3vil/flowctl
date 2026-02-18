@@ -335,9 +335,9 @@ type Schedule struct {
 
 // Notify represents notification configuration for flow events
 type Notify struct {
-	Channel   string   `json:"channel" validate:"required,oneof=email"`
-	Receivers []string `json:"receivers" validate:"required,min=1,dive,notification_receiver"`
-	Events    []string `json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
+	Channel string         `json:"channel" validate:"required,oneof=email webhook"`
+	Config  map[string]any `json:"config" validate:"required"`
+	Events  []string       `json:"events" validate:"required,dive,min=1,oneof=on_success on_failure on_waiting on_cancelled"`
 }
 
 func convertNotifyToNotifyReq(notify []models.Notify) []Notify {
@@ -348,9 +348,9 @@ func convertNotifyToNotifyReq(notify []models.Notify) []Notify {
 			events[j] = string(e)
 		}
 		resp[i] = Notify{
-			Channel:   n.Channel,
-			Receivers: n.Receivers,
-			Events:    events,
+			Channel: n.Channel,
+			Config:  n.Config,
+			Events:  events,
 		}
 	}
 	return resp
@@ -364,9 +364,9 @@ func convertNotifyReqToNotify(notify []Notify) []models.Notify {
 			events[j] = models.NotifyEvent(e)
 		}
 		resp[i] = models.Notify{
-			Channel:   n.Channel,
-			Receivers: n.Receivers,
-			Events:    events,
+			Channel: n.Channel,
+			Config:  n.Config,
+			Events:  events,
 		}
 	}
 	return resp

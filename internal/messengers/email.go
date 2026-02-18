@@ -1,13 +1,21 @@
 package messengers
 
 import (
+	"bytes"
+	"context"
+	"embed"
 	"fmt"
+	"html/template"
 	"log/slog"
+	"strings"
 
 	"github.com/cvhariharan/flowctl/internal/config"
 	"github.com/invopop/jsonschema"
 	"github.com/knadh/smtppool/v2"
 )
+
+//go:embed templates/*.html
+var templateFS embed.FS
 
 // EmailNotifyConfig defines the messenger-specific configuration schema for email notifications.
 type EmailNotifyConfig struct {
@@ -20,13 +28,16 @@ func GetEmailNotifySchema() interface{} {
 
 // EmailMessenger sends emails using an SMTP connection pool
 type EmailMessenger struct {
-	pool   *smtppool.Pool
-	from   string
-	logger *slog.Logger
+	pool          *smtppool.Pool
+	from          string
+	groupResolver GroupResolver
+	logger        *slog.Logger
+	templates     *template.Template
+	rootURL       string
 }
 
 // NewEmailMessenger creates a new EmailMessenger with the given SMTP configuration
-func NewEmailMessenger(cfg config.SMTPConfig, logger *slog.Logger) (*EmailMessenger, error) {
+func NewEmailMessenger(cfg config.SMTPConfig, groupResolver GroupResolver, logger *slog.Logger, rootURL string) (*EmailMessenger, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("email messenger is disabled")
 	}
@@ -57,42 +68,53 @@ func NewEmailMessenger(cfg config.SMTPConfig, logger *slog.Logger) (*EmailMessen
 		fromAddr = fmt.Sprintf("%s <%s>", cfg.FromName, cfg.FromAddress)
 	}
 
+	tmpl, err := template.ParseFS(templateFS, "templates/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse email templates: %w", err)
+	}
+
 	return &EmailMessenger{
-		pool:   pool,
-		from:   fromAddr,
-		logger: logger,
+		pool:          pool,
+		from:          fromAddr,
+		groupResolver: groupResolver,
+		logger:        logger,
+		templates:     tmpl,
+		rootURL:       rootURL,
 	}, nil
 }
 
-// Send sends an email message to all recipients
-func (e *EmailMessenger) Send(msg Message) error {
-	if len(msg.Recipients) == 0 {
+// Send sends an email message to receivers specified in msg.Config["receivers"].
+// Receivers can be email addresses or "group:name" references that are resolved via GroupResolver.
+func (e *EmailMessenger) Send(ctx context.Context, msg Message) error {
+	receivers := configStringSlice(msg.Config, "receivers")
+	if len(receivers) == 0 {
 		return nil
 	}
 
-	// Extract email addresses from recipients
-	to := make([]string, 0, len(msg.Recipients))
-	for _, r := range msg.Recipients {
-		if r.Email != "" {
-			to = append(to, r.Email)
-		}
-	}
-
+	to := e.resolveReceivers(ctx, receivers)
 	if len(to) == 0 {
 		return nil
 	}
 
+	evt, ok := msg.Data.(FlowExecutionEvent)
+	if !ok {
+		return fmt.Errorf("email messenger: unsupported event data type %T", msg.Data)
+	}
+
+	subject := e.buildSubject(evt)
+	body := e.buildBody(evt)
+
 	email := smtppool.Email{
 		From:    e.from,
 		To:      to,
-		Subject: msg.Title,
-		HTML:    []byte(msg.Body),
+		Subject: subject,
+		HTML:    []byte(body),
 	}
 
 	if err := e.pool.Send(email); err != nil {
 		e.logger.Error("failed to send email",
 			"to", to,
-			"subject", msg.Title,
+			"subject", subject,
 			"error", err,
 		)
 		return fmt.Errorf("failed to send email: %w", err)
@@ -100,9 +122,99 @@ func (e *EmailMessenger) Send(msg Message) error {
 
 	e.logger.Debug("email sent",
 		"to", to,
-		"subject", msg.Title,
+		"subject", subject,
 	)
 	return nil
+}
+
+// buildSubject creates the email subject line from event data.
+func (e *EmailMessenger) buildSubject(evt FlowExecutionEvent) string {
+	var status string
+	switch evt.Status {
+	case "completed":
+		status = "[Success]"
+	case "errored":
+		status = "[Failed]"
+	case "cancelled":
+		status = "[Cancelled]"
+	case "pending_approval":
+		status = "[Waiting]"
+	default:
+		status = "[Update]"
+	}
+
+	return fmt.Sprintf("%s Flow %s - %s", status, evt.FlowName, evt.ExecID[:8])
+}
+
+// buildBody renders the HTML email body from event data.
+func (e *EmailMessenger) buildBody(evt FlowExecutionEvent) string {
+	var statusMsg string
+	switch evt.Status {
+	case "completed":
+		statusMsg = "has completed successfully"
+	case "errored":
+		statusMsg = "has failed with an error"
+	case "cancelled":
+		statusMsg = "was cancelled"
+	case "pending_approval":
+		statusMsg = "is waiting for approval"
+	default:
+		statusMsg = "status changed to " + evt.Status
+	}
+
+	data := struct {
+		FlowName  string
+		FlowID    string
+		ExecID    string
+		Status    string
+		Namespace string
+		StatusMsg string
+		Error     string
+		RootURL   string
+	}{
+		FlowName:  evt.FlowName,
+		FlowID:    evt.FlowID,
+		ExecID:    evt.ExecID,
+		Status:    evt.Status,
+		StatusMsg: statusMsg,
+		Namespace: evt.Namespace,
+		Error:     evt.Error,
+		RootURL:   e.rootURL,
+	}
+
+	var buf bytes.Buffer
+	if err := e.templates.ExecuteTemplate(&buf, "notification.html", data); err != nil {
+		e.logger.Error("failed to execute template", "template", "notification.html", "error", err)
+		return fmt.Sprintf("Flow %s has %s", evt.FlowName, statusMsg)
+	}
+
+	return buf.String()
+}
+
+// resolveReceivers expands "group:name" entries into member emails and passes
+// plain email addresses through unchanged.
+func (e *EmailMessenger) resolveReceivers(ctx context.Context, receivers []string) []string {
+	var to []string
+	for _, r := range receivers {
+		if groupName, ok := strings.CutPrefix(r, "group:"); ok {
+			if groupName == "" {
+				continue
+			}
+			if e.groupResolver == nil {
+				e.logger.Warn("group resolver not configured, skipping group", "group", groupName)
+				continue
+			}
+			emails, err := e.groupResolver.ResolveGroupEmails(ctx, groupName)
+			if err != nil {
+				e.logger.Error("failed to resolve group", "group", groupName, "error", err)
+				continue
+			}
+			to = append(to, emails...)
+		} else if r != "" {
+			to = append(to, r)
+		}
+	}
+	return to
 }
 
 // Close closes the SMTP connection pool

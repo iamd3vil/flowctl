@@ -140,7 +140,14 @@ type OIDCConfig struct {
 }
 
 type MessengersConfig struct {
-	Email SMTPConfig `koanf:"email"`
+	Email   SMTPConfig    `koanf:"email"`
+	Webhook WebhookConfig `koanf:"webhook"`
+}
+
+type WebhookConfig struct {
+	Enabled bool          `koanf:"enabled"`
+	Secret  string        `koanf:"secret" validate:"required_if=Enabled true"`
+	Timeout time.Duration `koanf:"timeout"`
 }
 
 type SMTPConfig struct {
@@ -240,6 +247,10 @@ func GetDefaultConfig() Config {
 				Port:     587,
 				MaxConns: 10,
 				SSL:      "none",
+			},
+			Webhook: WebhookConfig{
+				Enabled: false,
+				Timeout: 30 * time.Second,
 			},
 		},
 	}

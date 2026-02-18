@@ -57,3 +57,17 @@ func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, k
 	return c, nil
 }
 
+// ResolveGroupEmails resolves a group name to member email addresses.
+// This implements the messengers.GroupResolver interface.
+func (c *Core) ResolveGroupEmails(ctx context.Context, groupName string) ([]string, error) {
+	members, err := c.store.GetGroupMembersByName(ctx, groupName)
+	if err != nil {
+		return nil, err
+	}
+	emails := make([]string, 0, len(members))
+	for _, m := range members {
+		emails = append(emails, m.Username)
+	}
+	return emails, nil
+}
+

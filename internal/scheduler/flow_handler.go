@@ -881,7 +881,7 @@ func (h *FlowExecutionHandler) enqueueNotifications(ctx context.Context, execID 
 			ExecID:      execID,
 			Status:      string(status),
 			Error:       errMsg,
-			Receivers:   notify.Receivers,
+			Config:      notify.Config,
 			NamespaceID: payload.NamespaceID,
 			Channel:     notify.Channel,
 		}
