@@ -176,10 +176,28 @@ Configure SMTP settings to enable email notifications for flow events. Email not
 - **`ssl`** (required): SSL/TLS mode - `none`, `tls` (implicit TLS), or `starttls` (explicit TLS).
 
 <Aside type="note">
-  SMTP configuration is required for flow notifications to work. See the [Flows
+  SMTP configuration is required for email notifications to work. See the [Flows
   documentation](/docs/general/flows#notifications) for how to configure
   notifications in your flows.
 </Aside>
+
+### Webhook Notifications
+
+```toml
+[messengers.webhook]
+  enabled = true
+  signing_key = "whsk_your_base64_encoded_ed25519_key"
+  timeout = "30s"
+```
+
+Configure webhook settings to enable webhook notifications for flow events. Webhooks use the [Standard Webhooks](https://www.standardwebhooks.com/) format with Ed25519 asymmetric signing.
+
+- **`enabled`** (optional): Enable or disable webhook notifications (default: `false`).
+- **`signing_key`** (required): Base64-encoded Ed25519 private key seed used to sign webhook payloads. Can optionally be prefixed with `whsk_`. Generate one with:
+  ```bash
+  openssl genpkey -algorithm ed25519 -outform DER | tail -c 32 | base64
+  ```
+- **`timeout`** (optional): HTTP request timeout for webhook delivery (default: `30s`).
 
 ### OIDC Authentication
 
