@@ -145,9 +145,9 @@ type MessengersConfig struct {
 }
 
 type WebhookConfig struct {
-	Enabled bool          `koanf:"enabled"`
-	Secret  string        `koanf:"secret" validate:"required_if=Enabled true"`
-	Timeout time.Duration `koanf:"timeout"`
+	Enabled    bool          `koanf:"enabled"`
+	SigningKey string        `koanf:"signing_key" validate:"required_if=Enabled true"`
+	Timeout    time.Duration `koanf:"timeout"`
 }
 
 type SMTPConfig struct {

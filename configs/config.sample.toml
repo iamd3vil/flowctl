@@ -151,7 +151,8 @@ ssl = "none"
 [messengers.webhook]
 # (required) Enable or disable webhook notifications
 enabled = false
-# (required) Signing secret for Standard Webhooks (base64-encoded, optionally prefixed with whsec_)
-secret = ""
+# (required) Ed25519 signing key
+# Generate one with: openssl genpkey -algorithm ed25519 -outform DER | tail -c 32 | base64
+signing_key = ""
 # (optional) HTTP request timeout (default: 30s)
 timeout = "30s"

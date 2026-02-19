@@ -3,8 +3,7 @@ package messengers
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -35,9 +34,9 @@ type webhookPayload struct {
 
 // WebhookMessenger sends HTTP POST requests using the Standard Webhooks format.
 type WebhookMessenger struct {
-	secret []byte
-	client *http.Client
-	logger *slog.Logger
+	privateKey ed25519.PrivateKey
+	client     *http.Client
+	logger     *slog.Logger
 }
 
 // NewWebhookMessenger creates a new WebhookMessenger with the given configuration.
@@ -46,11 +45,13 @@ func NewWebhookMessenger(cfg config.WebhookConfig, logger *slog.Logger) (*Webhoo
 		return nil, fmt.Errorf("webhook messenger is disabled")
 	}
 
-	secretStr := strings.TrimPrefix(cfg.Secret, "whsec_")
-	secretBytes, err := base64.StdEncoding.DecodeString(secretStr)
+	seedStr := strings.TrimPrefix(cfg.SigningKey, "whsk_")
+	seed, err := base64.StdEncoding.DecodeString(seedStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode webhook secret: %w", err)
+		return nil, fmt.Errorf("failed to decode webhook signing key: %w", err)
 	}
+
+	privateKey := ed25519.NewKeyFromSeed(seed)
 
 	timeout := 30 * time.Second
 	if cfg.Timeout > 0 {
@@ -58,9 +59,9 @@ func NewWebhookMessenger(cfg config.WebhookConfig, logger *slog.Logger) (*Webhoo
 	}
 
 	return &WebhookMessenger{
-		secret: secretBytes,
-		client: &http.Client{Timeout: timeout},
-		logger: logger,
+		privateKey: privateKey,
+		client:     &http.Client{Timeout: timeout},
+		logger:     logger,
 	}, nil
 }
 
@@ -86,9 +87,8 @@ func (w *WebhookMessenger) Send(_ context.Context, msg Message) error {
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 
 	toSign := fmt.Sprintf("%s.%s.%s", msgID, timestamp, string(payloadBytes))
-	mac := hmac.New(sha256.New, w.secret)
-	mac.Write([]byte(toSign))
-	signature := "v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	sig := ed25519.Sign(w.privateKey, []byte(toSign))
+	signature := "v1a," + base64.StdEncoding.EncodeToString(sig)
 
 	req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
 	if err != nil {
