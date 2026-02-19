@@ -27,6 +27,12 @@ func GetWebhookNotifySchema() interface{} {
 	return jsonschema.Reflect(&WebhookNotifyConfig{})
 }
 
+type webhookPayload struct {
+	Type      string `json:"type"`
+	Timestamp string `json:"timestamp"`
+	Data      any    `json:"data"`
+}
+
 // WebhookMessenger sends HTTP POST requests using the Standard Webhooks format.
 type WebhookMessenger struct {
 	secret []byte
@@ -65,16 +71,11 @@ func (w *WebhookMessenger) Send(_ context.Context, msg Message) error {
 		return fmt.Errorf("webhook messenger requires a url in config")
 	}
 
-	// Build a flat JSON payload from msg.Data with the event type prepended.
-	raw, err := json.Marshal(msg.Data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal webhook data: %w", err)
+	payload := webhookPayload{
+		Type:      string(msg.Event),
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Data:      msg.Data,
 	}
-	var payload map[string]any
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return fmt.Errorf("failed to decode webhook data: %w", err)
-	}
-	payload["event"] = string(msg.Event)
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
