@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	schemaRegistry = make(map[string]interface{})
+	schemaRegistry = make(map[string]any)
 	smu            sync.RWMutex
 )
 
 // RegisterSchema registers a messenger's config schema. Panics on duplicate.
-func RegisterSchema(name string, schema interface{}) {
+func RegisterSchema(name string, schema any) {
 	smu.Lock()
 	defer smu.Unlock()
 
@@ -22,11 +22,11 @@ func RegisterSchema(name string, schema interface{}) {
 }
 
 // GetAllSchemas returns a map of all registered messenger names to their config schemas.
-func GetAllSchemas() map[string]interface{} {
+func GetAllSchemas() map[string]any {
 	smu.RLock()
 	defer smu.RUnlock()
 
-	result := make(map[string]interface{}, len(schemaRegistry))
+	result := make(map[string]any, len(schemaRegistry))
 	for k, v := range schemaRegistry {
 		result[k] = v
 	}

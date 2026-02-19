@@ -96,13 +96,18 @@ func (e *EmailMessenger) Send(ctx context.Context, msg Message) error {
 		return nil
 	}
 
-	evt, ok := msg.Data.(FlowExecutionEvent)
-	if !ok {
-		return fmt.Errorf("email messenger: unsupported event data type %T", msg.Data)
+	var subject, body string
+	switch msg.Event {
+	case EventFlowExecution:
+		evt, ok := msg.Data.(FlowExecutionEvent)
+		if !ok {
+			return fmt.Errorf("email messenger: expected FlowExecutionEvent, got %T", msg.Data)
+		}
+		subject = e.buildSubject(evt)
+		body = e.buildBody(evt)
+	default:
+		return fmt.Errorf("email messenger: unsupported event type %q", msg.Event)
 	}
-
-	subject := e.buildSubject(evt)
-	body := e.buildBody(evt)
 
 	email := smtppool.Email{
 		From:    e.from,
@@ -192,7 +197,7 @@ func (e *EmailMessenger) buildBody(evt FlowExecutionEvent) string {
 }
 
 // resolveReceivers expands "group:name" entries into member emails and passes
-// plain email addresses through unchanged.
+// plain email addresses unchanged.
 func (e *EmailMessenger) resolveReceivers(ctx context.Context, receivers []string) []string {
 	var to []string
 	for _, r := range receivers {

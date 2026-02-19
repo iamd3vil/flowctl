@@ -27,17 +27,6 @@ func GetWebhookNotifySchema() interface{} {
 	return jsonschema.Reflect(&WebhookNotifyConfig{})
 }
 
-// WebhookPayload is the JSON body sent to the webhook endpoint.
-type WebhookPayload struct {
-	Event     string `json:"event"`
-	FlowName  string `json:"flow_name"`
-	FlowID    string `json:"flow_id"`
-	ExecID    string `json:"exec_id"`
-	Status    string `json:"status"`
-	Error     string `json:"error,omitempty"`
-	Namespace string `json:"namespace"`
-}
-
 // WebhookMessenger sends HTTP POST requests using the Standard Webhooks format.
 type WebhookMessenger struct {
 	secret []byte
@@ -76,20 +65,16 @@ func (w *WebhookMessenger) Send(_ context.Context, msg Message) error {
 		return fmt.Errorf("webhook messenger requires a url in config")
 	}
 
-	evt, ok := msg.Data.(FlowExecutionEvent)
-	if !ok {
-		return fmt.Errorf("webhook messenger: unsupported event data type %T", msg.Data)
+	// Build a flat JSON payload from msg.Data with the event type prepended.
+	raw, err := json.Marshal(msg.Data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal webhook data: %w", err)
 	}
-
-	payload := WebhookPayload{
-		Event:     string(msg.Event),
-		FlowName:  evt.FlowName,
-		FlowID:    evt.FlowID,
-		ExecID:    evt.ExecID,
-		Status:    evt.Status,
-		Error:     evt.Error,
-		Namespace: evt.Namespace,
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return fmt.Errorf("failed to decode webhook data: %w", err)
 	}
+	payload["event"] = string(msg.Event)
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {

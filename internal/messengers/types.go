@@ -1,6 +1,9 @@
 package messengers
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // EventType identifies the kind of event a Message carries.
 type EventType string
@@ -11,19 +14,18 @@ const (
 
 // FlowExecutionEvent carries structured data about a flow execution state change.
 type FlowExecutionEvent struct {
-	FlowID    string
-	FlowName  string
-	ExecID    string
-	Status    string // "completed", "errored", "cancelled", "pending_approval"
-	Error     string
-	Namespace string
-	RootURL   string
+	FlowID    string `json:"flow_id"`
+	FlowName  string `json:"flow_name"`
+	ExecID    string `json:"exec_id"`
+	Status    string `json:"status"`
+	Error     string `json:"error"`
+	Namespace string `json:"namespace"`
+	RootURL   string `json:"-"`
 }
 
-// Message is the generic envelope passed to messengers.
-// Data is `any` so different event types can use different structs.
+// Message is the generic struct passed to messengers.
 type Message struct {
-	Event  EventType      // e.g. EventFlowExecution
+	Event  EventType
 	Data   any
 	Config map[string]any
 }
@@ -44,6 +46,8 @@ func configStringSlice(cfg map[string]any, key string) []string {
 	if !ok {
 		return nil
 	}
-	s, _ := v.([]string)
+	b, _ := json.Marshal(v)
+	var s []string
+	json.Unmarshal(b, &s)
 	return s
 }
