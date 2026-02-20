@@ -119,7 +119,8 @@ func (h *Handler) AuthorizeForRole(expectedRole string) echo.MiddlewareFunc {
 	}
 }
 
-// AuthorizeNamespaceAction checks if a user is allowed to perform an action on the given resource given the namespace
+// AuthorizeNamespaceAction checks if a user is allowed to perform an action on the given resource.
+// For flow/execution resources, it resolves the flow prefix to build a domain-scoped check.
 func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action models.RBACAction) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -138,7 +139,23 @@ func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action mode
 				return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
 			}
 
-			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, namespaceID, resource, action)
+			// Build domain: default to namespace-level
+			domain := core.NamespaceDomain(namespaceID)
+
+			// For flow/execution resources, resolve the flow prefix for domain-scoped checks
+			if resource == models.ResourceFlow || resource == models.ResourceExecution {
+				if flowID := c.Param("flowID"); flowID != "" {
+					if f, err := h.co.GetFlowByID(flowID, namespaceID); err == nil {
+						domain = core.FlowDomain(namespaceID, f.Meta.Prefix)
+					}
+				} else if flowSlug := c.Param("flow"); flowSlug != "" {
+					if f, err := h.co.GetFlowByID(flowSlug, namespaceID); err == nil {
+						domain = core.FlowDomain(namespaceID, f.Meta.Prefix)
+					}
+				}
+			}
+
+			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, domain, resource, action)
 			if err != nil {
 				return wrapError(ErrOperationFailed, "could not check permissions", err, nil)
 			}
@@ -189,7 +206,7 @@ func (h *Handler) AuthorizeAction(resource models.Resource, action models.RBACAc
 				return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 			}
 
-			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, "*", resource, action)
+			allowed, err := h.co.CheckPermission(c.Request().Context(), user.ID, "/*", resource, action)
 			if err != nil {
 				return wrapError(ErrOperationFailed, "could not check permissions", err, nil)
 			}
@@ -227,8 +244,9 @@ func (h *Handler) NamespaceMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 		}
 
-		// Basic access check - user must have at least view permission
-		hasAccess, err := h.co.CheckPermission(c.Request().Context(), user.ID, ns.ID, models.ResourceFlow, models.RBACActionView)
+		// Namespace gate: all namespace members have namespace:view via role:user base policies
+		domain := core.NamespaceDomain(ns.ID)
+		hasAccess, err := h.co.CheckPermission(c.Request().Context(), user.ID, domain, models.ResourceNamespace, models.RBACActionView)
 		if err != nil {
 			return wrapError(ErrOperationFailed, "could not check namespace access", err, nil)
 		}

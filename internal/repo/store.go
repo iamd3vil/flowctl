@@ -52,6 +52,7 @@ type CreateFlowTxParams struct {
 	Checksum    string
 	FilePath    string
 	Namespace   string
+	PrefixID    sql.NullInt32
 	Schedules   []struct {
 		Cron     string
 		Timezone string
@@ -65,6 +66,7 @@ type UpdateFlowTxParams struct {
 	Checksum        string
 	FilePath        string
 	Namespace       string
+	PrefixID        sql.NullInt32
 	UserSchedulable bool
 	Schedulable     bool
 	Schedules       []struct {
@@ -328,6 +330,7 @@ func (p *PostgresStore) CreateFlowTx(ctx context.Context, params CreateFlowTxPar
 		Checksum:    params.Checksum,
 		FilePath:    params.FilePath,
 		Name_2:      params.Namespace,
+		PrefixID:    params.PrefixID,
 	})
 	if err != nil {
 		return Flow{}, fmt.Errorf("could not create flow: %w", err)
@@ -367,6 +370,7 @@ func (p *PostgresStore) UpdateFlowTx(ctx context.Context, params UpdateFlowTxPar
 		Description: sql.NullString{String: params.Description, Valid: true},
 		Checksum:    params.Checksum,
 		FilePath:    params.FilePath,
+		PrefixID:    params.PrefixID,
 		Slug:        params.Slug,
 		Name_2:      params.Namespace,
 	})

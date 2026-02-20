@@ -11,6 +11,7 @@
     import { setContext } from "svelte";
     import {
         permissionChecker,
+        clearPermissionCache,
         type ResourcePermissions,
     } from "$lib/utils/permissions";
     import {
@@ -177,24 +178,25 @@
     const checkAllPermissions = async () => {
         if (!$currentUser || !currentNamespaceId) return;
 
-        const resourceMappings = {
-            flows: "flow",
-            nodes: "node",
-            credentials: "credential",
-            secrets: "namespace_secret",
-            members: "member",
-            approvals: "approval",
-            history: "execution",
+        const resourceMappings: Record<string, { resource: string; prefix?: string }> = {
+            flows: { resource: "flow", prefix: "_" },
+            nodes: { resource: "node" },
+            credentials: { resource: "credential" },
+            secrets: { resource: "namespace_secret" },
+            members: { resource: "member" },
+            approvals: { resource: "approval" },
+            history: { resource: "execution" },
         };
 
         try {
             const permissionPromises = Object.entries(resourceMappings).map(
-                async ([frontendKey, backendResource]) => {
+                async ([frontendKey, { resource: backendResource, prefix }]) => {
                     const perms = await permissionChecker(
                         $currentUser,
                         backendResource,
                         currentNamespaceId,
                         ["view"],
+                        prefix,
                     );
                     return { frontendKey, perms };
                 },
@@ -218,6 +220,9 @@
         if (ns.name === namespace) {
             return;
         }
+
+        // Clear cached permissions so the new namespace gets fresh checks
+        clearPermissionCache();
 
         // Save selected namespace to store
         selectedNamespace.set(ns.name);

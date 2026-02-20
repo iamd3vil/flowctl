@@ -2,6 +2,7 @@
   import { currentUser } from '$lib/stores/auth';
   import { apiClient } from '$lib/apiClient';
   import { handleInlineError } from '$lib/utils/errorHandling';
+  import { clearPermissionCache } from '$lib/utils/permissions';
   import { IconChevronDown } from '@tabler/icons-svelte';
 
   let { isCollapsed = false }: { isCollapsed?: boolean } = $props();
@@ -13,6 +14,7 @@
   };
 
   const logout = async () => {
+    clearPermissionCache();
     try {
       await apiClient.auth.logout();
       window.location.href = '/login';

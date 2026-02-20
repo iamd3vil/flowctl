@@ -103,7 +103,7 @@ func (c *Core) GetScheduledExecutionsByFlow(ctx context.Context, flowID int32, n
 	return scheduledExecs, nil
 }
 
-func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit, offset int) ([]models.Flow, int64, int64, error) {
+func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, userID string, limit, offset int) ([]models.Flow, int64, int64, error) {
 	c.rwf.RLock()
 	defer c.rwf.RUnlock()
 	namespaceUUID, err := uuid.Parse(namespaceID)
@@ -111,28 +111,49 @@ func (c *Core) GetFlowsPaginated(ctx context.Context, namespaceID string, limit,
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	flows, err := c.store.ListFlowsPaginated(ctx, repo.ListFlowsPaginatedParams{
-		Uuid:   namespaceUUID,
-		Limit:  int32(limit),
-		Offset: int32(offset),
-	})
+	prefixes, hasFullAccess, err := c.getUserPrefixAccess(ctx, userID, namespaceID)
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not get paginated flows for namespace %s: %w", namespaceID, err)
+		return nil, 0, 0, fmt.Errorf("could not get user prefix access: %w", err)
 	}
 
 	var fs []models.Flow
 	var pageCount, totalCount int64
 
-	for _, v := range flows {
-		fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
-		pageCount = v.PageCount
-		totalCount = v.TotalCount
+	if hasFullAccess {
+		flows, err := c.store.ListFlowsPaginated(ctx, repo.ListFlowsPaginatedParams{
+			Uuid:   namespaceUUID,
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("could not get paginated flows for namespace %s: %w", namespaceID, err)
+		}
+		for _, v := range flows {
+			fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
+			pageCount = v.PageCount
+			totalCount = v.TotalCount
+		}
+	} else {
+		flows, err := c.store.ListFlowsPaginatedFiltered(ctx, repo.ListFlowsPaginatedFilteredParams{
+			Uuid:    namespaceUUID,
+			Limit:   int32(limit),
+			Offset:  int32(offset),
+			Column4: prefixes,
+		})
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("could not get filtered paginated flows for namespace %s: %w", namespaceID, err)
+		}
+		for _, v := range flows {
+			fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
+			pageCount = v.PageCount
+			totalCount = v.TotalCount
+		}
 	}
 
 	return fs, pageCount, totalCount, nil
 }
 
-func (c *Core) SearchFlows(ctx context.Context, namespaceID string, query string, limit, offset int) ([]models.Flow, int64, int64, error) {
+func (c *Core) SearchFlows(ctx context.Context, namespaceID string, userID string, query string, limit, offset int) ([]models.Flow, int64, int64, error) {
 	c.rwf.RLock()
 	defer c.rwf.RUnlock()
 	namespaceUUID, err := uuid.Parse(namespaceID)
@@ -140,26 +161,80 @@ func (c *Core) SearchFlows(ctx context.Context, namespaceID string, query string
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	flows, err := c.store.SearchFlowsPaginated(ctx, repo.SearchFlowsPaginatedParams{
-		Uuid:    namespaceUUID,
-		Column2: query,
-		Limit:   int32(limit),
-		Offset:  int32(offset),
-	})
+	prefixes, hasFullAccess, err := c.getUserPrefixAccess(ctx, userID, namespaceID)
 	if err != nil {
-		return nil, 0, 0, fmt.Errorf("could not search flows for namespace %s: %w", namespaceID, err)
+		return nil, 0, 0, fmt.Errorf("could not get user prefix access: %w", err)
 	}
 
 	var fs []models.Flow
 	var pageCount, totalCount int64
 
-	for _, v := range flows {
-		fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
-		pageCount = v.PageCount
-		totalCount = v.TotalCount
+	if hasFullAccess {
+		flows, err := c.store.SearchFlowsPaginated(ctx, repo.SearchFlowsPaginatedParams{
+			Uuid:    namespaceUUID,
+			Column2: query,
+			Limit:   int32(limit),
+			Offset:  int32(offset),
+		})
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("could not search flows for namespace %s: %w", namespaceID, err)
+		}
+		for _, v := range flows {
+			fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
+			pageCount = v.PageCount
+			totalCount = v.TotalCount
+		}
+	} else {
+		flows, err := c.store.SearchFlowsPaginatedFiltered(ctx, repo.SearchFlowsPaginatedFilteredParams{
+			Uuid:    namespaceUUID,
+			Column2: query,
+			Limit:   int32(limit),
+			Offset:  int32(offset),
+			Column5: prefixes,
+		})
+		if err != nil {
+			return nil, 0, 0, fmt.Errorf("could not search filtered flows for namespace %s: %w", namespaceID, err)
+		}
+		for _, v := range flows {
+			fs = append(fs, c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)])
+			pageCount = v.PageCount
+			totalCount = v.TotalCount
+		}
 	}
 
 	return fs, pageCount, totalCount, nil
+}
+
+// GetFlowsByPrefix returns all flows in a namespace with the given prefix name
+func (c *Core) GetFlowsByPrefix(ctx context.Context, namespaceID, prefix string) ([]models.Flow, error) {
+	c.rwf.RLock()
+	defer c.rwf.RUnlock()
+
+	prefixID, err := c.ResolvePrefixID(ctx, prefix, namespaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	namespaceUUID, err := uuid.Parse(namespaceID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	rows, err := c.store.GetFlowsByPrefix(ctx, repo.GetFlowsByPrefixParams{
+		Uuid:     namespaceUUID,
+		PrefixID: prefixID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not get flows by prefix: %w", err)
+	}
+
+	var fs []models.Flow
+	for _, v := range rows {
+		if f, ok := c.flows[fmt.Sprintf("%s:%s", v.Slug, namespaceID)]; ok {
+			fs = append(fs, f)
+		}
+	}
+	return fs, nil
 }
 
 func (c *Core) GetFlowFromLogID(logID string, namespaceID string) (models.Flow, error) {
@@ -665,7 +740,7 @@ func (c *Core) UpdateFlow(ctx context.Context, f models.Flow, namespaceID string
 
 	importedFlow, namespaceUUIDStr, err := c.importFlowFromFile(ctx, flowFilePath, n.Name)
 	if err != nil {
-		return fmt.Errorf("could not import flow after creation: %w", err)
+		return fmt.Errorf("could not import flow after update: %w", err)
 	}
 
 	c.rwf.Lock()
@@ -748,7 +823,8 @@ func (c *Core) LoadFlows(ctx context.Context) error {
 	return nil
 }
 
-// processNamespaceFlows iterates through directories in the namespace directory and imports the first yaml file per directory as flow. The files are sorted by name.
+// processNamespaceFlows iterates through directories in the namespace directory and imports flows.
+// Each subdirectory under flows/<namespace>/ is treated as a flow directory.
 func (c *Core) processNamespaceFlows(ctx context.Context, namespaceDir string) (map[string]models.Flow, error) {
 	m := make(map[string]models.Flow)
 	namespaceName := filepath.Base(namespaceDir)
@@ -774,22 +850,8 @@ func (c *Core) processNamespaceFlows(ctx context.Context, namespaceDir string) (
 		}
 
 		flowDir := filepath.Join(namespaceDir, entry.Name())
-		flowFiles, err := os.ReadDir(flowDir)
-		if err != nil {
-			log.Printf("error reading flow directory %s: %v", flowDir, err)
-			continue
-		}
-
-		var flowPath string
-		for _, file := range flowFiles {
-			if !file.IsDir() && isFlowFile(file.Name()) {
-				flowPath = filepath.Join(flowDir, file.Name())
-				break
-			}
-		}
-
+		flowPath := findFlowFile(flowDir)
 		if flowPath == "" {
-			log.Printf("no flow file (YAML or HUML) found in flow directory %s", flowDir)
 			continue
 		}
 
@@ -798,11 +860,24 @@ func (c *Core) processNamespaceFlows(ctx context.Context, namespaceDir string) (
 			log.Printf("error importing flow from %s: %v", flowPath, err)
 			continue
 		}
-
 		m[fmt.Sprintf("%s:%s", f.Meta.ID, nsUUID)] = f
 	}
 
 	return m, nil
+}
+
+// findFlowFile returns the path to the first flow file in the given directory
+func findFlowFile(dir string) string {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	for _, file := range files {
+		if !file.IsDir() && isFlowFile(file.Name()) {
+			return filepath.Join(dir, file.Name())
+		}
+	}
+	return ""
 }
 
 func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceName string) (models.Flow, string, error) {
@@ -854,6 +929,11 @@ func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceNa
 		})
 	}
 
+	prefixID, err := c.getOrCreateFlowPrefix(context.Background(), f.Meta.Prefix, ns.Uuid)
+	if err != nil {
+		return models.Flow{}, "", fmt.Errorf("failed to resolve prefix for flow %s: %w", f.Meta.ID, err)
+	}
+
 	fd, err := c.store.GetFlowBySlug(context.Background(), repo.GetFlowBySlugParams{
 		Slug:     f.Meta.ID,
 		Uuid:     ns.Uuid,
@@ -867,6 +947,7 @@ func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceNa
 			Checksum:    checksum,
 			FilePath:    flowFilePath,
 			Namespace:   f.Meta.Namespace,
+			PrefixID:    prefixID,
 			Schedules:   schedules,
 		})
 	} else if fd.Checksum != checksum {
@@ -877,6 +958,7 @@ func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceNa
 			Checksum:        checksum,
 			FilePath:        flowFilePath,
 			Namespace:       f.Meta.Namespace,
+			PrefixID:        prefixID,
 			UserSchedulable: f.Meta.UserSchedulable,
 			Schedulable:     f.IsSchedulable(),
 			Schedules:       schedules,

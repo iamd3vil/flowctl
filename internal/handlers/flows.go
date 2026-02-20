@@ -315,6 +315,11 @@ func (h *Handler) HandleFlowsPagination(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
 	}
 
+	user, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
+	}
+
 	var req PaginateRequest
 	if err := c.Bind(&req); err != nil {
 		return wrapError(ErrInvalidInput, "invalid request", err, nil)
@@ -332,7 +337,7 @@ func (h *Handler) HandleFlowsPagination(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	flows, pageCount, totalCount, err := h.co.SearchFlows(c.Request().Context(), namespace, req.Filter, req.Count, req.Count*req.Page)
+	flows, pageCount, totalCount, err := h.co.SearchFlows(c.Request().Context(), namespace, user.ID, req.Filter, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not search flows", err, nil)
 	}
@@ -590,6 +595,7 @@ func (h *Handler) HandleCreateFlow(c echo.Context) error {
 			ID:           GenerateSlug(req.Meta.Name),
 			Name:         req.Meta.Name,
 			Description:  req.Meta.Description,
+			Prefix:       req.Meta.Prefix,
 			Namespace:    namespace,
 			AllowOverlap: req.Meta.AllowOverlap,
 		},
@@ -638,6 +644,7 @@ func (h *Handler) HandleUpdateFlow(c echo.Context) error {
 	}
 
 	updatedMeta := f.Meta
+	updatedMeta.Prefix = req.Prefix
 	updatedMeta.AllowOverlap = req.AllowOverlap
 	updatedMeta.UserSchedulable = req.UserSchedulable
 	updatedMeta.Description = req.Description
@@ -701,6 +708,7 @@ func (h *Handler) HandleGetFlowConfig(c echo.Context) error {
 			ID:              f.Meta.ID,
 			Name:            f.Meta.Name,
 			Description:     f.Meta.Description,
+			Prefix:          f.Meta.Prefix,
 			Schedules:       schedules,
 			AllowOverlap:    f.Meta.AllowOverlap,
 			UserSchedulable: f.Meta.UserSchedulable,

@@ -48,3 +48,14 @@ type NamespaceMember struct {
 	UpdatedAt   string
 	Name        string
 }
+
+type FlowPrefix struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+type PrefixAccess struct {
+	Prefix    string
+	CreatedAt string
+}

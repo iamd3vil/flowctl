@@ -12,6 +12,7 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	casbin_model "github.com/casbin/casbin/v2/model"
+	"github.com/casbin/casbin/v2/util"
 	"github.com/cvhariharan/flowctl/internal/config"
 	"github.com/cvhariharan/flowctl/internal/core"
 	"github.com/cvhariharan/flowctl/internal/core/models"
@@ -167,6 +168,7 @@ func initializeSharedComponents() *SharedComponents {
 	if err != nil {
 		log.Fatalf("could not initialize casbin enforcer: %v", err)
 	}
+	enforcer.AddNamedDomainMatchingFunc("g", "keyMatch2", util.KeyMatch2)
 
 	keeperURL := appConfig.Keystore.KeeperURL
 	if keeperURL == "" {
@@ -328,6 +330,7 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	api.GET("/executors/:executor/config", h.HandleGetExecutorConfig)
 	api.GET("/executors", h.HandleListExecutors)
 	api.GET("/permissions", h.HandleGetCasbinPermissions)
+	api.POST("/permissions/check", h.HandleCheckPermissions)
 
 	// Namespace management
 	api.GET("/namespaces", h.HandleListNamespaces)
@@ -339,9 +342,15 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	// Namespace-specific resource endpoints using RBAC
 	namespaceGroup := api.Group("/:namespace", h.NamespaceMiddleware)
 
-	// Flow routes - users can view and execute
-	namespaceGroup.GET("/flows", h.HandleFlowsPagination, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
+	// Flow routes - list/search use namespace:view (filtering done in handler)
+	namespaceGroup.GET("/flows", h.HandleFlowsPagination, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
 	namespaceGroup.POST("/flows", h.HandleCreateFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
+	namespaceGroup.GET("/flows/groups/me", h.HandleListMyFlowGroups, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
+	namespaceGroup.GET("/flows/groups/:group", h.HandleGetFlowGroup, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
+	namespaceGroup.GET("/flows/groups", h.HandleListFlowGroups, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
+	namespaceGroup.POST("/flows/groups", h.HandleCreateFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
+	namespaceGroup.PUT("/flows/groups/:groupID", h.HandleUpdateFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionUpdate))
+	namespaceGroup.DELETE("/flows/groups/:groupID", h.HandleDeleteFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionDelete))
 	namespaceGroup.GET("/flows/:flowID", h.HandleGetFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.PUT("/flows/:flowID", h.HandleUpdateFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/flows/:flowID", h.HandleDeleteFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionDelete))
@@ -349,7 +358,7 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.POST("/flows/executions/:execID/cancel", h.HandleCancelExecution, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionUpdate))
 	namespaceGroup.POST("/flows/executions/:execID/retry", h.HandleRetryExecution, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionUpdate))
 	namespaceGroup.GET("/flows/:flowID/executions", h.HandleExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
-	namespaceGroup.GET("/flows/executions", h.HandleAllExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
+	namespaceGroup.GET("/flows/executions", h.HandleAllExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/inputs", h.HandleGetFlowInputs, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/meta", h.HandleGetFlowMeta, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/config", h.HandleGetFlowConfig, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
@@ -396,6 +405,11 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionCreate))
 	namespaceGroup.PUT("/members/:membershipID", h.HandleUpdateNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionDelete))
+
+	// Member group access management
+	namespaceGroup.GET("/members/:membershipID/groups", h.HandleGetMemberGroups, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionView))
+	namespaceGroup.POST("/members/:membershipID/groups", h.HandleGrantGroupAccess, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
+	namespaceGroup.DELETE("/members/:membershipID/groups/:group", h.HandleRevokeGroupAccess, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 
 	// Namespace secrets routes - admins only
 	namespaceGroup.GET("/secrets", h.HandleListNamespaceSecrets, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionView))

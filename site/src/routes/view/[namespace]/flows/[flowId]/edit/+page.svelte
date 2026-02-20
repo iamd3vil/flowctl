@@ -30,6 +30,7 @@
             id: "",
             name: "",
             description: "",
+            prefix: "",
             schedules: [] as Schedule[],
             namespace: namespace,
             allow_overlap: false,
@@ -114,6 +115,7 @@
                 id: flowId,
                 name: config.metadata.name,
                 description: config.metadata.description || "",
+                prefix: config.metadata.prefix || "",
                 schedules: config.metadata.schedules || [],
                 namespace: namespace,
                 allow_overlap: config.metadata.allow_overlap || false,
@@ -213,6 +215,7 @@
         try {
             // Transform the flow data to match the API schema for update
             const flowData: FlowUpdateReq = {
+                prefix: flow.metadata.prefix || undefined,
                 schedules:
                     flow.metadata.schedules?.filter((s) => s.cron.trim()) || [],
                 allow_overlap: flow.metadata.allow_overlap,
@@ -346,6 +349,7 @@
                             {#if activeTab === "metadata"}
                                 <FlowMetadata
                                     bind:metadata={flow.metadata}
+                                    {namespace}
                                     inputs={flow.inputs}
                                     updatemode={true}
                                 />

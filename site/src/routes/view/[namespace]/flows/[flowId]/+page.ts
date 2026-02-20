@@ -7,7 +7,7 @@ export const load: PageLoad = async ({ params, parent, url }) => {
   const { user, namespaceId } = await parent();
 
   try {
-    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['view']);
+    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['view'], '_');
     if (!permissions.canRead) {
       error(403, {
         message: 'You do not have permission to view flows in this namespace',

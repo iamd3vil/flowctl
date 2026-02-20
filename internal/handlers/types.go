@@ -378,6 +378,7 @@ type FlowListItem struct {
 	Slug        string     `json:"slug"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
+	Prefix      string     `json:"prefix"`
 	Schedules   []Schedule `json:"schedules"`
 	StepCount   int        `json:"step_count"`
 }
@@ -422,6 +423,7 @@ type FlowMeta struct {
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`
 	Description     string     `json:"description"`
+	Prefix          string     `json:"prefix"`
 	Schedules       []Schedule `json:"schedules"`
 	Namespace       string     `json:"namespace"`
 	AllowOverlap    bool       `json:"allow_overlap"`
@@ -444,6 +446,7 @@ func coreFlowMetatoFlowMeta(m models.Metadata, schedules []models.Schedule) Flow
 		ID:              m.ID,
 		Name:            m.Name,
 		Description:     m.Description,
+		Prefix:          m.Prefix,
 		Schedules:       coreSchedulesToSchedules(schedules),
 		Namespace:       m.Namespace,
 		AllowOverlap:    m.AllowOverlap,
@@ -521,6 +524,7 @@ func coreFlowToFlow(flow models.Flow) FlowListItem {
 		Slug:        flow.Meta.ID,
 		Name:        flow.Meta.Name,
 		Description: flow.Meta.Description,
+		Prefix:      flow.Meta.Prefix,
 		Schedules:   coreSchedulesToSchedules(flow.Schedules),
 		StepCount:   len(flow.Actions),
 	}
@@ -705,6 +709,7 @@ type ExecutionGetReq struct {
 }
 
 type FlowUpdateReq struct {
+	Prefix          string          `json:"prefix" validate:"omitempty,max=100,alphanum_underscore"`
 	Schedules       []Schedule      `json:"schedules" validate:"omitempty,dive"`
 	Notify          []Notify        `json:"notify" validate:"omitempty,dive"`
 	AllowOverlap    bool            `json:"allow_overlap"`
@@ -946,4 +951,39 @@ func coreSchedulesToScheduleResps(schedules []models.Schedule) []ScheduleResp {
 		resp[i] = coreScheduleToScheduleResp(s)
 	}
 	return resp
+}
+
+// Flow group types
+type FlowGroupResp struct {
+	Prefix      string `json:"prefix"`
+	Description string `json:"description"`
+	FlowCount   int64  `json:"flow_count"`
+}
+
+type FlowGroupsResponse struct {
+	Groups []FlowGroupResp `json:"groups"`
+}
+
+type FlowGroupReq struct {
+	Name        string `json:"name" validate:"required,min=1,max=100,alphanum_underscore"`
+	Description string `json:"description" validate:"max=500"`
+}
+
+type FlowGroupDetailResp struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type GroupAccessReq struct {
+	Prefix string `json:"prefix" validate:"required,min=1,max=100,alphanum_underscore"`
+}
+
+type GroupAccessResp struct {
+	Prefix    string `json:"prefix"`
+	CreatedAt string `json:"created_at"`
+}
+
+type GroupAccessListResp struct {
+	Groups []GroupAccessResp `json:"groups"`
 }

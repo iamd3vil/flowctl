@@ -13,9 +13,10 @@ INSERT INTO flows (
     description,
     checksum,
     file_path,
-    namespace_id
+    namespace_id,
+    prefix_id
 ) VALUES (
-    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6)
+    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6), $7
 ) RETURNING *;
 
 -- name: UpdateFlow :one
@@ -24,9 +25,10 @@ UPDATE flows SET
     description = $2,
     checksum = $3,
     file_path = $4,
+    prefix_id = $5,
     is_active = TRUE,
     updated_at = NOW()
-WHERE slug = $5 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $6)
+WHERE slug = $6 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $7)
 RETURNING *;
 
 -- name: DeleteFlow :exec
@@ -63,8 +65,11 @@ FROM paged p, page_count pc, total t;
 
 -- name: ListFlowsPaginated :many
 WITH filtered AS (
-    SELECT f.*, n.uuid AS namespace_uuid FROM flows f
+    SELECT f.*, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
     JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
     WHERE n.uuid = $1 AND f.is_active = TRUE
 ),
 total AS (
@@ -72,7 +77,10 @@ total AS (
 ),
 paged AS (
     SELECT * FROM filtered
-    ORDER BY created_at DESC
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
     LIMIT $2 OFFSET $3
 ),
 page_count AS (
@@ -86,8 +94,11 @@ FROM paged p, page_count pc, total t;
 
 -- name: SearchFlowsPaginated :many
 WITH filtered AS (
-    SELECT f.*, n.uuid AS namespace_uuid FROM flows f
+    SELECT f.*, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
     JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
     WHERE n.uuid = $1
       AND f.is_active = TRUE
       AND (lower(f.name) LIKE '%' || lower($2::text) || '%'
@@ -98,7 +109,10 @@ total AS (
 ),
 paged AS (
     SELECT * FROM filtered
-    ORDER BY created_at DESC
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
     LIMIT $3 OFFSET $4
 ),
 page_count AS (
@@ -109,6 +123,74 @@ SELECT
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t;
+
+-- name: ListFlowsPaginatedFiltered :many
+WITH filtered AS (
+    SELECT f.*, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
+    JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
+    WHERE n.uuid = $1 AND f.is_active = TRUE
+      AND (f.prefix_id IS NULL OR fp.name = ANY($4::text[]))
+),
+total AS (SELECT COUNT(*) AS total_count FROM filtered),
+paged AS (
+    SELECT * FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
+    LIMIT $2 OFFSET $3
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
+)
+SELECT p.*, pc.page_count, t.total_count FROM paged p, page_count pc, total t;
+
+-- name: SearchFlowsPaginatedFiltered :many
+WITH filtered AS (
+    SELECT f.*, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
+    JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
+    WHERE n.uuid = $1
+      AND f.is_active = TRUE
+      AND (lower(f.name) LIKE '%' || lower($2::text) || '%'
+           OR lower(f.description) LIKE '%' || lower($2::text) || '%')
+      AND (f.prefix_id IS NULL OR fp.name = ANY($5::text[]))
+),
+total AS (SELECT COUNT(*) AS total_count FROM filtered),
+paged AS (
+    SELECT * FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
+    LIMIT $3 OFFSET $4
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
+)
+SELECT p.*, pc.page_count, t.total_count FROM paged p, page_count pc, total t;
+
+-- name: GetFlowsByPrefix :many
+SELECT f.*, n.uuid AS namespace_uuid FROM flows f
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE n.uuid = $1 AND f.prefix_id = $2 AND f.is_active = TRUE
+ORDER BY f.name ASC;
+
+-- name: GetDistinctPrefixes :many
+SELECT DISTINCT fp.uuid, fp.name, fp.description FROM flow_prefixes fp
+JOIN flows f ON f.prefix_id = fp.id
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE n.uuid = $1 AND f.is_active = TRUE
+ORDER BY fp.name ASC;
+
+-- name: GetFlowCountByPrefix :one
+SELECT COUNT(*) FROM flows f
+WHERE f.prefix_id = $1 AND f.is_active = TRUE;
 
 -- name: GetScheduledFlows :many
 SELECT f.*, n.uuid AS namespace_uuid, cs.id AS schedule_id, cs.cron, cs.timezone, cs.inputs, cs.created_by, cs.is_user_created

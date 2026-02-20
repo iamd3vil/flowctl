@@ -137,6 +137,17 @@ LEFT JOIN users u ON nm.user_id = u.id
 LEFT JOIN groups g ON nm.group_id = g.id
 ORDER BY n.name, nm.role;
 
+-- name: GetNamespaceMemberByUUID :one
+SELECT
+    nm.*,
+    COALESCE(u.uuid, g.uuid) as subject_uuid,
+    CASE WHEN nm.user_id IS NOT NULL THEN 'user' ELSE 'group' END as subject_type
+FROM namespace_members nm
+LEFT JOIN users u ON nm.user_id = u.id
+LEFT JOIN groups g ON nm.group_id = g.id
+WHERE nm.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $1)
+AND nm.uuid = $2;
+
 -- name: UpdateNamespaceMember :one
 UPDATE namespace_members
 SET role = $3, updated_at = NOW()

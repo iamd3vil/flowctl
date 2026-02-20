@@ -99,6 +99,7 @@ type Metadata struct {
 	Description     string `yaml:"description" huml:"description"`
 	SrcDir          string `yaml:"-" huml:"-"`
 	Namespace       string `yaml:"namespace" huml:"namespace"`
+	Prefix          string `yaml:"prefix" huml:"prefix"`
 	AllowOverlap    bool   `yaml:"allow_overlap" huml:"allow_overlap"`
 	UserSchedulable bool   `yaml:"user_schedulable" huml:"user_schedulable"`
 }

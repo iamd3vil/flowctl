@@ -9,7 +9,7 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 
   // Check permissions
   try {
-    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['view']);
+    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['view'], '_');
     if (!permissions.canRead) {
       error(403, {
         message: 'You do not have permission to view flows in this namespace',
@@ -28,7 +28,25 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 
   const page = Number(url.searchParams.get('page')) || 1;
   const filter = url.searchParams.get('filter') || '';
+  const group = url.searchParams.get('group') || '';
 
+  if (group) {
+    // Inside a group — load group flows
+    const groupFlowsPromise = apiClient.flows.groups.get(params.namespace, group);
+
+    return {
+      groupFlowsPromise,
+      flowsPromise: Promise.resolve({ flows: [], page_count: 0, total_count: 0 }),
+      groupsPromise: Promise.resolve({ groups: [] }),
+      group,
+      currentPage: 1,
+      filter: '',
+      namespaceId
+    };
+  }
+
+  // Root view — load groups and paginated flows
+  const groupsPromise = apiClient.flows.groups.me(params.namespace);
   const flowsPromise = apiClient.flows.list(params.namespace, {
     page,
     count_per_page: FLOWS_PER_PAGE,
@@ -37,6 +55,9 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 
   return {
     flowsPromise,
+    groupsPromise,
+    groupFlowsPromise: null,
+    group: '',
     currentPage: page,
     filter,
     namespaceId

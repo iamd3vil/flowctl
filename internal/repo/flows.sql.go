@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -21,10 +22,11 @@ INSERT INTO flows (
     description,
     checksum,
     file_path,
-    namespace_id
+    namespace_id,
+    prefix_id
 ) VALUES (
-    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6)
-) RETURNING id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at
+    $1, $2, $3, $4, $5, (SELECT id FROM namespaces WHERE namespaces.name = $6), $7
+) RETURNING id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id
 `
 
 type CreateFlowParams struct {
@@ -34,6 +36,7 @@ type CreateFlowParams struct {
 	Checksum    string         `db:"checksum" json:"checksum"`
 	FilePath    string         `db:"file_path" json:"file_path"`
 	Name_2      string         `db:"name_2" json:"name_2"`
+	PrefixID    sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 }
 
 func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error) {
@@ -44,6 +47,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		arg.Checksum,
 		arg.FilePath,
 		arg.Name_2,
+		arg.PrefixID,
 	)
 	var i Flow
 	err := row.Scan(
@@ -57,6 +61,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrefixID,
 	)
 	return i, err
 }
@@ -84,8 +89,45 @@ func (q *Queries) DeleteFlow(ctx context.Context, arg DeleteFlowParams) error {
 	return err
 }
 
+const getDistinctPrefixes = `-- name: GetDistinctPrefixes :many
+SELECT DISTINCT fp.uuid, fp.name, fp.description FROM flow_prefixes fp
+JOIN flows f ON f.prefix_id = fp.id
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE n.uuid = $1 AND f.is_active = TRUE
+ORDER BY fp.name ASC
+`
+
+type GetDistinctPrefixesRow struct {
+	Uuid        uuid.UUID `db:"uuid" json:"uuid"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+}
+
+func (q *Queries) GetDistinctPrefixes(ctx context.Context, argUuid uuid.UUID) ([]GetDistinctPrefixesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDistinctPrefixes, argUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDistinctPrefixesRow
+	for rows.Next() {
+		var i GetDistinctPrefixesRow
+		if err := rows.Scan(&i.Uuid, &i.Name, &i.Description); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFlowBySlug = `-- name: GetFlowBySlug :one
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at FROM flows f
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
 WHERE f.slug = $1 AND n.uuid = $2 AND ($3::boolean IS NULL OR f.is_active = $3)
 `
@@ -110,12 +152,25 @@ func (q *Queries) GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (F
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrefixID,
 	)
 	return i, err
 }
 
+const getFlowCountByPrefix = `-- name: GetFlowCountByPrefix :one
+SELECT COUNT(*) FROM flows f
+WHERE f.prefix_id = $1 AND f.is_active = TRUE
+`
+
+func (q *Queries) GetFlowCountByPrefix(ctx context.Context, prefixID sql.NullInt32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getFlowCountByPrefix, prefixID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getFlowsByNamespace = `-- name: GetFlowsByNamespace :many
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
 WHERE n.uuid = $1 AND f.is_active = TRUE
@@ -132,6 +187,7 @@ type GetFlowsByNamespaceRow struct {
 	IsActive      bool           `db:"is_active" json:"is_active"`
 	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
 }
 
@@ -155,6 +211,70 @@ func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrefixID,
+			&i.NamespaceUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFlowsByPrefix = `-- name: GetFlowsByPrefix :many
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid FROM flows f
+JOIN namespaces n ON f.namespace_id = n.id
+WHERE n.uuid = $1 AND f.prefix_id = $2 AND f.is_active = TRUE
+ORDER BY f.name ASC
+`
+
+type GetFlowsByPrefixParams struct {
+	Uuid     uuid.UUID     `db:"uuid" json:"uuid"`
+	PrefixID sql.NullInt32 `db:"prefix_id" json:"prefix_id"`
+}
+
+type GetFlowsByPrefixRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	FilePath      string         `db:"file_path" json:"file_path"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	IsActive      bool           `db:"is_active" json:"is_active"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+}
+
+func (q *Queries) GetFlowsByPrefix(ctx context.Context, arg GetFlowsByPrefixParams) ([]GetFlowsByPrefixRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFlowsByPrefix, arg.Uuid, arg.PrefixID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFlowsByPrefixRow
+	for rows.Next() {
+		var i GetFlowsByPrefixRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.FilePath,
+			&i.NamespaceID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PrefixID,
 			&i.NamespaceUuid,
 		); err != nil {
 			return nil, err
@@ -171,7 +291,7 @@ func (q *Queries) GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([
 }
 
 const getScheduledFlows = `-- name: GetScheduledFlows :many
-SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid, cs.id AS schedule_id, cs.cron, cs.timezone, cs.inputs, cs.created_by, cs.is_user_created
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid, cs.id AS schedule_id, cs.cron, cs.timezone, cs.inputs, cs.created_by, cs.is_user_created
 FROM flows f
 JOIN namespaces n ON f.namespace_id = n.id
 JOIN cron_schedules cs ON cs.flow_id = f.id
@@ -189,6 +309,7 @@ type GetScheduledFlowsRow struct {
 	IsActive      bool                  `db:"is_active" json:"is_active"`
 	CreatedAt     time.Time             `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time             `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32         `db:"prefix_id" json:"prefix_id"`
 	NamespaceUuid uuid.UUID             `db:"namespace_uuid" json:"namespace_uuid"`
 	ScheduleID    int32                 `db:"schedule_id" json:"schedule_id"`
 	Cron          string                `db:"cron" json:"cron"`
@@ -218,6 +339,7 @@ func (q *Queries) GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrefixID,
 			&i.NamespaceUuid,
 			&i.ScheduleID,
 			&i.Cron,
@@ -241,7 +363,7 @@ func (q *Queries) GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow
 
 const listFlows = `-- name: ListFlows :many
 WITH filtered AS (
-    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid FROM flows f
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid FROM flows f
     JOIN namespaces n ON f.namespace_id = n.id
     WHERE n.uuid = $1
 ),
@@ -249,7 +371,7 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, namespace_uuid FROM filtered
+    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id, namespace_uuid FROM filtered
     ORDER BY created_at DESC
     LIMIT $2 OFFSET $3
 ),
@@ -257,7 +379,7 @@ page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.namespace_uuid,
+    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.prefix_id, p.namespace_uuid,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -280,6 +402,7 @@ type ListFlowsRow struct {
 	IsActive      bool           `db:"is_active" json:"is_active"`
 	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
 	PageCount     int64          `db:"page_count" json:"page_count"`
 	TotalCount    int64          `db:"total_count" json:"total_count"`
@@ -305,6 +428,7 @@ func (q *Queries) ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlo
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrefixID,
 			&i.NamespaceUuid,
 			&i.PageCount,
 			&i.TotalCount,
@@ -324,23 +448,29 @@ func (q *Queries) ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlo
 
 const listFlowsPaginated = `-- name: ListFlowsPaginated :many
 WITH filtered AS (
-    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid FROM flows f
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
     JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
     WHERE n.uuid = $1 AND f.is_active = TRUE
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, namespace_uuid FROM filtered
-    ORDER BY created_at DESC
+    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id, namespace_uuid, prefix_name FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
     LIMIT $2 OFFSET $3
 ),
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.namespace_uuid,
+    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.prefix_id, p.namespace_uuid, p.prefix_name,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -363,7 +493,9 @@ type ListFlowsPaginatedRow struct {
 	IsActive      bool           `db:"is_active" json:"is_active"`
 	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	PrefixName    sql.NullString `db:"prefix_name" json:"prefix_name"`
 	PageCount     int64          `db:"page_count" json:"page_count"`
 	TotalCount    int64          `db:"total_count" json:"total_count"`
 }
@@ -388,7 +520,103 @@ func (q *Queries) ListFlowsPaginated(ctx context.Context, arg ListFlowsPaginated
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrefixID,
 			&i.NamespaceUuid,
+			&i.PrefixName,
+			&i.PageCount,
+			&i.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFlowsPaginatedFiltered = `-- name: ListFlowsPaginatedFiltered :many
+WITH filtered AS (
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
+    JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
+    WHERE n.uuid = $1 AND f.is_active = TRUE
+      AND (f.prefix_id IS NULL OR fp.name = ANY($4::text[]))
+),
+total AS (SELECT COUNT(*) AS total_count FROM filtered),
+paged AS (
+    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id, namespace_uuid, prefix_name FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
+    LIMIT $2 OFFSET $3
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $2::numeric)::bigint AS page_count FROM total
+)
+SELECT p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.prefix_id, p.namespace_uuid, p.prefix_name, pc.page_count, t.total_count FROM paged p, page_count pc, total t
+`
+
+type ListFlowsPaginatedFilteredParams struct {
+	Uuid    uuid.UUID `db:"uuid" json:"uuid"`
+	Limit   int32     `db:"limit" json:"limit"`
+	Offset  int32     `db:"offset" json:"offset"`
+	Column4 []string  `db:"column_4" json:"column_4"`
+}
+
+type ListFlowsPaginatedFilteredRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	FilePath      string         `db:"file_path" json:"file_path"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	IsActive      bool           `db:"is_active" json:"is_active"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	PrefixName    sql.NullString `db:"prefix_name" json:"prefix_name"`
+	PageCount     int64          `db:"page_count" json:"page_count"`
+	TotalCount    int64          `db:"total_count" json:"total_count"`
+}
+
+func (q *Queries) ListFlowsPaginatedFiltered(ctx context.Context, arg ListFlowsPaginatedFilteredParams) ([]ListFlowsPaginatedFilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFlowsPaginatedFiltered,
+		arg.Uuid,
+		arg.Limit,
+		arg.Offset,
+		pq.Array(arg.Column4),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFlowsPaginatedFilteredRow
+	for rows.Next() {
+		var i ListFlowsPaginatedFilteredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.FilePath,
+			&i.NamespaceID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PrefixID,
+			&i.NamespaceUuid,
+			&i.PrefixName,
 			&i.PageCount,
 			&i.TotalCount,
 		); err != nil {
@@ -432,8 +660,11 @@ func (q *Queries) MarkFlowActive(ctx context.Context, arg MarkFlowActiveParams) 
 
 const searchFlowsPaginated = `-- name: SearchFlowsPaginated :many
 WITH filtered AS (
-    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, n.uuid AS namespace_uuid FROM flows f
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
     JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
     WHERE n.uuid = $1
       AND f.is_active = TRUE
       AND (lower(f.name) LIKE '%' || lower($2::text) || '%'
@@ -443,15 +674,18 @@ total AS (
     SELECT COUNT(*) AS total_count FROM filtered
 ),
 paged AS (
-    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, namespace_uuid FROM filtered
-    ORDER BY created_at DESC
+    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id, namespace_uuid, prefix_name FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
     LIMIT $3 OFFSET $4
 ),
 page_count AS (
     SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
 )
 SELECT
-    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.namespace_uuid,
+    p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.prefix_id, p.namespace_uuid, p.prefix_name,
     pc.page_count,
     t.total_count
 FROM paged p, page_count pc, total t
@@ -475,7 +709,9 @@ type SearchFlowsPaginatedRow struct {
 	IsActive      bool           `db:"is_active" json:"is_active"`
 	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	PrefixName    sql.NullString `db:"prefix_name" json:"prefix_name"`
 	PageCount     int64          `db:"page_count" json:"page_count"`
 	TotalCount    int64          `db:"total_count" json:"total_count"`
 }
@@ -505,7 +741,108 @@ func (q *Queries) SearchFlowsPaginated(ctx context.Context, arg SearchFlowsPagin
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrefixID,
 			&i.NamespaceUuid,
+			&i.PrefixName,
+			&i.PageCount,
+			&i.TotalCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchFlowsPaginatedFiltered = `-- name: SearchFlowsPaginatedFiltered :many
+WITH filtered AS (
+    SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid,
+           fp.name AS prefix_name
+    FROM flows f
+    JOIN namespaces n ON f.namespace_id = n.id
+    LEFT JOIN flow_prefixes fp ON f.prefix_id = fp.id
+    WHERE n.uuid = $1
+      AND f.is_active = TRUE
+      AND (lower(f.name) LIKE '%' || lower($2::text) || '%'
+           OR lower(f.description) LIKE '%' || lower($2::text) || '%')
+      AND (f.prefix_id IS NULL OR fp.name = ANY($5::text[]))
+),
+total AS (SELECT COUNT(*) AS total_count FROM filtered),
+paged AS (
+    SELECT id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id, namespace_uuid, prefix_name FROM filtered
+    ORDER BY
+        CASE WHEN prefix_id IS NULL THEN 1 ELSE 0 END ASC,
+        prefix_name ASC NULLS LAST,
+        name ASC
+    LIMIT $3 OFFSET $4
+),
+page_count AS (
+    SELECT CEIL(total.total_count::numeric / $3::numeric)::bigint AS page_count FROM total
+)
+SELECT p.id, p.slug, p.name, p.checksum, p.description, p.file_path, p.namespace_id, p.is_active, p.created_at, p.updated_at, p.prefix_id, p.namespace_uuid, p.prefix_name, pc.page_count, t.total_count FROM paged p, page_count pc, total t
+`
+
+type SearchFlowsPaginatedFilteredParams struct {
+	Uuid    uuid.UUID `db:"uuid" json:"uuid"`
+	Column2 string    `db:"column_2" json:"column_2"`
+	Limit   int32     `db:"limit" json:"limit"`
+	Offset  int32     `db:"offset" json:"offset"`
+	Column5 []string  `db:"column_5" json:"column_5"`
+}
+
+type SearchFlowsPaginatedFilteredRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	FilePath      string         `db:"file_path" json:"file_path"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	IsActive      bool           `db:"is_active" json:"is_active"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+	PrefixName    sql.NullString `db:"prefix_name" json:"prefix_name"`
+	PageCount     int64          `db:"page_count" json:"page_count"`
+	TotalCount    int64          `db:"total_count" json:"total_count"`
+}
+
+func (q *Queries) SearchFlowsPaginatedFiltered(ctx context.Context, arg SearchFlowsPaginatedFilteredParams) ([]SearchFlowsPaginatedFilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchFlowsPaginatedFiltered,
+		arg.Uuid,
+		arg.Column2,
+		arg.Limit,
+		arg.Offset,
+		pq.Array(arg.Column5),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchFlowsPaginatedFilteredRow
+	for rows.Next() {
+		var i SearchFlowsPaginatedFilteredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.FilePath,
+			&i.NamespaceID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PrefixID,
+			&i.NamespaceUuid,
+			&i.PrefixName,
 			&i.PageCount,
 			&i.TotalCount,
 		); err != nil {
@@ -528,10 +865,11 @@ UPDATE flows SET
     description = $2,
     checksum = $3,
     file_path = $4,
+    prefix_id = $5,
     is_active = TRUE,
     updated_at = NOW()
-WHERE slug = $5 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $6)
-RETURNING id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at
+WHERE slug = $6 AND namespace_id = (SELECT id FROM namespaces WHERE namespaces.name = $7)
+RETURNING id, slug, name, checksum, description, file_path, namespace_id, is_active, created_at, updated_at, prefix_id
 `
 
 type UpdateFlowParams struct {
@@ -539,6 +877,7 @@ type UpdateFlowParams struct {
 	Description sql.NullString `db:"description" json:"description"`
 	Checksum    string         `db:"checksum" json:"checksum"`
 	FilePath    string         `db:"file_path" json:"file_path"`
+	PrefixID    sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
 	Slug        string         `db:"slug" json:"slug"`
 	Name_2      string         `db:"name_2" json:"name_2"`
 }
@@ -549,6 +888,7 @@ func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, e
 		arg.Description,
 		arg.Checksum,
 		arg.FilePath,
+		arg.PrefixID,
 		arg.Slug,
 		arg.Name_2,
 	)
@@ -564,6 +904,7 @@ func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrefixID,
 	)
 	return i, err
 }

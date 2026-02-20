@@ -7,6 +7,7 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -234,6 +235,54 @@ func (q *Queries) GetNamespaceByUUID(ctx context.Context, argUuid uuid.UUID) (Na
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getNamespaceMemberByUUID = `-- name: GetNamespaceMemberByUUID :one
+SELECT
+    nm.id, nm.uuid, nm.user_id, nm.group_id, nm.namespace_id, nm.role, nm.created_at, nm.updated_at,
+    COALESCE(u.uuid, g.uuid) as subject_uuid,
+    CASE WHEN nm.user_id IS NOT NULL THEN 'user' ELSE 'group' END as subject_type
+FROM namespace_members nm
+LEFT JOIN users u ON nm.user_id = u.id
+LEFT JOIN groups g ON nm.group_id = g.id
+WHERE nm.namespace_id = (SELECT id FROM namespaces WHERE namespaces.uuid = $1)
+AND nm.uuid = $2
+`
+
+type GetNamespaceMemberByUUIDParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+}
+
+type GetNamespaceMemberByUUIDRow struct {
+	ID          int32         `db:"id" json:"id"`
+	Uuid        uuid.UUID     `db:"uuid" json:"uuid"`
+	UserID      sql.NullInt32 `db:"user_id" json:"user_id"`
+	GroupID     sql.NullInt32 `db:"group_id" json:"group_id"`
+	NamespaceID int32         `db:"namespace_id" json:"namespace_id"`
+	Role        string        `db:"role" json:"role"`
+	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time     `db:"updated_at" json:"updated_at"`
+	SubjectUuid uuid.UUID     `db:"subject_uuid" json:"subject_uuid"`
+	SubjectType string        `db:"subject_type" json:"subject_type"`
+}
+
+func (q *Queries) GetNamespaceMemberByUUID(ctx context.Context, arg GetNamespaceMemberByUUIDParams) (GetNamespaceMemberByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getNamespaceMemberByUUID, arg.Uuid, arg.Uuid_2)
+	var i GetNamespaceMemberByUUIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.UserID,
+		&i.GroupID,
+		&i.NamespaceID,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SubjectUuid,
+		&i.SubjectType,
 	)
 	return i, err
 }

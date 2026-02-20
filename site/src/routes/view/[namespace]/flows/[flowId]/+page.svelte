@@ -41,7 +41,7 @@
     let showRerunBanner = $state(!!rerunFromExecId);
 
     // Check update permission on mount
-    permissionChecker(data.user!, "flow", data.namespaceId, ["update"]).then(
+    permissionChecker(data.user!, "flow", data.namespaceId, ["update"], "_").then(
         (permissions) => {
             canUpdateFlow = permissions.canUpdate;
         },
