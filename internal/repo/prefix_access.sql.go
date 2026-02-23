@@ -241,6 +241,25 @@ func (q *Queries) GetUserAccessiblePrefixes(ctx context.Context, arg GetUserAcce
 	return items, nil
 }
 
+const revokeAllMemberPrefixAccess = `-- name: RevokeAllMemberPrefixAccess :exec
+DELETE FROM prefix_access
+WHERE namespace_id = (SELECT namespaces.id FROM namespaces WHERE namespaces.uuid = $1)
+AND (
+    user_id = (SELECT nm.user_id FROM namespace_members nm WHERE nm.uuid = $2)
+    OR group_id = (SELECT nm.group_id FROM namespace_members nm WHERE nm.uuid = $2)
+)
+`
+
+type RevokeAllMemberPrefixAccessParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+}
+
+func (q *Queries) RevokeAllMemberPrefixAccess(ctx context.Context, arg RevokeAllMemberPrefixAccessParams) error {
+	_, err := q.db.ExecContext(ctx, revokeAllMemberPrefixAccess, arg.Uuid, arg.Uuid_2)
+	return err
+}
+
 const revokeGroupPrefixAccess = `-- name: RevokeGroupPrefixAccess :exec
 DELETE FROM prefix_access
 WHERE group_id = (SELECT groups.id FROM groups WHERE groups.uuid = $1)

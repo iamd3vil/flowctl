@@ -257,7 +257,7 @@
           </div>
 
           <!-- Prefix Access (edit mode, user role only) -->
-          {#if isEditMode && memberData && memberForm.role === 'user'}
+          {#if isEditMode && memberData && memberData.role === 'user' && memberForm.role === 'user'}
             <div class="mb-4">
               <label class="block mb-1 font-medium text-foreground">Prefix Access</label>
               <p class="text-xs text-muted-foreground mb-2">

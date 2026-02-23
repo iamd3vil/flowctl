@@ -251,6 +251,14 @@ func (c *Core) UpdateNamespaceMember(ctx context.Context, membershipID, namespac
 		return fmt.Errorf("invalid membership UUID: %w", err)
 	}
 
+	oldMember, err := c.store.GetNamespaceMemberByUUID(ctx, repo.GetNamespaceMemberByUUIDParams{
+		Uuid:   namespaceUUID,
+		Uuid_2: membershipUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get current member: %w", err)
+	}
+
 	m, err := c.store.UpdateNamespaceMember(ctx, repo.UpdateNamespaceMemberParams{
 		Uuid:   namespaceUUID,
 		Uuid_2: membershipUUID,
@@ -278,6 +286,34 @@ func (c *Core) UpdateNamespaceMember(ctx context.Context, membershipID, namespac
 	domain := "/" + namespaceID + "/*"
 	c.enforcer.RemoveFilteredGroupingPolicy(0, subjectID, "", domain)
 	c.enforcer.AddGroupingPolicy(subjectID, fmt.Sprintf("role:%s", role), domain)
+
+	// If downgraded from admin/reviewer to user, revoke all prefix access
+	if (oldMember.Role == "admin" || oldMember.Role == "reviewer") && string(role) == "user" {
+		err = c.store.RevokeAllMemberPrefixAccess(ctx, repo.RevokeAllMemberPrefixAccessParams{
+			Uuid:   namespaceUUID,
+			Uuid_2: membershipUUID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to revoke prefix access on downgrade: %w", err)
+		}
+
+		// Remove Casbin prefix policies for this subject in this namespace.
+		// Prefix policies use domains like /<nsID>/<prefix>, while role groupings
+		// use /<nsID>/* and ungrouped flows use /<nsID>/_. We remove only the
+		// prefix-specific policies (not wildcard or ungrouped).
+		nsPrefix := "/" + namespaceID + "/"
+		policies, _ := c.enforcer.GetFilteredPolicy(0, subjectID)
+		for _, p := range policies {
+			dom := p[1]
+			if strings.HasPrefix(dom, nsPrefix) {
+				slug := strings.TrimPrefix(dom, nsPrefix)
+				if slug != "*" && slug != "_" {
+					c.enforcer.RemoveFilteredPolicy(0, subjectID, dom)
+				}
+			}
+		}
+	}
+
 	return c.enforcer.SavePolicy()
 }
 

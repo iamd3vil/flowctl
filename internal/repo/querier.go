@@ -150,6 +150,7 @@ type Querier interface {
 	RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error)
 	RemoveAllGroupsForUserByUUID(ctx context.Context, userUuid uuid.UUID) error
 	RemoveNamespaceMember(ctx context.Context, arg RemoveNamespaceMemberParams) (NamespaceMember, error)
+	RevokeAllMemberPrefixAccess(ctx context.Context, arg RevokeAllMemberPrefixAccessParams) error
 	RevokeGroupPrefixAccess(ctx context.Context, arg RevokeGroupPrefixAccessParams) error
 	RevokeUserPrefixAccess(ctx context.Context, arg RevokeUserPrefixAccessParams) error
 	SearchCredentials(ctx context.Context, arg SearchCredentialsParams) ([]SearchCredentialsRow, error)

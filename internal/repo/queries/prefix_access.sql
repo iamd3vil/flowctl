@@ -58,6 +58,14 @@ AND (
     OR pa.group_id = (SELECT nm.group_id FROM namespace_members nm WHERE nm.uuid = $2)
 );
 
+-- name: RevokeAllMemberPrefixAccess :exec
+DELETE FROM prefix_access
+WHERE namespace_id = (SELECT namespaces.id FROM namespaces WHERE namespaces.uuid = $1)
+AND (
+    user_id = (SELECT nm.user_id FROM namespace_members nm WHERE nm.uuid = $2)
+    OR group_id = (SELECT nm.group_id FROM namespace_members nm WHERE nm.uuid = $2)
+);
+
 -- name: GetUserAccessiblePrefixes :many
 SELECT DISTINCT fp.name as prefix FROM prefix_access pa
 JOIN flow_prefixes fp ON pa.prefix_id = fp.id
