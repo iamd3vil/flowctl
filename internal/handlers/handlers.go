@@ -56,6 +56,7 @@ func NewHandler(logger *slog.Logger, db *sql.DB, co *core.Core, cfg config.Confi
 	validate := validator.New()
 	validate.RegisterValidation("alphanum_underscore", models.AlphanumericUnderscore)
 	validate.RegisterValidation("alphanum_whitespace", models.AlphanumericSpace)
+	validate.RegisterValidation("no_html", models.NoHTML)
 
 	sessMgr := simplesessions.New(simplesessions.Options{
 		EnableAutoCreate: false,

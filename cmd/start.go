@@ -332,45 +332,43 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	api.GET("/permissions", h.HandleGetCasbinPermissions)
 	api.POST("/permissions/check", h.HandleCheckPermissions)
 
-	// Namespace management
 	api.GET("/namespaces", h.HandleListNamespaces)
 	api.GET("/namespaces/:namespaceID", h.HandleGetNamespace, h.AuthorizeForRole("superuser"))
 	api.POST("/namespaces", h.HandleCreateNamespace, h.AuthorizeForRole("superuser"))
 	api.PUT("/namespaces/:namespaceID", h.HandleUpdateNamespace, h.AuthorizeForRole("superuser"))
 	api.DELETE("/namespaces/:namespaceID", h.HandleDeleteNamespace, h.AuthorizeForRole("superuser"))
 
-	// Namespace-specific resource endpoints using RBAC
 	namespaceGroup := api.Group("/:namespace", h.NamespaceMiddleware)
-
-	// Flow routes - list/search use namespace:view (filtering done in handler)
 	namespaceGroup.GET("/flows", h.HandleFlowsPagination, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
 	namespaceGroup.POST("/flows", h.HandleCreateFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
+
 	namespaceGroup.GET("/flows/groups/me", h.HandleListMyFlowGroups, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
-	namespaceGroup.GET("/flows/groups/:group", h.HandleGetFlowGroup, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
+	namespaceGroup.GET("/flows/groups/:group", h.HandleGetFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/groups", h.HandleListFlowGroups, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.POST("/flows/groups", h.HandleCreateFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
 	namespaceGroup.PUT("/flows/groups/:groupID", h.HandleUpdateFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/flows/groups/:groupID", h.HandleDeleteFlowGroup, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionDelete))
+
 	namespaceGroup.GET("/flows/:flowID", h.HandleGetFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.PUT("/flows/:flowID", h.HandleUpdateFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/flows/:flowID", h.HandleDeleteFlow, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionDelete))
+
 	namespaceGroup.GET("/flows/executions/:execID", h.HandleGetExecutionSummary, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.POST("/flows/executions/:execID/cancel", h.HandleCancelExecution, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionUpdate))
 	namespaceGroup.POST("/flows/executions/:execID/retry", h.HandleRetryExecution, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionUpdate))
 	namespaceGroup.GET("/flows/:flowID/executions", h.HandleExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
 	namespaceGroup.GET("/flows/executions", h.HandleAllExecutionsPagination, h.AuthorizeNamespaceAction(models.ResourceNamespace, models.RBACActionView))
+
 	namespaceGroup.GET("/flows/:flowID/inputs", h.HandleGetFlowInputs, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/meta", h.HandleGetFlowMeta, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/config", h.HandleGetFlowConfig, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
 
-	// Flow secrets routes - only admins can manage secrets
 	namespaceGroup.GET("/flows/:flowID/secrets", h.HandleListFlowSecrets, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/secrets/:secretID", h.HandleGetFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))
 	namespaceGroup.POST("/flows/:flowID/secrets", h.HandleCreateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionCreate))
 	namespaceGroup.PUT("/flows/:flowID/secrets/:secretID", h.HandleUpdateFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/flows/:flowID/secrets/:secretID", h.HandleDeleteFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionDelete))
 
-	// Flow schedule routes - users can manage their own schedules
 	namespaceGroup.GET("/flows/:flowID/schedules", h.HandleListSchedules, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.GET("/flows/:flowID/schedules/:schedule_id", h.HandleGetSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.POST("/flows/:flowID/schedules", h.HandleCreateSchedule, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
@@ -380,7 +378,6 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.POST("/trigger/:flow", h.HandleFlowTrigger, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionExecute))
 	namespaceGroup.GET("/logs/:logID", h.HandleLogStreaming, h.AuthorizeNamespaceAction(models.ResourceExecution, models.RBACActionView))
 
-	// Node routes - only admins can create/update/delete
 	namespaceGroup.GET("/nodes", h.HandleListNodes, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
 	namespaceGroup.GET("/nodes/stats", h.HandleGetNodeStats, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
 	namespaceGroup.GET("/nodes/:nodeID", h.HandleGetNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionView))
@@ -388,30 +385,25 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 	namespaceGroup.PUT("/nodes/:nodeID", h.HandleUpdateNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/nodes/:nodeID", h.HandleDeleteNode, h.AuthorizeNamespaceAction(models.ResourceNode, models.RBACActionDelete))
 
-	// Credential routes - only admins can create/update/delete
 	namespaceGroup.GET("/credentials", h.HandleListCredentials, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionView))
 	namespaceGroup.GET("/credentials/:credID", h.HandleGetCredential, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionView))
 	namespaceGroup.POST("/credentials", h.HandleCreateCredential, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionCreate))
 	namespaceGroup.PUT("/credentials/:credID", h.HandleUpdateCredential, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/credentials/:credID", h.HandleDeleteCredential, h.AuthorizeNamespaceAction(models.ResourceCredential, models.RBACActionDelete))
 
-	// Approval routes - operators and admins
 	namespaceGroup.GET("/approvals", h.HandleListApprovals, h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionView))
 	namespaceGroup.GET("/approvals/:approvalID", h.HandleGetApproval, h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionView))
 	namespaceGroup.POST("/approvals/:approvalID", h.HandleApprovalAction, h.AuthorizeNamespaceAction(models.ResourceApproval, models.RBACActionApprove))
 
-	// Namespace management - admins only
 	namespaceGroup.GET("/members", h.HandleGetNamespaceMembers, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionView))
 	namespaceGroup.POST("/members", h.HandleAddNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionCreate))
 	namespaceGroup.PUT("/members/:membershipID", h.HandleUpdateNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID", h.HandleRemoveNamespaceMember, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionDelete))
 
-	// Member group access management
 	namespaceGroup.GET("/members/:membershipID/groups", h.HandleGetMemberGroups, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionView))
 	namespaceGroup.POST("/members/:membershipID/groups", h.HandleGrantGroupAccess, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 	namespaceGroup.DELETE("/members/:membershipID/groups/:group", h.HandleRevokeGroupAccess, h.AuthorizeNamespaceAction(models.ResourceMember, models.RBACActionUpdate))
 
-	// Namespace secrets routes - admins only
 	namespaceGroup.GET("/secrets", h.HandleListNamespaceSecrets, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionView))
 	namespaceGroup.GET("/secrets/:secretID", h.HandleGetNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionView))
 	namespaceGroup.POST("/secrets", h.HandleCreateNamespaceSecret, h.AuthorizeNamespaceAction(models.ResourceNamespaceSecret, models.RBACActionCreate))

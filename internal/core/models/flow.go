@@ -95,11 +95,11 @@ func SchedulerActionToAction(a scheduler.Action) Action {
 type Metadata struct {
 	ID              string `yaml:"id" huml:"id" validate:"required,alphanum_underscore"`
 	DBID            int32  `yaml:"-" huml:"-"`
-	Name            string `yaml:"name" huml:"name" validate:"required"`
-	Description     string `yaml:"description" huml:"description"`
+	Name            string `yaml:"name" huml:"name" validate:"required,alphanum_whitespace,min=1,max=150"`
+	Description     string `yaml:"description" huml:"description" validate:"max=255,no_html"`
 	SrcDir          string `yaml:"-" huml:"-"`
 	Namespace       string `yaml:"namespace" huml:"namespace"`
-	Prefix          string `yaml:"prefix" huml:"prefix"`
+	Prefix          string `yaml:"prefix" huml:"prefix" validate:"omitempty,alphanum_underscore,max=100"`
 	AllowOverlap    bool   `yaml:"allow_overlap" huml:"allow_overlap"`
 	UserSchedulable bool   `yaml:"user_schedulable" huml:"user_schedulable"`
 }
@@ -169,6 +169,11 @@ func AlphanumericSpace(fl validator.FieldLevel) bool {
 	return regex.MatchString(value)
 }
 
+func NoHTML(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	return !strings.Contains(value, "<") && !strings.Contains(value, ">")
+}
+
 // ValidNotificationReceiver validates notification receiver format
 // Receivers must be either a valid email address or group reference "group:name"
 func ValidNotificationReceiver(fl validator.FieldLevel) bool {
@@ -196,6 +201,8 @@ func (f Flow) Validate() error {
 	validate := validator.New()
 
 	validate.RegisterValidation("alphanum_underscore", AlphanumericUnderscore)
+	validate.RegisterValidation("alphanum_whitespace", AlphanumericSpace)
+	validate.RegisterValidation("no_html", NoHTML)
 
 	actionsIDs := make(map[string]int)
 	for _, action := range f.Actions {
@@ -211,6 +218,11 @@ func (f Flow) Validate() error {
 		if err := validateDefaultValue(input); err != nil {
 			return fmt.Errorf("validation error for input %s: %w", input.Name, err)
 		}
+	}
+
+	// Reject reserved prefix values that collide with Casbin domain sentinels
+	if f.Meta.Prefix == "_" {
+		return fmt.Errorf("prefix %q is reserved and cannot be used", f.Meta.Prefix)
 	}
 
 	// Check if schedules are set on a flow with file inputs

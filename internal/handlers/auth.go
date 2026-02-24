@@ -374,17 +374,26 @@ func (h *Handler) HandleCheckPermissions(c echo.Context) error {
 
 	results := make(map[string]bool, len(req.Permissions))
 	for _, p := range req.Permissions {
+		resource := models.Resource(p.Resource)
+		action := models.RBACAction(p.Action)
+
+		if !models.ValidResource(resource) || !models.ValidRBACAction(action) {
+			key := p.Domain + ":" + p.Resource + ":" + p.Action
+			results[key] = false
+			continue
+		}
+
 		allowed, err := h.co.CheckPermission(
 			c.Request().Context(),
 			user.ID,
 			p.Domain,
-			models.Resource(p.Resource),
-			models.RBACAction(p.Action),
+			resource,
+			action,
 		)
 		if err != nil {
 			allowed = false
 		}
-		key := p.Resource + ":" + p.Action
+		key := p.Domain + ":" + p.Resource + ":" + p.Action
 		results[key] = allowed
 	}
 

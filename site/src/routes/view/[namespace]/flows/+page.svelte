@@ -307,7 +307,7 @@
         },
     ];
 
-    const actions = $derived(() => {
+    const actions = $derived.by(() => {
         const actionsList: TableAction<FlowTableRow>[] = [];
 
         const isFlow = (row: FlowTableRow) => row._kind === 'flow';
@@ -336,7 +336,7 @@
     });
 
     // Breadcrumbs
-    const breadcrumbs = $derived(() => {
+    const breadcrumbs = $derived.by(() => {
         const crumbs = [
             { label: page.params.namespace! },
             { label: "Flows", url: `/view/${page.params.namespace}/flows` },
@@ -352,7 +352,7 @@
     <title>{activeGroup ? `${activeGroup} - ` : ''}Flows - {page.params.namespace} - Flowctl</title>
 </svelte:head>
 
-<Header breadcrumbs={breadcrumbs()}>
+<Header breadcrumbs={breadcrumbs}>
     {#snippet children()}
         {#if !activeGroup}
             <SearchInput
@@ -399,7 +399,7 @@
     <Table
         {columns}
         data={tableData}
-        actions={actions()}
+        actions={actions}
         {loading}
         emptyMessage={activeGroup
             ? `No flows in the "${activeGroup}" group`

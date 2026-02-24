@@ -297,24 +297,27 @@ func (c *Core) UpdateNamespaceMember(ctx context.Context, membershipID, namespac
 			return fmt.Errorf("failed to revoke prefix access on downgrade: %w", err)
 		}
 
-		// Remove Casbin prefix policies for this subject in this namespace.
-		// Prefix policies use domains like /<nsID>/<prefix>, while role groupings
-		// use /<nsID>/* and ungrouped flows use /<nsID>/_. We remove only the
-		// prefix-specific policies (not wildcard or ungrouped).
-		nsPrefix := "/" + namespaceID + "/"
-		policies, _ := c.enforcer.GetFilteredPolicy(0, subjectID)
-		for _, p := range policies {
-			dom := p[1]
-			if strings.HasPrefix(dom, nsPrefix) {
-				slug := strings.TrimPrefix(dom, nsPrefix)
-				if slug != "*" && slug != "_" {
-					c.enforcer.RemoveFilteredPolicy(0, subjectID, dom)
-				}
-			}
-		}
+		c.removePrefixPolicies(subjectID, namespaceID)
 	}
 
 	return c.enforcer.SavePolicy()
+}
+
+// removePrefixPolicies removes all Casbin prefix-specific p-policies for a subject in a namespace.
+// Prefix policies use domains like /<nsID>/<prefix>, while role groupings use /<nsID>/*
+// and ungrouped flows use /<nsID>/_. Only prefix-specific policies are removed.
+func (c *Core) removePrefixPolicies(subjectID, namespaceID string) {
+	nsPrefix := "/" + namespaceID + "/"
+	policies, _ := c.enforcer.GetFilteredPolicy(0, subjectID)
+	for _, p := range policies {
+		dom := p[1]
+		if strings.HasPrefix(dom, nsPrefix) {
+			slug := strings.TrimPrefix(dom, nsPrefix)
+			if slug != "*" && slug != "_" {
+				c.enforcer.RemoveFilteredPolicy(0, subjectID, dom)
+			}
+		}
+	}
 }
 
 // RemoveNamespaceMember removes a user or group from a namespace
@@ -351,9 +354,19 @@ func (c *Core) RemoveNamespaceMember(ctx context.Context, membershipID, namespac
 		}
 		subjectID = fmt.Sprintf("group:%s", group.Uuid.String())
 	}
+	// Revoke all prefix access rows for this member
+	err = c.store.RevokeAllMemberPrefixAccess(ctx, repo.RevokeAllMemberPrefixAccessParams{
+		Uuid:   namespaceUUID,
+		Uuid_2: membershipUUID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to revoke prefix access: %w", err)
+	}
+
 	if subjectID != "" {
 		domain := "/" + namespaceID + "/*"
 		c.enforcer.RemoveFilteredGroupingPolicy(0, subjectID, "", domain)
+		c.removePrefixPolicies(subjectID, namespaceID)
 	}
 
 	return c.enforcer.SavePolicy()

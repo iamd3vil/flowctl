@@ -152,6 +152,8 @@ func (h *Handler) AuthorizeNamespaceAction(resource models.Resource, action mode
 					if f, err := h.co.GetFlowByID(flowSlug, namespaceID); err == nil {
 						domain = core.FlowDomain(namespaceID, f.Meta.Prefix)
 					}
+				} else if group := c.Param("group"); group != "" {
+					domain = core.FlowDomain(namespaceID, group)
 				}
 			}
 

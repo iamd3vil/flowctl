@@ -421,9 +421,9 @@ func coreFlowInputsToInputs(inputs []models.Input) []FlowInput {
 
 type FlowMeta struct {
 	ID              string     `json:"id"`
-	Name            string     `json:"name"`
-	Description     string     `json:"description"`
-	Prefix          string     `json:"prefix"`
+	Name            string     `json:"name" validate:"required,min=1,max=150,alphanum_whitespace"`
+	Description     string     `json:"description" validate:"max=255,no_html"`
+	Prefix          string     `json:"prefix" validate:"omitempty,alphanum_underscore,max=100"`
 	Schedules       []Schedule `json:"schedules"`
 	Namespace       string     `json:"namespace"`
 	AllowOverlap    bool       `json:"allow_overlap"`
@@ -714,7 +714,7 @@ type FlowUpdateReq struct {
 	Notify          []Notify        `json:"notify" validate:"omitempty,dive"`
 	AllowOverlap    bool            `json:"allow_overlap"`
 	UserSchedulable bool            `json:"user_schedulable"`
-	Description     string          `json:"description" validate:"max=255"`
+	Description     string          `json:"description" validate:"max=255,no_html"`
 	Inputs          []FlowInputReq  `json:"inputs" validate:"required,dive"`
 	Actions         []FlowActionReq `json:"actions" validate:"required,dive"`
 }
@@ -966,7 +966,7 @@ type FlowGroupsResponse struct {
 
 type FlowGroupReq struct {
 	Name        string `json:"name" validate:"required,min=1,max=100,alphanum_underscore"`
-	Description string `json:"description" validate:"max=500"`
+	Description string `json:"description" validate:"max=500,no_html"`
 }
 
 type FlowGroupDetailResp struct {

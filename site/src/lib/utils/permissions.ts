@@ -125,7 +125,7 @@ export async function permissionChecker(
     const data: { results: Record<string, boolean> } = await response.json();
 
     for (const action of actions) {
-      const key = `${resourceType}:${action}`;
+      const key = `${domain}:${resourceType}:${action}`;
       const allowed = data.results[key] || false;
       switch (action) {
         case 'create':

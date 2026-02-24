@@ -9,6 +9,7 @@ CREATE TABLE flow_prefixes (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_prefix_per_namespace UNIQUE(namespace_id, name)
 );
+CREATE UNIQUE INDEX idx_flow_prefixes_uuid ON flow_prefixes(uuid);
 CREATE INDEX idx_flow_prefixes_namespace ON flow_prefixes(namespace_id);
 
 -- 2. Add prefix_id FK to flows (replaces old VARCHAR prefix column)
@@ -31,6 +32,7 @@ CREATE TABLE prefix_access (
     CONSTRAINT unique_user_prefix UNIQUE(user_id, namespace_id, prefix_id),
     CONSTRAINT unique_group_prefix UNIQUE(group_id, namespace_id, prefix_id)
 );
+CREATE UNIQUE INDEX idx_prefix_access_uuid ON prefix_access(uuid);
 CREATE INDEX idx_prefix_access_namespace ON prefix_access(namespace_id);
 CREATE INDEX idx_prefix_access_user ON prefix_access(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX idx_prefix_access_group ON prefix_access(group_id) WHERE group_id IS NOT NULL;

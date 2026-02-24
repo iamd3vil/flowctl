@@ -120,7 +120,7 @@
   }
 
   // Get groups that haven't been assigned yet
-  const unassignedPrefixes = $derived(() => {
+  const unassignedPrefixes = $derived.by(() => {
     const assignedPrefixes = new Set(memberPrefixes.map(p => p.prefix));
     return availablePrefixes.filter(p => !assignedPrefixes.has(p.prefix));
   });
@@ -286,7 +286,7 @@
               {/if}
 
               <!-- Add from available prefixes -->
-              {#if unassignedPrefixes().length > 0}
+              {#if unassignedPrefixes.length > 0}
                 <div class="flex gap-2">
                   <select
                     bind:value={newPrefix}
@@ -294,7 +294,7 @@
                     disabled={prefixLoading}
                   >
                     <option value="">Select a group...</option>
-                    {#each unassignedPrefixes() as prefix}
+                    {#each unassignedPrefixes as prefix}
                       <option value={prefix.prefix}>{prefix.prefix}{prefix.description ? ` — ${prefix.description}` : ''}</option>
                     {/each}
                   </select>
