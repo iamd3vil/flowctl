@@ -11,6 +11,6 @@ jobs:
   check-approval:
     runs-on: ubuntu-latest
     steps:
-      - uses: knadh/approve-pr-from-issue@v1
+      - uses: knadh/approve-pr-creation-from-issue@v1.0.0
         with:
           exclude_past_contributors: "true"
