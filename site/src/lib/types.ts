@@ -98,6 +98,7 @@ export interface FlowListItem {
   slug: string;
   name: string;
   description: string;
+  prefix: string;
   schedules: Schedule[];
   step_count: number;
 }
@@ -128,6 +129,7 @@ export interface FlowMeta {
   id: string;
   name: string;
   description: string;
+  prefix: string;
   schedules: Schedule[];
   namespace: string;
   allow_overlap: boolean;
@@ -413,6 +415,32 @@ export interface ExecutionsPaginateResponse
   executions: ExecutionSummary[];
 }
 
+// Flow group types
+export interface FlowGroupResp {
+  prefix: string;
+  description: string;
+  flow_count: number;
+}
+
+export interface FlowGroupsResponse {
+  groups: FlowGroupResp[];
+}
+
+export interface FlowGroupDetail {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface GroupAccessResp {
+  prefix: string;
+  created_at: string;
+}
+
+export interface GroupAccessListResp {
+  groups: GroupAccessResp[];
+}
+
 // Group access types
 export interface GroupAccessReq {
   group_id: string;
@@ -464,6 +492,7 @@ export interface FlowCreateReq {
 export interface FlowMetaReq {
   name: string;
   description?: string;
+  prefix?: string;
   schedules?: Schedule[];
   allow_overlap?: boolean;
 }
@@ -503,8 +532,10 @@ export interface FlowCreateResp {
 }
 
 export interface FlowUpdateReq {
+  prefix?: string;
   schedules: Schedule[];
   allow_overlap?: boolean;
+  user_schedulable?: boolean;
   description?: string;
   inputs: FlowInputReq[];
   actions: FlowActionReq[];
@@ -527,6 +558,7 @@ export interface TableAction<T = any> {
   onClick?: (row: T, event?: Event) => void;
   href?: (row: T) => string;
   className?: string;
+  visible?: (row: T) => boolean;
 }
 
 export interface TableProps<T = any> {

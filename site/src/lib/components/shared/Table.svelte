@@ -277,25 +277,27 @@
                                 class="px-6 py-4 whitespace-nowrap text-sm font-medium w-32"
                             >
                                 {#each actions as action}
-                                    {#if action.href}
-                                        <a
-                                            href={action.href(row)}
-                                            class="{action.className ||
-                                                ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors inline-block"
-                                            aria-label={action.label}
-                                        >
-                                            {action.label}
-                                        </a>
-                                    {:else}
-                                        <button
-                                            onclick={(e) =>
-                                                handleActionClick(action, row, e)}
-                                            class="{action.className ||
-                                                ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors"
-                                            aria-label={action.label}
-                                        >
-                                            {action.label}
-                                        </button>
+                                    {#if !action.visible || action.visible(row)}
+                                        {#if action.href}
+                                            <a
+                                                href={action.href(row)}
+                                                class="{action.className ||
+                                                    ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors inline-block"
+                                                aria-label={action.label}
+                                            >
+                                                {action.label}
+                                            </a>
+                                        {:else}
+                                            <button
+                                                onclick={(e) =>
+                                                    handleActionClick(action, row, e)}
+                                                class="{action.className ||
+                                                    ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors"
+                                                aria-label={action.label}
+                                            >
+                                                {action.label}
+                                            </button>
+                                        {/if}
                                     {/if}
                                 {/each}
                             </td>

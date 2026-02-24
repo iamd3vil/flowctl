@@ -6,6 +6,7 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
@@ -19,11 +20,14 @@ type Querier interface {
 	AddGroupToUserByUUID(ctx context.Context, arg AddGroupToUserByUUIDParams) error
 	ApproveRequestByUUID(ctx context.Context, arg ApproveRequestByUUIDParams) (ApproveRequestByUUIDRow, error)
 	AssignGroupNamespaceRole(ctx context.Context, arg AssignGroupNamespaceRoleParams) (NamespaceMember, error)
+	AssignGroupPrefixAccess(ctx context.Context, arg AssignGroupPrefixAccessParams) error
 	AssignUserNamespaceRole(ctx context.Context, arg AssignUserNamespaceRoleParams) (NamespaceMember, error)
+	AssignUserPrefixAccess(ctx context.Context, arg AssignUserPrefixAccessParams) error
 	CancelTasksByExecID(ctx context.Context, execID string) error
 	CreateCredential(ctx context.Context, arg CreateCredentialParams) (Credential, error)
 	CreateCronSchedule(ctx context.Context, arg CreateCronScheduleParams) (CronSchedule, error)
 	CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error)
+	CreateFlowPrefix(ctx context.Context, arg CreateFlowPrefixParams) (FlowPrefix, error)
 	CreateFlowSecret(ctx context.Context, arg CreateFlowSecretParams) (FlowSecret, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
 	CreateNamespace(ctx context.Context, name string) (Namespace, error)
@@ -36,6 +40,7 @@ type Querier interface {
 	DeleteAllFlows(ctx context.Context) error
 	DeleteCredential(ctx context.Context, arg DeleteCredentialParams) error
 	DeleteFlow(ctx context.Context, arg DeleteFlowParams) error
+	DeleteFlowPrefix(ctx context.Context, arg DeleteFlowPrefixParams) error
 	DeleteFlowSecret(ctx context.Context, arg DeleteFlowSecretParams) error
 	DeleteGroupByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteNamespace(ctx context.Context, argUuid uuid.UUID) error
@@ -59,6 +64,7 @@ type Querier interface {
 	GetAllGroupsWithUsers(ctx context.Context) ([]GroupView, error)
 	GetAllNamespaceMembers(ctx context.Context) ([]GetAllNamespaceMembersRow, error)
 	GetAllNamespaces(ctx context.Context) ([]Namespace, error)
+	GetAllPrefixAccesses(ctx context.Context) ([]GetAllPrefixAccessesRow, error)
 	GetAllUsersWithGroups(ctx context.Context) ([]UserView, error)
 	GetApprovalByUUID(ctx context.Context, arg GetApprovalByUUIDParams) (GetApprovalByUUIDRow, error)
 	GetApprovalRequestForActionAndExec(ctx context.Context, arg GetApprovalRequestForActionAndExecParams) (Approval, error)
@@ -70,6 +76,7 @@ type Querier interface {
 	GetCronSchedulesByFlowID(ctx context.Context, flowID int32) ([]CronSchedule, error)
 	// Used internally for execution - returns all secrets for a namespace
 	GetDecryptedNamespaceSecrets(ctx context.Context, argUuid uuid.UUID) ([]GetDecryptedNamespaceSecretsRow, error)
+	GetDistinctPrefixes(ctx context.Context, argUuid uuid.UUID) ([]GetDistinctPrefixesRow, error)
 	GetExecutionActionRetries(ctx context.Context, arg GetExecutionActionRetriesParams) (pqtype.NullRawMessage, error)
 	GetExecutionByExecID(ctx context.Context, arg GetExecutionByExecIDParams) (GetExecutionByExecIDRow, error)
 	GetExecutionByExecIDWithNamespace(ctx context.Context, arg GetExecutionByExecIDWithNamespaceParams) (GetExecutionByExecIDWithNamespaceRow, error)
@@ -77,18 +84,24 @@ type Querier interface {
 	GetExecutionsByFlow(ctx context.Context, arg GetExecutionsByFlowParams) ([]GetExecutionsByFlowRow, error)
 	GetExecutionsByFlowPaginated(ctx context.Context, arg GetExecutionsByFlowPaginatedParams) ([]GetExecutionsByFlowPaginatedRow, error)
 	GetFlowBySlug(ctx context.Context, arg GetFlowBySlugParams) (Flow, error)
+	GetFlowCountByPrefix(ctx context.Context, prefixID sql.NullInt32) (int64, error)
 	GetFlowFromExecID(ctx context.Context, arg GetFlowFromExecIDParams) (Flow, error)
 	GetFlowFromExecIDWithNamespace(ctx context.Context, arg GetFlowFromExecIDWithNamespaceParams) (Flow, error)
+	GetFlowPrefixByName(ctx context.Context, arg GetFlowPrefixByNameParams) (FlowPrefix, error)
+	GetFlowPrefixByUUID(ctx context.Context, arg GetFlowPrefixByUUIDParams) (FlowPrefix, error)
 	GetFlowSecretByUUID(ctx context.Context, arg GetFlowSecretByUUIDParams) (GetFlowSecretByUUIDRow, error)
 	GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error)
+	GetFlowsByPrefix(ctx context.Context, arg GetFlowsByPrefixParams) ([]GetFlowsByPrefixRow, error)
 	GetGroupByID(ctx context.Context, id int32) (Group, error)
 	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
 	GetGroupByUUIDWithUsers(ctx context.Context, argUuid uuid.UUID) (GroupView, error)
 	GetGroupMembersByName(ctx context.Context, name string) ([]GetGroupMembersByNameRow, error)
 	GetInputForExecByUUID(ctx context.Context, arg GetInputForExecByUUIDParams) (json.RawMessage, error)
+	GetMemberPrefixes(ctx context.Context, arg GetMemberPrefixesParams) ([]GetMemberPrefixesRow, error)
 	GetNamespaceByName(ctx context.Context, name string) (Namespace, error)
 	GetNamespaceByUUID(ctx context.Context, argUuid uuid.UUID) (Namespace, error)
+	GetNamespaceMemberByUUID(ctx context.Context, arg GetNamespaceMemberByUUIDParams) (GetNamespaceMemberByUUIDRow, error)
 	GetNamespaceMembers(ctx context.Context, argUuid uuid.UUID) ([]GetNamespaceMembersRow, error)
 	GetNamespaceSecretByUUID(ctx context.Context, arg GetNamespaceSecretByUUIDParams) (GetNamespaceSecretByUUIDRow, error)
 	GetNodeByName(ctx context.Context, arg GetNodeByNameParams) (GetNodeByNameRow, error)
@@ -97,9 +110,11 @@ type Querier interface {
 	GetNodesByNames(ctx context.Context, arg GetNodesByNamesParams) ([]GetNodesByNamesRow, error)
 	GetNodesByTags(ctx context.Context, arg GetNodesByTagsParams) ([]GetNodesByTagsRow, error)
 	GetPendingTasks(ctx context.Context, limit int32) ([]SchedulerTask, error)
+	GetPrefixMembers(ctx context.Context, arg GetPrefixMembersParams) ([]GetPrefixMembersRow, error)
 	GetScheduleByFlowAndCron(ctx context.Context, arg GetScheduleByFlowAndCronParams) (CronSchedule, error)
 	GetScheduledExecutionsByFlow(ctx context.Context, arg GetScheduledExecutionsByFlowParams) ([]GetScheduledExecutionsByFlowRow, error)
 	GetScheduledFlows(ctx context.Context) ([]GetScheduledFlowsRow, error)
+	GetUserAccessiblePrefixes(ctx context.Context, arg GetUserAccessiblePrefixesParams) ([]string, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserByUUIDWithGroups(ctx context.Context, argUuid uuid.UUID) (UserView, error)
@@ -122,9 +137,11 @@ type Querier interface {
 	GetUserScheduleByUUID(ctx context.Context, arg GetUserScheduleByUUIDParams) (GetUserScheduleByUUIDRow, error)
 	GetUsersByRole(ctx context.Context, role UserRoleType) ([]User, error)
 	IncrementActionRetry(ctx context.Context, arg IncrementActionRetryParams) (IncrementActionRetryRow, error)
+	ListFlowPrefixes(ctx context.Context, argUuid uuid.UUID) ([]FlowPrefix, error)
 	ListFlowSecrets(ctx context.Context, arg ListFlowSecretsParams) ([]ListFlowSecretsRow, error)
 	ListFlows(ctx context.Context, arg ListFlowsParams) ([]ListFlowsRow, error)
 	ListFlowsPaginated(ctx context.Context, arg ListFlowsPaginatedParams) ([]ListFlowsPaginatedRow, error)
+	ListFlowsPaginatedFiltered(ctx context.Context, arg ListFlowsPaginatedFilteredParams) ([]ListFlowsPaginatedFilteredRow, error)
 	ListNamespaceSecrets(ctx context.Context, argUuid uuid.UUID) ([]ListNamespaceSecretsRow, error)
 	ListNamespaces(ctx context.Context, arg ListNamespacesParams) ([]ListNamespacesRow, error)
 	ListSchedules(ctx context.Context, arg ListSchedulesParams) ([]ListSchedulesRow, error)
@@ -133,9 +150,13 @@ type Querier interface {
 	RejectRequestByUUID(ctx context.Context, arg RejectRequestByUUIDParams) (RejectRequestByUUIDRow, error)
 	RemoveAllGroupsForUserByUUID(ctx context.Context, userUuid uuid.UUID) error
 	RemoveNamespaceMember(ctx context.Context, arg RemoveNamespaceMemberParams) (NamespaceMember, error)
+	RevokeAllMemberPrefixAccess(ctx context.Context, arg RevokeAllMemberPrefixAccessParams) error
+	RevokeGroupPrefixAccess(ctx context.Context, arg RevokeGroupPrefixAccessParams) error
+	RevokeUserPrefixAccess(ctx context.Context, arg RevokeUserPrefixAccessParams) error
 	SearchCredentials(ctx context.Context, arg SearchCredentialsParams) ([]SearchCredentialsRow, error)
 	SearchExecutionsPaginated(ctx context.Context, arg SearchExecutionsPaginatedParams) ([]SearchExecutionsPaginatedRow, error)
 	SearchFlowsPaginated(ctx context.Context, arg SearchFlowsPaginatedParams) ([]SearchFlowsPaginatedRow, error)
+	SearchFlowsPaginatedFiltered(ctx context.Context, arg SearchFlowsPaginatedFilteredParams) ([]SearchFlowsPaginatedFilteredRow, error)
 	SearchGroup(ctx context.Context, arg SearchGroupParams) ([]SearchGroupRow, error)
 	SearchNodes(ctx context.Context, arg SearchNodesParams) ([]SearchNodesRow, error)
 	SearchUsersWithGroups(ctx context.Context, arg SearchUsersWithGroupsParams) ([]SearchUsersWithGroupsRow, error)
@@ -146,6 +167,7 @@ type Querier interface {
 	UpdateExecutionStartedAt(ctx context.Context, arg UpdateExecutionStartedAtParams) error
 	UpdateExecutionStatus(ctx context.Context, arg UpdateExecutionStatusParams) (ExecutionLog, error)
 	UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, error)
+	UpdateFlowPrefix(ctx context.Context, arg UpdateFlowPrefixParams) (FlowPrefix, error)
 	UpdateFlowSecret(ctx context.Context, arg UpdateFlowSecretParams) (FlowSecret, error)
 	UpdateGroupByUUID(ctx context.Context, arg UpdateGroupByUUIDParams) (Group, error)
 	UpdateNamespace(ctx context.Context, arg UpdateNamespaceParams) (Namespace, error)

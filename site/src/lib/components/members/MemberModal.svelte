@@ -2,12 +2,14 @@
   import { handleInlineError } from '$lib/utils/errorHandling';
   import { autofocus } from '$lib/utils/autofocus';
   import UserGroupSelector from '$lib/components/shared/UserGroupSelector.svelte';
-  import type { NamespaceMemberReq, NamespaceMemberResp, User, Group } from '$lib/types';
-  import { IconUsers, IconUser } from '@tabler/icons-svelte';
+  import type { NamespaceMemberReq, NamespaceMemberResp, FlowGroupResp, User, Group } from '$lib/types';
+  import { apiClient } from '$lib/apiClient';
+  import { IconUsers, IconUser, IconX, IconPlus, IconFolder } from '@tabler/icons-svelte';
 
   interface Props {
     isEditMode?: boolean;
     memberData?: NamespaceMemberResp | null;
+    namespace: string;
     onSave: (memberData: NamespaceMemberReq) => void;
     onClose: () => void;
   }
@@ -15,6 +17,7 @@
   let {
     isEditMode = false,
     memberData = null,
+    namespace,
     onSave,
     onClose
   }: Props = $props();
@@ -30,6 +33,12 @@
   let selectedSubject = $state<User | Group | null>(null);
   let loading = $state(false);
 
+  // Group access state
+  let memberPrefixes = $state<FlowGroupResp[]>([]);
+  let availablePrefixes = $state<FlowGroupResp[]>([]);
+  let prefixLoading = $state(false);
+  let newPrefix = $state('');
+
   // Initialize form data when memberData changes
   $effect(() => {
     if (isEditMode && memberData) {
@@ -44,14 +53,76 @@
         name: memberData.subject_name,
         username: memberData.subject_name // For users, this would be the username
       } as User | Group;
+
+      // Load prefixes for this member
+      loadMemberPrefixes();
     } else {
       resetForm();
+    }
+  });
+
+  // Load available prefixes when role is user (for the add dropdown)
+  $effect(() => {
+    if (isEditMode && memberForm.role === 'user') {
+      loadAvailablePrefixes();
     }
   });
 
   // Update subject_id when selectedSubject changes
   $effect(() => {
     memberForm.subject_id = selectedSubject?.id || '';
+  });
+
+  async function loadMemberPrefixes() {
+    if (!isEditMode || !memberData) return;
+    try {
+      const result = await apiClient.namespaces.members.groups.list(namespace, memberData.id);
+      memberPrefixes = result.groups || [];
+    } catch {
+      memberPrefixes = [];
+    }
+  }
+
+  async function loadAvailablePrefixes() {
+    try {
+      const result = await apiClient.flows.groups.list(namespace);
+      availablePrefixes = result.groups || [];
+    } catch {
+      availablePrefixes = [];
+    }
+  }
+
+  async function addPrefix(prefix: string) {
+    if (!memberData || !prefix.trim()) return;
+    prefixLoading = true;
+    try {
+      await apiClient.namespaces.members.groups.add(namespace, memberData.id, { prefix: prefix.trim() });
+      await loadMemberPrefixes();
+      newPrefix = '';
+    } catch (err) {
+      handleInlineError(err, 'Unable to Grant Group Access');
+    } finally {
+      prefixLoading = false;
+    }
+  }
+
+  async function removePrefix(prefix: string) {
+    if (!memberData) return;
+    prefixLoading = true;
+    try {
+      await apiClient.namespaces.members.groups.remove(namespace, memberData.id, prefix);
+      await loadMemberPrefixes();
+    } catch (err) {
+      handleInlineError(err, 'Unable to Revoke Group Access');
+    } finally {
+      prefixLoading = false;
+    }
+  }
+
+  // Get groups that haven't been assigned yet
+  const unassignedPrefixes = $derived.by(() => {
+    const assignedPrefixes = new Set(memberPrefixes.map(p => p.prefix));
+    return availablePrefixes.filter(p => !assignedPrefixes.has(p.prefix));
   });
 
   function onSubjectTypeChange() {
@@ -93,6 +164,8 @@
       role: 'user'
     };
     selectedSubject = null;
+    memberPrefixes = [];
+    newPrefix = '';
   }
 
   // Close on Escape key
@@ -182,6 +255,63 @@
               <option value="admin">Admin - Full access to namespace management</option>
             </select>
           </div>
+
+          <!-- Prefix Access (edit mode, user role only) -->
+          {#if isEditMode && memberData && memberData.role === 'user' && memberForm.role === 'user'}
+            <div class="mb-4">
+              <label class="block mb-1 font-medium text-foreground">Prefix Access</label>
+              <p class="text-xs text-muted-foreground mb-2">
+                Users can only see ungrouped flows by default. Grant access to specific prefixes below.
+              </p>
+
+              <!-- Current prefixes -->
+              {#if memberPrefixes.length > 0}
+                <div class="flex flex-wrap gap-2 mb-3">
+                  {#each memberPrefixes as prefix}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm bg-primary-100 text-primary-700">
+                      <IconFolder class="w-3.5 h-3.5" />
+                      {prefix.prefix}
+                      <button
+                        type="button"
+                        onclick={() => removePrefix(prefix.prefix)}
+                        disabled={prefixLoading}
+                        class="ml-0.5 hover:text-danger-600 cursor-pointer disabled:opacity-50"
+                        title="Remove access"
+                      >
+                        <IconX class="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Add from available prefixes -->
+              {#if unassignedPrefixes.length > 0}
+                <div class="flex gap-2">
+                  <select
+                    bind:value={newPrefix}
+                    class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block flex-1 p-2"
+                    disabled={prefixLoading}
+                  >
+                    <option value="">Select a group...</option>
+                    {#each unassignedPrefixes as prefix}
+                      <option value={prefix.prefix}>{prefix.prefix}{prefix.description ? ` — ${prefix.description}` : ''}</option>
+                    {/each}
+                  </select>
+                  <button
+                    type="button"
+                    onclick={() => newPrefix && addPrefix(newPrefix)}
+                    disabled={prefixLoading || !newPrefix}
+                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <IconPlus class="w-4 h-4" />
+                  </button>
+                </div>
+              {:else if memberPrefixes.length === 0}
+                <p class="text-xs text-muted-foreground italic">No flow prefixes available in this namespace.</p>
+              {/if}
+            </div>
+          {/if}
 
           <!-- Actions -->
           <div class="flex justify-end gap-2 mt-6">

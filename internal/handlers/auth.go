@@ -354,6 +354,52 @@ func (h *Handler) HandleGetCasbinPermissions(c echo.Context) error {
 	})
 }
 
+// HandleCheckPermissions evaluates permission checks server-side and returns results.
+func (h *Handler) HandleCheckPermissions(c echo.Context) error {
+	user, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
+	}
+
+	var req struct {
+		Permissions []struct {
+			Resource string `json:"resource"`
+			Action   string `json:"action"`
+			Domain   string `json:"domain"`
+		} `json:"permissions"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return wrapError(ErrValidationFailed, "invalid request body", err, nil)
+	}
+
+	results := make(map[string]bool, len(req.Permissions))
+	for _, p := range req.Permissions {
+		resource := models.Resource(p.Resource)
+		action := models.RBACAction(p.Action)
+
+		if !models.ValidResource(resource) || !models.ValidRBACAction(action) {
+			key := p.Domain + ":" + p.Resource + ":" + p.Action
+			results[key] = false
+			continue
+		}
+
+		allowed, err := h.co.CheckPermission(
+			c.Request().Context(),
+			user.ID,
+			p.Domain,
+			resource,
+			action,
+		)
+		if err != nil {
+			allowed = false
+		}
+		key := p.Domain + ":" + p.Resource + ":" + p.Action
+		results[key] = allowed
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"results": results})
+}
+
 func (h *Handler) HandleGetSSOProviders(c echo.Context) error {
 	var providers []SSOProvider
 

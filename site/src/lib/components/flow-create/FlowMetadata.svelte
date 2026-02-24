@@ -2,9 +2,11 @@
     import { createSlug, isValidCronExpression } from "$lib/utils";
     import { getTimezones } from "$lib/utils/timezone";
     import type { Schedule } from "$lib/types";
+    import FlowGroupSelector from "./FlowGroupSelector.svelte";
 
     let {
         metadata = $bindable(),
+        namespace,
         inputs = [],
         updatemode = false,
     }: {
@@ -12,11 +14,13 @@
             id: string;
             name: string;
             description: string;
+            prefix: string;
             schedules: Schedule[];
             namespace: string;
             allow_overlap: boolean;
             user_schedulable: boolean;
         };
+        namespace: string;
         inputs?: any[];
         updatemode?: boolean;
     } = $props();
@@ -123,6 +127,7 @@
                 placeholder="Describe what this flow does..."
             ></textarea>
         </div>
+        <FlowGroupSelector {namespace} bind:value={metadata.prefix} />
     </div>
 
     <!-- Scheduling Subsection -->

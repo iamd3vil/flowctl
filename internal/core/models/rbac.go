@@ -48,3 +48,36 @@ type NamespaceMember struct {
 	UpdatedAt   string
 	Name        string
 }
+
+type FlowPrefix struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+type PrefixAccess struct {
+	Prefix    string
+	CreatedAt string
+}
+
+// ValidResource checks if the given resource is a known RBAC resource.
+func ValidResource(r Resource) bool {
+	switch r {
+	case ResourceFlow, ResourceFlowSecret, ResourceNamespaceSecret, ResourceNode,
+		ResourceCredential, ResourceMember, ResourceExecution, ResourceApproval, ResourceNamespace:
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidRBACAction checks if the given action is a known RBAC action.
+func ValidRBACAction(a RBACAction) bool {
+	switch a {
+	case RBACActionView, RBACActionExecute, RBACActionApprove,
+		RBACActionUpdate, RBACActionDelete, RBACActionCreate:
+		return true
+	default:
+		return false
+	}
+}

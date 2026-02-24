@@ -205,3 +205,80 @@ func (h *Handler) HandleRemoveNamespaceMember(c echo.Context) error {
 
 	return c.NoContent(http.StatusOK)
 }
+
+func (h *Handler) HandleGetMemberGroups(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	membershipID := c.Param("membershipID")
+	if membershipID == "" {
+		return wrapError(ErrRequiredFieldMissing, "membership ID cannot be empty", nil, nil)
+	}
+
+	prefixes, err := h.co.GetMemberPrefixes(c.Request().Context(), namespace, membershipID)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not get member groups", err, nil)
+	}
+
+	groups := make([]FlowGroupResp, 0, len(prefixes))
+	for _, p := range prefixes {
+		groups = append(groups, FlowGroupResp{
+			Prefix:      p.Name,
+			Description: p.Description,
+		})
+	}
+
+	return c.JSON(http.StatusOK, FlowGroupsResponse{Groups: groups})
+}
+
+func (h *Handler) HandleGrantGroupAccess(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	membershipID := c.Param("membershipID")
+	if membershipID == "" {
+		return wrapError(ErrRequiredFieldMissing, "membership ID cannot be empty", nil, nil)
+	}
+
+	var req GroupAccessReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(ErrInvalidInput, "could not decode request", err, nil)
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
+	}
+
+	if err := h.co.GrantPrefixAccessForMember(c.Request().Context(), namespace, membershipID, req.Prefix); err != nil {
+		return wrapError(ErrOperationFailed, "could not grant group access", err, nil)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+func (h *Handler) HandleRevokeGroupAccess(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	membershipID := c.Param("membershipID")
+	if membershipID == "" {
+		return wrapError(ErrRequiredFieldMissing, "membership ID cannot be empty", nil, nil)
+	}
+
+	group := c.Param("group")
+	if group == "" {
+		return wrapError(ErrRequiredFieldMissing, "group cannot be empty", nil, nil)
+	}
+
+	if err := h.co.RevokePrefixAccessForMember(c.Request().Context(), namespace, membershipID, group); err != nil {
+		return wrapError(ErrOperationFailed, "could not revoke group access", err, nil)
+	}
+
+	return c.NoContent(http.StatusOK)
+}

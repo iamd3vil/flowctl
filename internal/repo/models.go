@@ -395,6 +395,17 @@ type Flow struct {
 	IsActive    bool           `db:"is_active" json:"is_active"`
 	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID    sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
+}
+
+type FlowPrefix struct {
+	ID          int32     `db:"id" json:"id"`
+	Uuid        uuid.UUID `db:"uuid" json:"uuid"`
+	NamespaceID int32     `db:"namespace_id" json:"namespace_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type FlowSecret struct {
@@ -480,6 +491,16 @@ type Node struct {
 	NamespaceID    int32                `db:"namespace_id" json:"namespace_id"`
 	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
+}
+
+type PrefixAccess struct {
+	ID          int32         `db:"id" json:"id"`
+	Uuid        uuid.UUID     `db:"uuid" json:"uuid"`
+	UserID      sql.NullInt32 `db:"user_id" json:"user_id"`
+	GroupID     sql.NullInt32 `db:"group_id" json:"group_id"`
+	NamespaceID int32         `db:"namespace_id" json:"namespace_id"`
+	PrefixID    int32         `db:"prefix_id" json:"prefix_id"`
+	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
 }
 
 type SchedulerTask struct {

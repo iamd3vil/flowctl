@@ -232,6 +232,7 @@
 	<MemberModal
 		{isEditMode}
 		memberData={selectedMember}
+		namespace={data.namespace}
 		onSave={handleMemberSave}
 		onClose={closeMemberModal}
 	/>

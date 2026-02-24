@@ -29,6 +29,7 @@
             id: "",
             name: "",
             description: "",
+            prefix: "",
             schedules: [] as Schedule[],
             namespace: namespace,
             allow_overlap: false,
@@ -122,6 +123,7 @@
                 metadata: {
                     name: flow.metadata.name,
                     description: flow.metadata.description || undefined,
+                    prefix: flow.metadata.prefix || undefined,
                     schedules:
                         flow.metadata.schedules?.filter((s) => s.cron.trim()) ||
                         undefined,
@@ -239,6 +241,7 @@
                         {#if activeTab === "metadata"}
                             <FlowMetadata
                                 bind:metadata={flow.metadata}
+                                {namespace}
                                 inputs={flow.inputs}
                             />
                         {:else if activeTab === "inputs"}

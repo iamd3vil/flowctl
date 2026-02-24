@@ -8,7 +8,7 @@ export const load: PageLoad = async ({ parent }) => {
   
   // Check update permissions
   try {
-    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['update']);
+    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['update'], '_');
     if (!permissions.canUpdate) {
       error(403, {
         message: 'You do not have permission to edit flows in this namespace',

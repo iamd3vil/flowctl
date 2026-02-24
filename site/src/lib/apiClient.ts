@@ -15,6 +15,9 @@ import type {
   FlowCreateResp,
   FlowUpdateReq,
   Flow,
+  FlowGroupsResponse,
+  FlowGroupResp,
+  FlowGroupDetail,
   NodeReq,
   NodeResp,
   NodesPaginateResponse,
@@ -207,6 +210,19 @@ export const apiClient = {
         baseFetch<void>(`/api/v1/${namespace}/members/${memberId}`, {
           method: 'DELETE',
         }),
+      groups: {
+        list: (namespace: string, memberId: string) =>
+          baseFetch<FlowGroupsResponse>(`/api/v1/${namespace}/members/${memberId}/groups`),
+        add: (namespace: string, memberId: string, data: { prefix: string }) =>
+          baseFetch<void>(`/api/v1/${namespace}/members/${memberId}/groups`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+        remove: (namespace: string, memberId: string, group: string) =>
+          baseFetch<void>(`/api/v1/${namespace}/members/${memberId}/groups/${group}`, {
+            method: 'DELETE',
+          }),
+      },
     },
 
     // Namespace group access
@@ -260,6 +276,28 @@ export const apiClient = {
         body: formData,
         headers: {},
       });
+    },
+    groups: {
+      me: (namespace: string) =>
+        baseFetch<FlowGroupsResponse>(`/api/v1/${namespace}/flows/groups/me`),
+      get: (namespace: string, group: string) =>
+        baseFetch<FlowListResponse>(`/api/v1/${namespace}/flows/groups/${group}`),
+      list: (namespace: string) =>
+        baseFetch<FlowGroupsResponse>(`/api/v1/${namespace}/flows/groups`),
+      create: (namespace: string, data: { name: string; description: string }) =>
+        baseFetch<FlowGroupDetail>(`/api/v1/${namespace}/flows/groups`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      update: (namespace: string, groupId: string, data: { name: string; description: string }) =>
+        baseFetch<FlowGroupDetail>(`/api/v1/${namespace}/flows/groups/${groupId}`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
+      delete: (namespace: string, groupId: string) =>
+        baseFetch<void>(`/api/v1/${namespace}/flows/groups/${groupId}`, {
+          method: 'DELETE',
+        }),
     },
     schedules: {
       list: (namespace: string, flowId: string, params: PaginateRequest = {}) =>

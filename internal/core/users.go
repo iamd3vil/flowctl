@@ -279,7 +279,7 @@ func (c *Core) GrantSuperusersAdminAccessToAllNamespaces(ctx context.Context) er
 	// Grant admin access to each superuser for all namespaces using wildcard
 	for _, user := range superusers {
 		userSubject := fmt.Sprintf("user:%s", user.Uuid.String())
-		c.enforcer.AddGroupingPolicy(userSubject, "role:admin", "*")
+		c.enforcer.AddGroupingPolicy(userSubject, "role:admin", "/*")
 	}
 
 	return c.enforcer.SavePolicy()

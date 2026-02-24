@@ -8,7 +8,7 @@ export const load: PageLoad = async ({ parent }) => {
   
   // Check create permissions
   try {
-    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['create']);
+    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['create'], '_');
     if (!permissions.canCreate) {
       error(403, {
         message: 'You do not have permission to create flows in this namespace',

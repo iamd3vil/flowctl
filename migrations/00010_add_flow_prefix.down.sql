@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS prefix_access;
+ALTER TABLE flows DROP COLUMN IF EXISTS prefix_id;
+DROP TABLE IF EXISTS flow_prefixes;
