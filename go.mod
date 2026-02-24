@@ -6,7 +6,7 @@ require (
 	github.com/casbin/casbin/v2 v2.110.0
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/cvhariharan/qssh v0.1.0
-	github.com/docker/docker v28.3.3+incompatible
+	github.com/docker/docker v28.2.2+incompatible
 	github.com/expr-lang/expr v1.17.7
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/golang-migrate/migrate/v4 v4.18.3
@@ -27,7 +27,7 @@ require (
 	github.com/nxadm/tail v1.4.11
 	github.com/pkg/sftp v1.13.9
 	github.com/prometheus/client_golang v1.23.2
-	github.com/quic-go/quic-go v0.57.0
+	github.com/quic-go/quic-go v0.54.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.6.0
 	github.com/spf13/cobra v1.9.1
@@ -35,7 +35,7 @@ require (
 	github.com/zerodha/simplesessions/stores/postgres/v3 v3.0.0
 	github.com/zerodha/simplesessions/v3 v3.0.0
 	gocloud.dev v0.43.0
-	golang.org/x/crypto v0.45.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/oauth2 v0.30.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -102,11 +102,15 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/mock v0.5.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/mod v0.26.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/api v0.242.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
