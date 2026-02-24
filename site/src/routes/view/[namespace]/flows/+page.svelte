@@ -15,6 +15,7 @@
         type ResourcePermissions,
     } from "$lib/utils/permissions";
     import DeleteModal from "$lib/components/shared/DeleteModal.svelte";
+    import GroupEditModal from "$lib/components/shared/GroupEditModal.svelte";
 
     interface FlowTableRow {
         _kind: 'group' | 'flow';
@@ -44,6 +45,8 @@
     });
     let showDeleteModal = $state(false);
     let flowToDelete = $state<FlowTableRow | null>(null);
+    let showEditGroupModal = $state(false);
+    let groupToEdit = $state<FlowTableRow | null>(null);
 
     // Handle the async data from load function
     $effect(() => {
@@ -145,6 +148,35 @@
         flowToDelete = null;
     };
 
+    const handleEditGroup = (row: FlowTableRow) => {
+        groupToEdit = row;
+        showEditGroupModal = true;
+    };
+
+    const saveGroupEdit = async (data: { description: string }) => {
+        if (!groupToEdit) return;
+
+        await apiClient.flows.groups.update(
+            page.params.namespace!,
+            groupToEdit.id,
+            { name: groupToEdit.prefix, description: data.description },
+        );
+        showSuccess(
+            "Group Updated",
+            `Group "${groupToEdit.prefix}" has been updated successfully`,
+        );
+        // Reload groups
+        const result = await apiClient.flows.groups.list(page.params.namespace!);
+        groups = result.groups || [];
+        showEditGroupModal = false;
+        groupToEdit = null;
+    };
+
+    const cancelEditGroup = () => {
+        showEditGroupModal = false;
+        groupToEdit = null;
+    };
+
     // Check permissions on mount
     const checkPermissions = async () => {
         permissions = await permissionChecker(
@@ -225,11 +257,11 @@
                 rows.push({
                     _kind: 'group',
                     name: g.prefix,
-                    description: '',
+                    description: g.description || '',
                     prefix: g.prefix,
                     flow_count: g.flow_count,
                     slug: '',
-                    id: '',
+                    id: g.id,
                     step_count: 0,
                 });
             }
@@ -288,21 +320,9 @@
         {
             key: "description",
             header: "Description",
-            render: (value: string, row: FlowTableRow) => {
-                if (row._kind === 'group') return '';
+            render: (value: string) => {
+                if (!value) return '';
                 return `<div class="text-sm text-muted-foreground max-w-xs truncate">${value}</div>`;
-            },
-        },
-        {
-            key: "step_count",
-            header: "Steps",
-            render: (value: number, row: FlowTableRow) => {
-                if (row._kind === 'group') return '';
-                return `
-                <div class="flex items-center text-sm text-muted-foreground">
-                    <span>${value || 0}</span>
-                    <span class="ml-1">steps</span>
-                </div>`;
             },
         },
     ];
@@ -315,10 +335,14 @@
         if (permissions.canUpdate) {
             actionsList.push({
                 label: "Edit",
-                visible: isFlow,
-                onClick: (row: FlowTableRow) => goToEditFlow(row.slug),
-                className:
-                    "text-link border-link hover:bg-link-hover",
+                onClick: (row: FlowTableRow) => {
+                    if (row._kind === 'group') {
+                        handleEditGroup(row);
+                    } else {
+                        goToEditFlow(row.slug);
+                    }
+                },
+                className: "text-link",
             });
         }
 
@@ -327,8 +351,7 @@
                 label: "Delete",
                 visible: isFlow,
                 onClick: (row: FlowTableRow) => handleDeleteFlow(row),
-                className:
-                    "text-danger-600 border-danger-600 hover:bg-danger-100 transition-colors",
+                className: "text-danger-600",
             });
         }
 
@@ -442,5 +465,15 @@
         itemName={flowToDelete.name}
         onConfirm={confirmDeleteFlow}
         onClose={cancelDelete}
+    />
+{/if}
+
+<!-- Edit Group Modal -->
+{#if showEditGroupModal && groupToEdit}
+    <GroupEditModal
+        groupName={groupToEdit.prefix}
+        description={groupToEdit.description}
+        onSave={saveGroupEdit}
+        onClose={cancelEditGroup}
     />
 {/if}

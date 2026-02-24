@@ -417,6 +417,7 @@ export interface ExecutionsPaginateResponse
 
 // Flow group types
 export interface FlowGroupResp {
+  id: string;
   prefix: string;
   description: string;
   flow_count: number;

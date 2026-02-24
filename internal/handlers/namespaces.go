@@ -225,6 +225,7 @@ func (h *Handler) HandleGetMemberGroups(c echo.Context) error {
 	groups := make([]FlowGroupResp, 0, len(prefixes))
 	for _, p := range prefixes {
 		groups = append(groups, FlowGroupResp{
+			ID:          p.ID,
 			Prefix:      p.Name,
 			Description: p.Description,
 		})

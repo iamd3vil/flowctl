@@ -955,6 +955,7 @@ func coreSchedulesToScheduleResps(schedules []models.Schedule) []ScheduleResp {
 
 // Flow group types
 type FlowGroupResp struct {
+	ID          string `json:"id"`
 	Prefix      string `json:"prefix"`
 	Description string `json:"description"`
 	FlowCount   int64  `json:"flow_count"`

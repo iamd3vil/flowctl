@@ -31,6 +31,7 @@ func (h *Handler) HandleListMyFlowGroups(c echo.Context) error {
 			return wrapError(ErrOperationFailed, "could not get flow count", err, nil)
 		}
 		groups = append(groups, FlowGroupResp{
+			ID:          prefix.ID,
 			Prefix:      prefix.Name,
 			Description: prefix.Description,
 			FlowCount:   count,
@@ -84,6 +85,7 @@ func (h *Handler) HandleListFlowGroups(c echo.Context) error {
 			return wrapError(ErrOperationFailed, "could not get flow count", err, nil)
 		}
 		groups = append(groups, FlowGroupResp{
+			ID:          p.ID,
 			Prefix:      p.Name,
 			Description: p.Description,
 			FlowCount:   count,

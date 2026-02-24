@@ -35,6 +35,36 @@
 
     let sortKey = $state<string | null>(null);
     let sortDirection = $state<SortDirection>(null);
+    let openMenuIndex = $state<number | null>(null);
+    let menuPosition = $state<{ top: number; left: number }>({ top: 0, left: 0 });
+
+    const toggleMenu = (index: number, event: Event) => {
+        event.stopPropagation();
+        if (openMenuIndex === index) {
+            openMenuIndex = null;
+            return;
+        }
+        const button = event.currentTarget as HTMLElement;
+        const rect = button.getBoundingClientRect();
+        menuPosition = {
+            top: rect.bottom + 4,
+            left: rect.right - 144, // 144 = w-36 (9rem)
+        };
+        openMenuIndex = index;
+    };
+
+    const closeMenu = () => {
+        openMenuIndex = null;
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+        if (openMenuIndex !== null) {
+            const target = event.target as HTMLElement;
+            if (!target.closest('.actions-menu')) {
+                closeMenu();
+            }
+        }
+    };
 
     const getValue = (row: T, column: TableColumn<T>) => {
         const keys = column.key.split(".");
@@ -239,9 +269,9 @@
                     {#if actions.length > 0}
                         <th
                             scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32"
+                            class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-16"
                         >
-                            Actions
+                            <span class="sr-only">Actions</span>
                         </th>
                     {/if}
                 </tr>
@@ -273,33 +303,28 @@
                             </td>
                         {/each}
                         {#if actions.length > 0}
+                            {@const rowIndex = sortedData.indexOf(row)}
+                            {@const visibleActions = actions.filter(a => !a.visible || a.visible(row))}
                             <td
-                                class="px-6 py-4 whitespace-nowrap text-sm font-medium w-32"
+                                class="px-6 py-4 whitespace-nowrap text-sm font-medium w-16 text-right"
                             >
-                                {#each actions as action}
-                                    {#if !action.visible || action.visible(row)}
-                                        {#if action.href}
-                                            <a
-                                                href={action.href(row)}
-                                                class="{action.className ||
-                                                    ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors inline-block"
-                                                aria-label={action.label}
-                                            >
-                                                {action.label}
-                                            </a>
-                                        {:else}
-                                            <button
-                                                onclick={(e) =>
-                                                    handleActionClick(action, row, e)}
-                                                class="{action.className ||
-                                                    ' border-primary-500 text-primary-600 hover:bg-primary-50'} border mr-3 cursor-pointer px-3 py-1 rounded transition-colors"
-                                                aria-label={action.label}
-                                            >
-                                                {action.label}
-                                            </button>
-                                        {/if}
-                                    {/if}
-                                {/each}
+                                {#if visibleActions.length > 0}
+                                    <div class="actions-menu inline-block">
+                                        <button
+                                            onclick={(e) => toggleMenu(rowIndex, e)}
+                                            class="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                            aria-label="Actions"
+                                            aria-haspopup="true"
+                                            aria-expanded={openMenuIndex === rowIndex}
+                                        >
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <circle cx="10" cy="4" r="1.5" />
+                                                <circle cx="10" cy="10" r="1.5" />
+                                                <circle cx="10" cy="16" r="1.5" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                {/if}
                             </td>
                         {/if}
                     </tr>
@@ -309,3 +334,37 @@
         </div>
     {/if}
 </div>
+
+{#if openMenuIndex !== null}
+    {@const row = sortedData[openMenuIndex]}
+    {@const visibleActions = actions.filter(a => !a.visible || a.visible(row))}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+        class="fixed inset-0 z-40"
+        onclick={closeMenu}
+        onkeydown={(e) => { if (e.key === 'Escape') closeMenu(); }}
+    ></div>
+    <div
+        class="actions-menu fixed z-50 w-36 bg-card border border-border rounded-md shadow-lg py-1"
+        style="top: {menuPosition.top}px; left: {menuPosition.left}px;"
+    >
+        {#each visibleActions as action}
+            {#if action.href}
+                <a
+                    href={action.href(row)}
+                    class="block w-full text-left px-4 py-2 text-sm {action.className || 'text-foreground'} hover:bg-muted transition-colors"
+                    onclick={() => closeMenu()}
+                >
+                    {action.label}
+                </a>
+            {:else}
+                <button
+                    onclick={(e) => { handleActionClick(action, row, e); closeMenu(); }}
+                    class="block w-full text-left px-4 py-2 text-sm {action.className || 'text-foreground'} hover:bg-muted transition-colors cursor-pointer"
+                >
+                    {action.label}
+                </button>
+            {/if}
+        {/each}
+    </div>
+{/if}
