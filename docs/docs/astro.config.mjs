@@ -28,6 +28,7 @@ export default defineConfig({
           label: "General",
           items: [
             { label: "Flows", slug: "general/flows" },
+            { label: "Flow Groups", slug: "general/flow-groups" },
             {
               label: "Nodes and Executors",
               slug: "general/nodes-and-executors",
