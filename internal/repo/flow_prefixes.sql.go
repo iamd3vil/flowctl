@@ -7,6 +7,8 @@ package repo
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -104,6 +106,72 @@ func (q *Queries) GetFlowPrefixByUUID(ctx context.Context, arg GetFlowPrefixByUU
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getFlowsByPrefixUUID = `-- name: GetFlowsByPrefixUUID :many
+SELECT f.id, f.slug, f.name, f.checksum, f.description, f.file_path, f.namespace_id, f.is_active, f.created_at, f.updated_at, f.prefix_id, n.uuid AS namespace_uuid FROM flows f
+JOIN namespaces n ON f.namespace_id = n.id
+JOIN flow_prefixes fp ON f.prefix_id = fp.id
+WHERE fp.uuid = $1
+AND n.uuid = $2
+AND f.is_active = TRUE
+ORDER BY f.name ASC
+`
+
+type GetFlowsByPrefixUUIDParams struct {
+	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
+}
+
+type GetFlowsByPrefixUUIDRow struct {
+	ID            int32          `db:"id" json:"id"`
+	Slug          string         `db:"slug" json:"slug"`
+	Name          string         `db:"name" json:"name"`
+	Checksum      string         `db:"checksum" json:"checksum"`
+	Description   sql.NullString `db:"description" json:"description"`
+	FilePath      string         `db:"file_path" json:"file_path"`
+	NamespaceID   int32          `db:"namespace_id" json:"namespace_id"`
+	IsActive      bool           `db:"is_active" json:"is_active"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	PrefixID      sql.NullInt32  `db:"prefix_id" json:"prefix_id"`
+	NamespaceUuid uuid.UUID      `db:"namespace_uuid" json:"namespace_uuid"`
+}
+
+func (q *Queries) GetFlowsByPrefixUUID(ctx context.Context, arg GetFlowsByPrefixUUIDParams) ([]GetFlowsByPrefixUUIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFlowsByPrefixUUID, arg.Uuid, arg.Uuid_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFlowsByPrefixUUIDRow
+	for rows.Next() {
+		var i GetFlowsByPrefixUUIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Checksum,
+			&i.Description,
+			&i.FilePath,
+			&i.NamespaceID,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PrefixID,
+			&i.NamespaceUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFlowPrefixes = `-- name: ListFlowPrefixes :many

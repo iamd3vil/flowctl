@@ -122,21 +122,34 @@
         if (!flowToDelete) return;
 
         try {
-            await apiClient.flows.delete(
-                page.params.namespace!,
-                flowToDelete.slug,
-            );
-            showSuccess(
-                "Flow Deleted",
-                `Flow "${flowToDelete.name}" has been deleted successfully`,
-            );
-            if (activeGroup) {
-                await loadGroupFlows(activeGroup);
+            if (flowToDelete._kind === 'group') {
+                await apiClient.flows.groups.delete(
+                    page.params.namespace!,
+                    flowToDelete.id,
+                );
+                showSuccess(
+                    "Group Deleted",
+                    `Group "${flowToDelete.name}" and all its flows have been deleted successfully`,
+                );
+                const result = await apiClient.flows.groups.list(page.params.namespace!);
+                groups = result.groups || [];
             } else {
-                await loadFlows(searchValue, currentPage);
+                await apiClient.flows.delete(
+                    page.params.namespace!,
+                    flowToDelete.slug,
+                );
+                showSuccess(
+                    "Flow Deleted",
+                    `Flow "${flowToDelete.name}" has been deleted successfully`,
+                );
+                if (activeGroup) {
+                    await loadGroupFlows(activeGroup);
+                } else {
+                    await loadFlows(searchValue, currentPage);
+                }
             }
         } catch (err) {
-            handleInlineError(err, "Unable to Delete Flow");
+            handleInlineError(err, flowToDelete._kind === 'group' ? "Unable to Delete Group" : "Unable to Delete Flow");
         } finally {
             showDeleteModal = false;
             flowToDelete = null;
@@ -349,7 +362,6 @@
         if (permissions.canDelete) {
             actionsList.push({
                 label: "Delete",
-                visible: isFlow,
                 onClick: (row: FlowTableRow) => handleDeleteFlow(row),
                 className: "text-danger-600",
             });
@@ -461,8 +473,9 @@
 <!-- Delete Modal -->
 {#if showDeleteModal && flowToDelete}
     <DeleteModal
-        title="Delete Flow"
+        title={flowToDelete._kind === 'group' ? "Delete Group" : "Delete Flow"}
         itemName={flowToDelete.name}
+        description={flowToDelete._kind === 'group' ? "This will permanently delete all flows in this group." : null}
         onConfirm={confirmDeleteFlow}
         onClose={cancelDelete}
     />

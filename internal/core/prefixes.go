@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
@@ -77,7 +78,7 @@ func (c *Core) UpdateFlowPrefix(ctx context.Context, prefixUUID, namespaceID, na
 	return repoFlowPrefixToModel(fp), nil
 }
 
-// DeleteFlowPrefix deletes a flow prefix by UUID.
+// DeleteFlowPrefix deletes a flow prefix by UUID and all flows in the group.
 func (c *Core) DeleteFlowPrefix(ctx context.Context, prefixUUID, namespaceID string) error {
 	pUUID, err := uuid.Parse(prefixUUID)
 	if err != nil {
@@ -88,10 +89,33 @@ func (c *Core) DeleteFlowPrefix(ctx context.Context, prefixUUID, namespaceID str
 		return fmt.Errorf("invalid namespace UUID: %w", err)
 	}
 
-	return c.store.DeleteFlowPrefix(ctx, repo.DeleteFlowPrefixParams{
+	// Get all flows in this group before deleting the prefix
+	flowRows, err := c.store.GetFlowsByPrefixUUID(ctx, repo.GetFlowsByPrefixUUIDParams{
 		Uuid:   pUUID,
 		Uuid_2: namespaceUUID,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to get flows for prefix: %w", err)
+	}
+
+	// Delete the prefix (sets flows' prefix_id to NULL via ON DELETE SET NULL)
+	if err := c.store.DeleteFlowPrefix(ctx, repo.DeleteFlowPrefixParams{
+		Uuid:   pUUID,
+		Uuid_2: namespaceUUID,
+	}); err != nil {
+		return err
+	}
+
+	// Delete all flows in the group in the background
+	go func() {
+		for _, f := range flowRows {
+			if err := c.DeleteFlow(context.Background(), f.Slug, namespaceID); err != nil {
+				log.Printf("error deleting flow %s during group deletion: %v", f.Slug, err)
+			}
+		}
+	}()
+
+	return nil
 }
 
 // GetFlowPrefix returns a flow prefix by UUID.

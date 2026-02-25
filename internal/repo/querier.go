@@ -92,6 +92,7 @@ type Querier interface {
 	GetFlowSecretByUUID(ctx context.Context, arg GetFlowSecretByUUIDParams) (GetFlowSecretByUUIDRow, error)
 	GetFlowsByNamespace(ctx context.Context, argUuid uuid.UUID) ([]GetFlowsByNamespaceRow, error)
 	GetFlowsByPrefix(ctx context.Context, arg GetFlowsByPrefixParams) ([]GetFlowsByPrefixRow, error)
+	GetFlowsByPrefixUUID(ctx context.Context, arg GetFlowsByPrefixUUIDParams) ([]GetFlowsByPrefixUUIDRow, error)
 	GetGroupByID(ctx context.Context, id int32) (Group, error)
 	GetGroupByName(ctx context.Context, name string) (Group, error)
 	GetGroupByUUID(ctx context.Context, argUuid uuid.UUID) (Group, error)
