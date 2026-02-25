@@ -7,9 +7,11 @@
     let {
         namespace,
         value = $bindable(""),
+        allowCreate = true,
     }: {
         namespace: string;
         value: string;
+        allowCreate?: boolean;
     } = $props();
 
     let searchQuery = $state("");
@@ -24,7 +26,8 @@
     );
 
     let showCreateOption = $derived(
-        searchQuery.trim() !== "" &&
+        allowCreate &&
+            searchQuery.trim() !== "" &&
             !groups.some(
                 (g) => g.prefix.toLowerCase() === searchQuery.toLowerCase(),
             ),
@@ -103,7 +106,7 @@
                 bind:value={searchQuery}
                 oninput={loadGroups}
                 onfocus={handleFocus}
-                placeholder="Search or create a group..."
+                placeholder={allowCreate ? "Search or create a group..." : "Search groups..."}
                 class="w-full px-3 py-2 text-sm text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 autocomplete="off"
             />
@@ -187,7 +190,7 @@
                         <div
                             class="px-4 py-3 text-sm text-muted-foreground text-center"
                         >
-                            No groups found. Type to create one.
+                            {allowCreate ? "No groups found. Type to create one." : "No groups found."}
                         </div>
                     {/if}
                 </div>

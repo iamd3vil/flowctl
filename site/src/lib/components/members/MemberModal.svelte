@@ -2,9 +2,10 @@
   import { handleInlineError } from '$lib/utils/errorHandling';
   import { autofocus } from '$lib/utils/autofocus';
   import UserGroupSelector from '$lib/components/shared/UserGroupSelector.svelte';
+  import FlowGroupSelector from '$lib/components/flow-create/FlowGroupSelector.svelte';
   import type { NamespaceMemberReq, NamespaceMemberResp, FlowGroupResp, User, Group } from '$lib/types';
   import { apiClient } from '$lib/apiClient';
-  import { IconUsers, IconUser, IconX, IconPlus, IconFolder } from '@tabler/icons-svelte';
+  import { IconUsers, IconUser, IconX, IconFolder } from '@tabler/icons-svelte';
 
   interface Props {
     isEditMode?: boolean;
@@ -35,9 +36,8 @@
 
   // Group access state
   let memberPrefixes = $state<FlowGroupResp[]>([]);
-  let availablePrefixes = $state<FlowGroupResp[]>([]);
   let prefixLoading = $state(false);
-  let newPrefix = $state('');
+  let selectedPrefix = $state('');
 
   // Initialize form data when memberData changes
   $effect(() => {
@@ -61,10 +61,14 @@
     }
   });
 
-  // Load available prefixes when role is user (for the add dropdown)
+  // Auto-add prefix when selected via FlowGroupSelector
   $effect(() => {
-    if (isEditMode && memberForm.role === 'user') {
-      loadAvailablePrefixes();
+    if (selectedPrefix) {
+      const alreadyAssigned = memberPrefixes.some(p => p.prefix === selectedPrefix);
+      if (!alreadyAssigned) {
+        addPrefix(selectedPrefix);
+      }
+      selectedPrefix = '';
     }
   });
 
@@ -83,22 +87,12 @@
     }
   }
 
-  async function loadAvailablePrefixes() {
-    try {
-      const result = await apiClient.flows.groups.list(namespace);
-      availablePrefixes = result.groups || [];
-    } catch {
-      availablePrefixes = [];
-    }
-  }
-
   async function addPrefix(prefix: string) {
     if (!memberData || !prefix.trim()) return;
     prefixLoading = true;
     try {
       await apiClient.namespaces.members.groups.add(namespace, memberData.id, { prefix: prefix.trim() });
       await loadMemberPrefixes();
-      newPrefix = '';
     } catch (err) {
       handleInlineError(err, 'Unable to Grant Group Access');
     } finally {
@@ -118,12 +112,6 @@
       prefixLoading = false;
     }
   }
-
-  // Get groups that haven't been assigned yet
-  const unassignedPrefixes = $derived.by(() => {
-    const assignedPrefixes = new Set(memberPrefixes.map(p => p.prefix));
-    return availablePrefixes.filter(p => !assignedPrefixes.has(p.prefix));
-  });
 
   function onSubjectTypeChange() {
     selectedSubject = null;
@@ -165,7 +153,7 @@
     };
     selectedSubject = null;
     memberPrefixes = [];
-    newPrefix = '';
+    selectedPrefix = '';
   }
 
   // Close on Escape key
@@ -259,9 +247,8 @@
           <!-- Prefix Access (edit mode, user role only) -->
           {#if isEditMode && memberData && memberData.role === 'user' && memberForm.role === 'user'}
             <div class="mb-4">
-              <label class="block mb-1 font-medium text-foreground">Prefix Access</label>
               <p class="text-xs text-muted-foreground mb-2">
-                Users can only see ungrouped flows by default. Grant access to specific prefixes below.
+                Users can only see ungrouped flows by default. Grant access to specific groups below.
               </p>
 
               <!-- Current prefixes -->
@@ -285,31 +272,8 @@
                 </div>
               {/if}
 
-              <!-- Add from available prefixes -->
-              {#if unassignedPrefixes.length > 0}
-                <div class="flex gap-2">
-                  <select
-                    bind:value={newPrefix}
-                    class="bg-muted border border-input text-foreground text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent block flex-1 p-2"
-                    disabled={prefixLoading}
-                  >
-                    <option value="">Select a group...</option>
-                    {#each unassignedPrefixes as prefix}
-                      <option value={prefix.prefix}>{prefix.prefix}{prefix.description ? ` — ${prefix.description}` : ''}</option>
-                    {/each}
-                  </select>
-                  <button
-                    type="button"
-                    onclick={() => newPrefix && addPrefix(newPrefix)}
-                    disabled={prefixLoading || !newPrefix}
-                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    <IconPlus class="w-4 h-4" />
-                  </button>
-                </div>
-              {:else if memberPrefixes.length === 0}
-                <p class="text-xs text-muted-foreground italic">No flow prefixes available in this namespace.</p>
-              {/if}
+              <!-- Add group access -->
+              <FlowGroupSelector {namespace} bind:value={selectedPrefix} allowCreate={false} />
             </div>
           {/if}
 
