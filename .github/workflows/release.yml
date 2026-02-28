@@ -38,6 +38,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get previous stable tag
+        id: prev_tag
+        run: |
+          PREV=$(git tag --sort=-version:refname | grep -v -e '-beta' -e '-alpha' -e '-rc' | sed -n '2p')
+          echo "tag=$PREV" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -46,3 +52,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_PREVIOUS_TAG: ${{ steps.prev_tag.outputs.tag }}
