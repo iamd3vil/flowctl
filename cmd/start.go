@@ -80,6 +80,7 @@ type SharedComponents struct {
 
 // Cleanup cleans up all shared resources
 func (s *SharedComponents) Cleanup() {
+	CleanupPlugins()
 	if s.DB != nil {
 		s.DB.Close()
 	}
@@ -215,7 +216,7 @@ func initializeSharedComponents() *SharedComponents {
 	if err != nil {
 		log.Fatalf("failed to generate executor signing key: %v", err)
 	}
-	executorKeys := registerPlugins(executorSigningKey)
+	executorKeys := registerPlugins(appConfig.App.PluginDir, executorSigningKey)
 
 	// Create flow execution handler with core's secrets provider
 	flowHandler := scheduler.NewFlowExecutionHandler(scheduler.FlowHandlerConfig{

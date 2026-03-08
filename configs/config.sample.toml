@@ -24,6 +24,9 @@ root_url = "http://localhost:7000"
 # (required) Maximum file upload size in bytes (default: 104857600 = 100MB)
 max_file_upload_size = 104857600
 
+# (optional) Directory to load external executor plugins from
+# plugin_dir = ""
+
 [keystore]
 # (required) The keystore manages encryption keys for sensitive data
 # This is a random 32 byte key that is Base64 encoded

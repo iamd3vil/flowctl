@@ -417,15 +417,6 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 		},
 	}
 
-	driver, err := executor.NewNodeDriver(ctx, execNode)
-	if err != nil {
-		return ExecResults{
-			result: nil,
-			err:    fmt.Errorf("failed to create node driver: %w", err),
-		}
-	}
-	defer driver.Close()
-
 	ef, err := executor.GetNewExecutorFunc(action.Executor)
 	if err != nil {
 		return ExecResults{
@@ -433,16 +424,27 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 			err:    fmt.Errorf("failed to get executor for %s: %w", action.ID, err),
 		}
 	}
-	exec, err = ef(nodeExecutorID, driver, execID)
+	exec, err = ef(nodeExecutorID, execNode, execID)
 	if err != nil {
 		return ExecResults{
 			result: nil,
 			err:    fmt.Errorf("failed to create executor for %s: %w", action.ID, err),
 		}
 	}
+	defer exec.Close()
+
+	// Separate driver for artifact management
+	artifactDriver, err := executor.NewNodeDriver(ctx, execNode)
+	if err != nil {
+		return ExecResults{
+			result: nil,
+			err:    fmt.Errorf("failed to create artifact driver: %w", err),
+		}
+	}
+	defer artifactDriver.Close()
 
 	// Push existing artifacts to this node's executor before execution
-	if err := h.pushArtifactsWithDriver(ctx, driver, artifactDir, execID); err != nil {
+	if err := h.pushArtifactsWithDriver(ctx, artifactDriver, artifactDir, execID); err != nil {
 		return ExecResults{
 			result: nil,
 			err:    fmt.Errorf("failed to push artifacts to node %s: %w", node.Name, err),
@@ -470,7 +472,7 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 
 	// Pull all artifacts from this node after execution
 	if err == nil {
-		if pullErr := h.pullArtifactsWithDriver(ctx, driver, artifactDir, execID, node.Name); pullErr != nil {
+		if pullErr := h.pullArtifactsWithDriver(ctx, artifactDriver, artifactDir, execID, node.Name); pullErr != nil {
 			err = fmt.Errorf("execution succeeded but failed to pull artifacts: %w", pullErr)
 		}
 	}

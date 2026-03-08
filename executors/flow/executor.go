@@ -32,12 +32,16 @@ func GetSchema() interface{} {
 	return jsonschema.Reflect(&FlowWithConfig{})
 }
 
-func NewFlowExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
+func NewFlowExecutor(name string, node executor.Node, execID string) (executor.Executor, error) {
 	return &FlowExecutor{name: name, execID: execID}, nil
 }
 
 func (j *FlowExecutor) GetArtifactsDir() string {
 	return ""
+}
+
+func (j *FlowExecutor) Close() error {
+	return nil
 }
 
 func GetCapabilities() executor.Capability {
@@ -118,4 +122,23 @@ func (j *FlowExecutor) waitForCompletion(ctx context.Context, client *executor.A
 			}
 		}
 	}
+}
+
+// FlowExecutorPlugin implements executor.ExecutorPlugin for the flow executor.
+type FlowExecutorPlugin struct{}
+
+func (p *FlowExecutorPlugin) GetName() string {
+	return "flow"
+}
+
+func (p *FlowExecutorPlugin) GetSchema() interface{} {
+	return GetSchema()
+}
+
+func (p *FlowExecutorPlugin) GetCapabilities() executor.Capability {
+	return GetCapabilities()
+}
+
+func (p *FlowExecutorPlugin) New(name string, node executor.Node, execID string) (executor.Executor, error) {
+	return NewFlowExecutor(name, node, execID)
 }

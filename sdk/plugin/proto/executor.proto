@@ -1,0 +1,82 @@
+syntax = "proto3";
+package proto;
+option go_package = "github.com/cvhariharan/flowctl/sdk/plugin/proto";
+
+import "google/protobuf/empty.proto";
+
+message Node {
+    string hostname = 1;
+    int32 port = 2;
+    string username = 3;
+    string auth_method = 4;
+    string auth_key = 5;
+    string connection_type = 6;
+    string os_family = 7;
+}
+
+message ExecutionContext {
+    bytes with_config = 1;
+    map<string, string> inputs = 2;
+    string user_uuid = 3;
+    string namespace_name = 4;
+    string api_key = 5;
+    string api_base_url = 6;
+}
+
+message NewRequest {
+    string name = 1;
+    Node node = 2;
+    string exec_id = 3;
+}
+
+message NewResponse {
+    string executor_id = 1;
+    string artifacts_dir = 2;
+    string error = 3;
+}
+
+message ExecuteRequest {
+    string executor_id = 1;
+    ExecutionContext exec_ctx = 2;
+}
+
+message LogLine {
+    enum Stream {
+        STDOUT = 0;
+        STDERR = 1;
+    }
+    Stream stream = 1;
+    bytes data = 2;
+}
+
+message Result {
+    map<string, string> outputs = 1;
+    string error = 2;
+}
+
+message ExecuteResponse {
+    oneof payload {
+        LogLine log = 1;
+        Result result = 2;
+    }
+}
+
+message GetSchemaResponse {
+    bytes schema_json = 1;
+}
+
+message GetCapabilitiesResponse {
+    uint64 capabilities = 1;
+}
+
+message GetNameResponse {
+    string name = 1;
+}
+
+service ExecutorPlugin {
+    rpc GetName(google.protobuf.Empty) returns (GetNameResponse);
+    rpc GetSchema(google.protobuf.Empty) returns (GetSchemaResponse);
+    rpc GetCapabilities(google.protobuf.Empty) returns (GetCapabilitiesResponse);
+    rpc New(NewRequest) returns (NewResponse);
+    rpc Execute(ExecuteRequest) returns (stream ExecuteResponse);
+}

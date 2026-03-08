@@ -43,4 +43,5 @@ const (
 type Executor interface {
 	Execute(ctx context.Context, execCtx ExecutionContext) (outputs map[string]string, err error)
 	GetArtifactsDir() string
+	Close() error
 }

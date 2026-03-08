@@ -122,6 +122,7 @@ type AppConfig struct {
 	HTTPTLSKey        string `koanf:"http_tls_key" validate:"required_if=UseTLS true"`
 	FlowsDirectory    string `koanf:"flows_directory" validate:"required"`
 	MaxFileUploadSize int64  `koanf:"max_file_upload_size" validate:"required,min=1"`
+	PluginDir         string `koanf:"plugin_dir"`
 }
 
 type KeystoreConfig struct {
@@ -218,6 +219,7 @@ func GetDefaultConfig() Config {
 			HTTPTLSKey:        "server_key.pem",
 			FlowsDirectory:    "flows",
 			MaxFileUploadSize: 100 * 1024 * 1024, // 100MB
+			PluginDir:         "",
 		},
 		Keystore: KeystoreConfig{
 			KeeperURL: fmt.Sprintf("base64key://%s", genKey(32)),
