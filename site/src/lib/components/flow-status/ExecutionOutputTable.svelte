@@ -7,7 +7,7 @@
 </script>
 
 {#if Object.keys(results).length > 0}
-  <div class="overflow-hidden rounded-lg border border-border">
+  <div class="overflow-x-auto rounded-lg border border-border">
     <table class="min-w-full divide-y divide-border">
       <thead class="bg-muted">
         <tr>
