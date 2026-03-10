@@ -119,6 +119,12 @@ func (h *Handler) processFlowInputs(c echo.Context, flow models.Flow, execID str
 			if filePath != "" {
 				req[input.Name] = filePath
 			}
+		case models.INPUT_TYPE_CHECKBOX:
+			if c.FormValue(input.Name) != "" {
+				req[input.Name] = "true"
+			} else {
+				req[input.Name] = "false"
+			}
 		default:
 			if value := c.FormValue(input.Name); value != "" {
 				req[input.Name] = value
