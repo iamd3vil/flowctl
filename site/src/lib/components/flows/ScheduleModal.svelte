@@ -52,6 +52,9 @@
   let formData = $state(getInitialFormData());
   let loading = $state(false);
   let cronError = $state('');
+  let hasScheduleWarning = $derived(
+    flowInputs.some(input => input.type === 'file' || !input.default || input.default.trim() === '')
+  );
   const timezones = getTimezones();
 
   function validateCron() {

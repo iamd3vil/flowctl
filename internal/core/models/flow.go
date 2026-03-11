@@ -225,29 +225,6 @@ func (f Flow) Validate() error {
 		return fmt.Errorf("prefix %q is reserved and cannot be used", f.Meta.Prefix)
 	}
 
-	// Check if schedules are set on a flow with file inputs
-	if len(f.Schedules) > 0 {
-		for _, input := range f.Inputs {
-			if input.Type == INPUT_TYPE_FILE {
-				return fmt.Errorf("cannot set schedules on flow with file inputs")
-			}
-		}
-	}
-
-	// Check if schedules are set on a non-schedulable flow
-	if len(f.Schedules) > 0 && !f.IsSchedulable() {
-		return fmt.Errorf("cannot set schedules on flow: flow has inputs without default values")
-	}
-
-	// Check if user_schedulable is enabled on a flow with file inputs or empty defaults
-	if f.Meta.UserSchedulable {
-		for _, input := range f.Inputs {
-			if input.Type == INPUT_TYPE_FILE || input.Default == "" {
-				return fmt.Errorf("user_schedulable cannot be enabled for flows with file inputs or empty default values")
-			}
-		}
-	}
-
 	return validate.Struct(f)
 }
 
@@ -268,18 +245,6 @@ func (f Flow) IsApprovalRequired() bool {
 		}
 	}
 	return false
-}
-
-func (f Flow) IsSchedulable() bool {
-	for _, input := range f.Inputs {
-		if input.Type == INPUT_TYPE_FILE {
-			return false
-		}
-		if input.Default == "" {
-			return false
-		}
-	}
-	return true
 }
 
 // validateDefaultValue validates that a default value matches the expected input type

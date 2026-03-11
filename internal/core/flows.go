@@ -960,7 +960,6 @@ func (c *Core) importFlowFromFile(ctx context.Context, flowFilePath, namespaceNa
 			Namespace:       f.Meta.Namespace,
 			PrefixID:        prefixID,
 			UserSchedulable: f.Meta.UserSchedulable,
-			Schedulable:     f.IsSchedulable(),
 			Schedules:       schedules,
 		})
 	}
@@ -1114,10 +1113,6 @@ func (c *Core) CreateSchedule(ctx context.Context, flowID, cron, timezone string
 	flow, err := c.GetFlowByID(flowID, namespaceID)
 	if err != nil {
 		return models.Schedule{}, fmt.Errorf("flow not found: %w", err)
-	}
-
-	if !flow.IsSchedulable() {
-		return models.Schedule{}, fmt.Errorf("flow is not schedulable: has file inputs or required inputs without defaults")
 	}
 
 	if !flow.Meta.UserSchedulable {
@@ -1308,10 +1303,6 @@ func (c *Core) UpdateSchedule(ctx context.Context, scheduleUUID, cron, timezone 
 	flow, err := c.GetFlowByID(existing.FlowSlug, namespaceID)
 	if err != nil {
 		return models.Schedule{}, fmt.Errorf("flow not found: %w", err)
-	}
-
-	if !flow.IsSchedulable() {
-		return models.Schedule{}, fmt.Errorf("flow is not schedulable")
 	}
 
 	if !flow.Meta.UserSchedulable {

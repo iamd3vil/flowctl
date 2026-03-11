@@ -34,10 +34,7 @@
   let editSchedule = $state<UserSchedule | null>(null);
   let deleteSchedule = $state<UserSchedule | null>(null);
   let viewSchedule = $state<UserSchedule | null>(null);
-
-  // Check if flow has file inputs - user schedules not allowed for flows with file inputs
-  let hasFileInputs = $derived(flowInputs.some(input => input.type === 'file'));
-  let canCreateSchedule = $derived(userSchedulable && !hasFileInputs);
+  let canCreateSchedule = $derived(userSchedulable);
 
   function canEdit(schedule: UserSchedule): boolean {
     return canUpdateFlow || (schedule.is_user_created && schedule.created_by === user.id);

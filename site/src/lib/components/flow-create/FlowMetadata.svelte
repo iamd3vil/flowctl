@@ -35,13 +35,6 @@
 
     let isSchedulable = $derived(!hasFileInputs && !hasMissingDefaults);
 
-    // Auto-disable user_schedulable when file inputs are detected
-    $effect(() => {
-        if (hasFileInputs && metadata.user_schedulable) {
-            metadata.user_schedulable = false;
-        }
-    });
-
     function updateName(value: string) {
         if (updatemode) return;
         metadata.name = value;
@@ -151,173 +144,8 @@
             </p>
         </div>
 
-        {#if isSchedulable}
+        {#if !isSchedulable}
             <div class="mb-6">
-                <label class="flex items-center space-x-2 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        bind:checked={metadata.user_schedulable}
-                        class="w-4 h-4 text-primary-600 border-input rounded focus:ring-primary-500 cursor-pointer"
-                    />
-                    <span class="text-sm font-medium text-foreground"
-                        >Allow User Schedules</span
-                    >
-                </label>
-                <p class="text-xs text-muted-foreground mt-1 ml-6">
-                    Users can create their own cron schedules for this flow
-                </p>
-            </div>
-        {/if}
-
-        {#if isSchedulable}
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <label class="block text-sm font-medium text-foreground">
-                        Cron Schedules
-                        <span class="text-sm text-muted-foreground font-normal"
-                            >(optional)</span
-                        >
-                    </label>
-                    <button
-                        type="button"
-                        onclick={addSchedule}
-                        class="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                    >
-                        + Add Schedule
-                    </button>
-                </div>
-
-                <div class="space-y-4">
-                    {#each metadata.schedules || [] as schedule, index}
-                        {@const validation = scheduleValidations[index]}
-                        <div class="border border-border rounded-md p-4">
-                            <div class="flex items-start gap-2 mb-3">
-                                <div
-                                    class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3"
-                                >
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-foreground mb-1"
-                                        >
-                                            Cron Expression
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={schedule.cron}
-                                            oninput={(e) =>
-                                                updateScheduleCron(
-                                                    index,
-                                                    e.currentTarget.value,
-                                                )}
-                                            class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 {validation?.isValid
-                                                ? 'border-input focus:ring-primary-500 focus:border-transparent'
-                                                : 'border-danger-300 focus:ring-danger-500 focus:border-transparent'}"
-                                            placeholder="0 2 * * *"
-                                        />
-                                        {#if schedule.cron && !validation?.isValid}
-                                            <p
-                                                class="text-xs text-danger-600 mt-1"
-                                            >
-                                                Invalid cron expression. Use
-                                                format: minute hour day month
-                                                weekday
-                                            </p>
-                                        {/if}
-                                    </div>
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-foreground mb-1"
-                                        >
-                                            Timezone
-                                        </label>
-                                        <input
-                                            type="text"
-                                            list="timezone-list-{index}"
-                                            value={schedule.timezone}
-                                            oninput={(e) =>
-                                                updateScheduleTimezone(
-                                                    index,
-                                                    e.currentTarget.value,
-                                                )}
-                                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                            placeholder="Search or select timezone..."
-                                        />
-                                        <datalist id="timezone-list-{index}">
-                                            {#each timezones as tz}
-                                                <option value={tz.tzCode}
-                                                    >{tz.label}</option
-                                                >
-                                            {/each}
-                                        </datalist>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onclick={() => removeSchedule(index)}
-                                    class="mt-6 text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
-                                >
-                                    <svg
-                                        class="w-5 h-5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    {/each}
-
-                    {#if !metadata.schedules || metadata.schedules.length === 0}
-                        <div
-                            class="text-center py-6 border-2 border-dashed border-input rounded-md"
-                        >
-                            <svg
-                                class="mx-auto h-8 w-8 text-muted-foreground mb-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                            </svg>
-                            <p class="text-sm text-muted-foreground mb-2">
-                                No schedules defined
-                            </p>
-                            <button
-                                type="button"
-                                onclick={addSchedule}
-                                class="text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                            >
-                                Add your first schedule
-                            </button>
-                        </div>
-                    {/if}
-                </div>
-
-                <p class="text-xs text-muted-foreground mt-2">
-                    Use cron expression format. You can add multiple schedules
-                    for different execution times.
-                    <br />
-                    Examples:
-                    <code class="bg-subtle px-1 rounded">0 2 * * *</code>
-                    (daily 2AM),
-                    <code class="bg-subtle px-1 rounded">0 */6 * * *</code> (every
-                    6 hours)
-                </p>
-            </div>
-        {:else}
-            <div>
                 <div
                     class="bg-warning-50 border border-warning-200 rounded-md p-4"
                 >
@@ -337,29 +165,180 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-warning-800">
-                                Flow Not Schedulable
+                                Warning
                             </h3>
                             <div class="mt-2 text-sm text-warning-700">
-                                {#if hasFileInputs}
-                                    <p>
-                                        This flow cannot be scheduled because it has
-                                        file inputs. Flows with file inputs cannot
-                                        be scheduled as files must be provided at
-                                        execution time.
-                                    </p>
-                                {:else}
-                                    <p>
-                                        This flow cannot be scheduled because it has
-                                        inputs without default values. To make this
-                                        flow schedulable, ensure all inputs have
-                                        default values.
-                                    </p>
-                                {/if}
+                                <p>
+                                    This flow has inputs without default values. Scheduled executions may produce unwanted results if required inputs are not provided.
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         {/if}
+
+        <div class="mb-6">
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                    type="checkbox"
+                    bind:checked={metadata.user_schedulable}
+                    class="w-4 h-4 text-primary-600 border-input rounded focus:ring-primary-500 cursor-pointer"
+                />
+                <span class="text-sm font-medium text-foreground"
+                    >Allow User Schedules</span
+                >
+            </label>
+            <p class="text-xs text-muted-foreground mt-1 ml-6">
+                Users can create their own cron schedules for this flow
+            </p>
+        </div>
+
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-foreground">
+                    Cron Schedules
+                    <span class="text-sm text-muted-foreground font-normal"
+                        >(optional)</span
+                    >
+                </label>
+                <button
+                    type="button"
+                    onclick={addSchedule}
+                    class="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                >
+                    + Add Schedule
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                {#each metadata.schedules || [] as schedule, index}
+                    {@const validation = scheduleValidations[index]}
+                    <div class="border border-border rounded-md p-4">
+                        <div class="flex items-start gap-2 mb-3">
+                            <div
+                                class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3"
+                            >
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-foreground mb-1"
+                                    >
+                                        Cron Expression
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={schedule.cron}
+                                        oninput={(e) =>
+                                            updateScheduleCron(
+                                                index,
+                                                e.currentTarget.value,
+                                            )}
+                                        class="w-full px-3 py-2 text-foreground bg-card border rounded-md focus:outline-none focus:ring-2 {validation?.isValid
+                                            ? 'border-input focus:ring-primary-500 focus:border-transparent'
+                                            : 'border-danger-300 focus:ring-danger-500 focus:border-transparent'}"
+                                        placeholder="0 2 * * *"
+                                    />
+                                    {#if schedule.cron && !validation?.isValid}
+                                        <p
+                                            class="text-xs text-danger-600 mt-1"
+                                        >
+                                            Invalid cron expression. Use
+                                            format: minute hour day month
+                                            weekday
+                                        </p>
+                                    {/if}
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-foreground mb-1"
+                                    >
+                                        Timezone
+                                    </label>
+                                    <input
+                                        type="text"
+                                        list="timezone-list-{index}"
+                                        value={schedule.timezone}
+                                        oninput={(e) =>
+                                            updateScheduleTimezone(
+                                                index,
+                                                e.currentTarget.value,
+                                            )}
+                                        class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        placeholder="Search or select timezone..."
+                                    />
+                                    <datalist id="timezone-list-{index}">
+                                        {#each timezones as tz}
+                                            <option value={tz.tzCode}
+                                                >{tz.label}</option
+                                            >
+                                        {/each}
+                                    </datalist>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onclick={() => removeSchedule(index)}
+                                class="mt-6 text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
+                            >
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                {/each}
+
+                {#if !metadata.schedules || metadata.schedules.length === 0}
+                    <div
+                        class="text-center py-6 border-2 border-dashed border-input rounded-md"
+                    >
+                        <svg
+                            class="mx-auto h-8 w-8 text-muted-foreground mb-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                        </svg>
+                        <p class="text-sm text-muted-foreground mb-2">
+                            No schedules defined
+                        </p>
+                        <button
+                            type="button"
+                            onclick={addSchedule}
+                            class="text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                        >
+                            Add your first schedule
+                        </button>
+                    </div>
+                {/if}
+            </div>
+
+            <p class="text-xs text-muted-foreground mt-2">
+                Use cron expression format. You can add multiple schedules
+                for different execution times.
+                <br />
+                Examples:
+                <code class="bg-subtle px-1 rounded">0 2 * * *</code>
+                (daily 2AM),
+                <code class="bg-subtle px-1 rounded">0 */6 * * *</code> (every
+                6 hours)
+            </p>
+        </div>
     </div>
 </div>
