@@ -4,6 +4,7 @@
     import { createSlug } from "$lib/utils";
     import { notifications } from "$lib/stores/notifications";
     import CodeEditor from "$lib/components/shared/CodeEditor.svelte";
+    import KeyValueEditor from "$lib/components/shared/KeyValueEditor.svelte";
     import NodeSelector from "$lib/components/shared/NodeSelector.svelte";
     import type { NodeResp } from "$lib/types";
 
@@ -89,17 +90,6 @@
         } catch (error) {
             handleInlineError(error, "Unable to Load Executor Configuration");
         }
-    }
-
-    function addVariable(action: any) {
-        if (!action.variables) {
-            action.variables = [];
-        }
-        action.variables.push({ name: "", value: "" });
-    }
-
-    function removeVariable(action: any, index: number) {
-        action.variables.splice(index, 1);
     }
 
     function updateConfigValue(action: any, key: string, value: any) {
@@ -548,6 +538,35 @@
                                                             </p>
                                                         {/if}
                                                     </div>
+                                                {:else if property.widget === "keyvalue"}
+                                                    <div>
+                                                        <label
+                                                            class="block text-sm font-medium text-foreground mb-1"
+                                                        >
+                                                            {label}
+                                                            {#if isRequired}<span
+                                                                    class="text-red-500"
+                                                                    >*</span
+                                                                >{/if}
+                                                        </label>
+                                                        <KeyValueEditor
+                                                            initialValue={action.with[key]}
+                                                            onchange={(json) =>
+                                                                updateConfigValue(
+                                                                    action,
+                                                                    key,
+                                                                    json,
+                                                                )}
+                                                            valuePlaceholder={placeholder || "value"}
+                                                        />
+                                                        {#if description}
+                                                            <p
+                                                                class="mt-1 text-xs text-muted-foreground"
+                                                            >
+                                                                {description}
+                                                            </p>
+                                                        {/if}
+                                                    </div>
                                                 {:else if property.format === "textarea" || property.type === "object" || property.type === "array"}
                                                     <div>
                                                         <label
@@ -650,93 +669,16 @@
 
                         <!-- Environment Variables -->
                         <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <label
-                                    class="block text-sm font-medium text-foreground"
-                                    >Environment Variables</label
-                                >
-                                <button
-                                    onclick={() => addVariable(action)}
-                                    type="button"
-                                    class="text-xs text-primary-600 hover:text-primary-700 cursor-pointer"
-                                >
-                                    + Add Variable
-                                </button>
-                            </div>
-                            <div class="space-y-2">
-                                {#each action.variables && action.variables.length > 0 ? action.variables : [{ name: "", value: "" }] as variable, varIndex}
-                                    <div class="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={variable.name}
-                                            oninput={(e) => {
-                                                if (
-                                                    !action.variables ||
-                                                    action.variables.length ===
-                                                        0
-                                                ) {
-                                                    action.variables = [
-                                                        { name: "", value: "" },
-                                                    ];
-                                                }
-                                                action.variables[
-                                                    varIndex
-                                                ].name = e.currentTarget.value;
-                                            }}
-                                            placeholder="VAR_NAME"
-                                            class="flex-1 px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
-                                        />
-                                        <span class="text-muted-foreground">=</span>
-                                        <input
-                                            type="text"
-                                            value={variable.value}
-                                            oninput={(e) => {
-                                                if (
-                                                    !action.variables ||
-                                                    action.variables.length ===
-                                                        0
-                                                ) {
-                                                    action.variables = [
-                                                        { name: "", value: "" },
-                                                    ];
-                                                }
-                                                action.variables[
-                                                    varIndex
-                                                ].value = e.currentTarget.value;
-                                            }}
-                                            placeholder="value OR {'{{'}inputs.name{'}}'}"
-                                            class="flex-1 px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
-                                        />
-                                        {#if action.variables && action.variables.length > 0}
-                                            <button
-                                                onclick={() =>
-                                                    removeVariable(
-                                                        action,
-                                                        varIndex,
-                                                    )}
-                                                type="button"
-                                                class="text-muted-foreground hover:text-danger-600 cursor-pointer"
-                                            >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M6 18L18 6M6 6l12 12"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        {:else}
-                                            <div class="w-4"></div>
-                                        {/if}
-                                    </div>
-                                {/each}
-                            </div>
+                            <label
+                                class="block text-sm font-medium text-foreground mb-2"
+                                >Environment Variables</label
+                            >
+                            <KeyValueEditor
+                                bind:pairs={action.variables}
+                                keyPlaceholder="VAR_NAME"
+                                valuePlaceholder="value OR {'{{'}inputs.name{'}}'}"
+                                onchange={() => {}}
+                            />
                         </div>
 
                         <div class="flex items-center">

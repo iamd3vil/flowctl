@@ -63,21 +63,30 @@ type DockerRunnerOptions struct {
 	KeepContainer     bool
 }
 
-func NewDockerExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
+func NewDockerExecutor(name string, node executor.Node, execID string) (executor.Executor, error) {
 	jobName := slug.Make(fmt.Sprintf("%s-%s", name, xid.New().String()))
 
-	executor := &DockerExecutor{
+	driver, err := executor.NewNodeDriver(context.Background(), node)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node driver: %w", err)
+	}
+
+	exec := &DockerExecutor{
 		name:             jobName,
 		workingDirectory: driver.GetWorkingDirectory(),
 		driver:           driver,
 		execID:           execID,
 	}
 
-	return executor, nil
+	return exec, nil
 }
 
 func (d *DockerExecutor) GetArtifactsDir() string {
 	return ArtifactsDir
+}
+
+func (d *DockerExecutor) Close() error {
+	return d.driver.Close()
 }
 
 func GetCapabilities() executor.Capability {
@@ -442,4 +451,23 @@ func (d *DockerExecutor) createSSHTunnel(ctx context.Context) (net.Listener, err
 	}()
 
 	return localListener, nil
+}
+
+// DockerExecutorPlugin implements executor.ExecutorPlugin for the docker executor.
+type DockerExecutorPlugin struct{}
+
+func (p *DockerExecutorPlugin) GetName() string {
+	return "docker"
+}
+
+func (p *DockerExecutorPlugin) GetSchema() interface{} {
+	return GetSchema()
+}
+
+func (p *DockerExecutorPlugin) GetCapabilities() executor.Capability {
+	return GetCapabilities()
+}
+
+func (p *DockerExecutorPlugin) New(name string, node executor.Node, execID string) (executor.Executor, error) {
+	return NewDockerExecutor(name, node, execID)
 }

@@ -34,16 +34,22 @@ func GetSchema() interface{} {
 	return jsonschema.Reflect(&ScriptWithConfig{})
 }
 
-func NewScriptExecutor(name string, driver executor.NodeDriver, execID string) (executor.Executor, error) {
+func NewScriptExecutor(name string, node executor.Node, execID string) (executor.Executor, error) {
 	jobName := fmt.Sprintf("script-%s-%s", name, xid.New().String())
+
+	driver, err := executor.NewNodeDriver(context.Background(), node)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node driver: %w", err)
+	}
 
 	// Create artifacts directory
 	artifactsDir := driver.Join(driver.TempDir(), fmt.Sprintf("artifacts-%s", execID))
 	if err := driver.CreateDir(context.Background(), artifactsDir); err != nil {
+		driver.Close()
 		return nil, fmt.Errorf("failed to create artifacts directory: %w", err)
 	}
 
-	executor := &ScriptExecutor{
+	exec := &ScriptExecutor{
 		name:             jobName,
 		workingDirectory: driver.GetWorkingDirectory(),
 		driver:           driver,
@@ -51,11 +57,15 @@ func NewScriptExecutor(name string, driver executor.NodeDriver, execID string) (
 		execID:           execID,
 	}
 
-	return executor, nil
+	return exec, nil
 }
 
 func (s *ScriptExecutor) GetArtifactsDir() string {
 	return s.artifactsDir
+}
+
+func (s *ScriptExecutor) Close() error {
+	return s.driver.Close()
 }
 
 func GetCapabilities() executor.Capability {
@@ -167,4 +177,23 @@ func (s *ScriptExecutor) readTempFileContents(ctx context.Context, tempFile stri
 		return nil, fmt.Errorf("failed to read temp file %s: %w", localTempFile.Name(), err)
 	}
 	return strings.NewReader(string(content)), nil
+}
+
+// ScriptExecutorPlugin implements executor.ExecutorPlugin for the script executor.
+type ScriptExecutorPlugin struct{}
+
+func (p *ScriptExecutorPlugin) GetName() string {
+	return "script"
+}
+
+func (p *ScriptExecutorPlugin) GetSchema() interface{} {
+	return GetSchema()
+}
+
+func (p *ScriptExecutorPlugin) GetCapabilities() executor.Capability {
+	return GetCapabilities()
+}
+
+func (p *ScriptExecutorPlugin) New(name string, node executor.Node, execID string) (executor.Executor, error) {
+	return NewScriptExecutor(name, node, execID)
 }
