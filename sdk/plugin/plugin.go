@@ -26,7 +26,7 @@ import (
 
 const (
 	MagicCookieKey   = "FLOWCTL_EXECUTOR_PLUGIN"
-	MagicCookieValue = "flowctl-executor-v1"
+	MagicCookieValue = "1a2e63941726d309b6f4d5da6410185c"
 )
 
 // HandshakeConfig is the go-plugin handshake configuration.
