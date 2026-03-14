@@ -989,3 +989,12 @@ type GroupAccessResp struct {
 type GroupAccessListResp struct {
 	Groups []GroupAccessResp `json:"groups"`
 }
+
+type ExecutorInfo struct {
+	Name         string   `json:"name"`
+	Capabilities []string `json:"capabilities"`
+}
+
+type ExecutorsListResponse struct {
+	Executors []ExecutorInfo `json:"executors"`
+}

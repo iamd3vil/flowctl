@@ -31,9 +31,9 @@ export const load: PageLoad = async ({ parent }) => {
       apiClient.messengers.list(),
     ]);
 
-    const availableExecutors = executorData.executors.map(name => ({
-      name: name,
-      display_name: name.charAt(0).toUpperCase() + name.slice(1)
+    const availableExecutors = executorData.executors.map(info => ({
+      name: info.name,
+      capabilities: info.capabilities,
     }));
 
     // Resolve $defs/$ref in each messenger schema

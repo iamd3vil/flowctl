@@ -48,6 +48,7 @@ import type {
   ApprovalPaginateRequest,
   GroupAccessReq,
   ExecutorConfigResponse,
+  ExecutorsListResponse,
   ApiErrorResponse,
   NamespacesPaginateResponse,
   UserSchedule,
@@ -445,7 +446,7 @@ export const apiClient = {
 
   // Executors
   executors: {
-    list: () => baseFetch<{executors: string[]}>('/api/v1/executors'),
+    list: () => baseFetch<ExecutorsListResponse>('/api/v1/executors'),
     getConfig: (executor: string) =>
       baseFetch<ExecutorConfigResponse>(`/api/v1/executors/${executor}/config`),
   },

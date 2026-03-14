@@ -83,6 +83,11 @@ func (s *grpcServer) Execute(req *proto.ExecuteRequest, stream proto.ExecutorPlu
 	go sendLog(stdoutR, proto.LogLine_STDOUT)
 	go sendLog(stderrR, proto.LogLine_STDERR)
 
+	sdkNodes := make([]executor.Node, len(req.ExecCtx.GetNodes()))
+	for i, n := range req.ExecCtx.GetNodes() {
+		sdkNodes[i] = protoNodeToExecutor(n)
+	}
+
 	execCtx := executor.ExecutionContext{
 		WithConfig:    req.ExecCtx.GetWithConfig(),
 		Inputs:        protoInputsToAny(req.ExecCtx.GetInputs()),
@@ -92,6 +97,7 @@ func (s *grpcServer) Execute(req *proto.ExecuteRequest, stream proto.ExecutorPlu
 		NamespaceName: req.ExecCtx.GetNamespaceName(),
 		APIKey:        req.ExecCtx.GetApiKey(),
 		APIBaseURL:    req.ExecCtx.GetApiBaseUrl(),
+		Nodes:         sdkNodes,
 	}
 
 	outputs, execErr := exec.Execute(stream.Context(), execCtx)

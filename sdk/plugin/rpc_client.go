@@ -88,6 +88,19 @@ func (r *grpcRemoteExecutor) Close() error {
 }
 
 func (r *grpcRemoteExecutor) Execute(ctx context.Context, execCtx executor.ExecutionContext) (map[string]string, error) {
+	protoNodes := make([]*proto.Node, len(execCtx.Nodes))
+	for i, n := range execCtx.Nodes {
+		protoNodes[i] = &proto.Node{
+			Hostname:       n.Hostname,
+			Port:           int32(n.Port),
+			Username:       n.Username,
+			AuthMethod:     n.Auth.Method,
+			AuthKey:        n.Auth.Key,
+			ConnectionType: n.ConnectionType,
+			OsFamily:       n.OSFamily,
+		}
+	}
+
 	req := &proto.ExecuteRequest{
 		ExecutorId: r.executorID,
 		ExecCtx: &proto.ExecutionContext{
@@ -97,6 +110,7 @@ func (r *grpcRemoteExecutor) Execute(ctx context.Context, execCtx executor.Execu
 			NamespaceName: execCtx.NamespaceName,
 			ApiKey:        execCtx.APIKey,
 			ApiBaseUrl:    execCtx.APIBaseURL,
+			Nodes:         protoNodes,
 		},
 	}
 

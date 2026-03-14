@@ -22,10 +22,13 @@ func (h *Handler) HandleGetExecutorConfig(c echo.Context) error {
 }
 
 func (h *Handler) HandleListExecutors(c echo.Context) error {
-	executors := executor.GetAllExecutors()
-	return c.JSON(http.StatusOK, struct {
-		Executors []string `json:"executors"`
-	}{
-		Executors: executors,
-	})
+	entries := executor.GetAllExecutors()
+	infos := make([]ExecutorInfo, 0, len(entries))
+	for _, e := range entries {
+		infos = append(infos, ExecutorInfo{
+			Name:         e.Name,
+			Capabilities: e.Capabilities,
+		})
+	}
+	return c.JSON(http.StatusOK, ExecutorsListResponse{Executors: infos})
 }

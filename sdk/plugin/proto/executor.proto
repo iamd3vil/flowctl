@@ -21,6 +21,7 @@ message ExecutionContext {
     string namespace_name = 4;
     string api_key = 5;
     string api_base_url = 6;
+    repeated Node nodes = 7;
 }
 
 message NewRequest {

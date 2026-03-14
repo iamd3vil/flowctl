@@ -18,10 +18,15 @@
         namespace: string;
         actions: any[];
         addAction: () => void;
-        availableExecutors: Array<{ name: string; display_name: string }>;
+        availableExecutors: Array<{ name: string; capabilities: string[] }>;
         executorConfigs: Record<string, any>;
     } = $props();
     let draggedIndex: number | null = null;
+
+    function executorHasCapability(executorName: string, capability: string): boolean {
+        const exec = availableExecutors.find(e => e.name === executorName);
+        return exec?.capabilities?.includes(capability) ?? false;
+    }
 
     function handleAddAction() {
         addAction();
@@ -299,12 +304,12 @@
                                     <option value="">Select Executor</option>
                                     {#each availableExecutors as executor}
                                         <option value={executor.name}
-                                            >{executor.display_name ||
-                                                executor.name}</option
+                                            >{executor.name}</option
                                         >
                                     {/each}
                                 </select>
                             </div>
+                            {#if executorHasCapability(action.executor, 'remote_execution')}
                             <div>
                                 <label
                                     class="block text-sm font-medium text-foreground mb-1"
@@ -316,6 +321,7 @@
                                     placeholder="Search nodes..."
                                 />
                             </div>
+                            {/if}
                         </div>
 
                         <!-- Dynamic Executor Configuration -->

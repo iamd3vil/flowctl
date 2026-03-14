@@ -110,14 +110,24 @@ func GetNewExecutorFunc(name string) (NewExecutorFunc, error) {
 	return f, nil
 }
 
-func GetAllExecutors() []string {
+type ExecutorEntry struct {
+	Name         string
+	Capabilities []string
+}
+
+func GetAllExecutors() []ExecutorEntry {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	execs := make([]string, 0)
-	for k, _ := range registry {
-		execs = append(execs, k)
+	entries := make([]ExecutorEntry, 0, len(registry))
+	for name := range registry {
+		cmu.RLock()
+		caps := capRegistry[name]
+		cmu.RUnlock()
+		entries = append(entries, ExecutorEntry{
+			Name:         name,
+			Capabilities: CapabilityStrings(caps),
+		})
 	}
-
-	return execs
+	return entries
 }

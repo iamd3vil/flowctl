@@ -379,7 +379,7 @@ func processActionResults(results map[string]string, outputs map[string]any) {
 }
 
 // executeOnNode executes an action on a single node and returns the results
-func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string, userUUID string, namespaceName string) ExecResults {
+func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string, node Node, action Action, streamLogger streamlogger.Logger, inputVars map[string]any, withConfig []byte, artifactDir string, userUUID string, namespaceName string, allNodes []Node) ExecResults {
 	// Create a separate executor instance for each node
 	var exec executor.Executor
 	nodeExecutorID := fmt.Sprintf("%s-%s", action.ID, node.Name)
@@ -459,6 +459,24 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 		apiKey = key
 	}
 
+	var execNodes []executor.Node
+	if caps, err := executor.GetCapabilities(action.Executor); err == nil && caps&executor.NodeDispatch != 0 {
+		execNodes = make([]executor.Node, len(allNodes))
+		for i, n := range allNodes {
+			execNodes[i] = executor.Node{
+				Hostname:       n.Hostname,
+				Port:           n.Port,
+				Username:       n.Username,
+				ConnectionType: n.ConnectionType,
+				OSFamily:       n.OSFamily,
+				Auth: executor.NodeAuth{
+					Method: string(n.Auth.Method),
+					Key:    n.Auth.Key,
+				},
+			}
+		}
+	}
+
 	res, err := exec.Execute(ctx, executor.ExecutionContext{
 		Inputs:        execInputVars,
 		WithConfig:    withConfig,
@@ -468,6 +486,7 @@ func (h *FlowExecutionHandler) executeOnNode(ctx context.Context, execID string,
 		NamespaceName: namespaceName,
 		APIKey:        apiKey,
 		APIBaseURL:    h.apiBaseURL,
+		Nodes:         execNodes,
 	})
 
 	// Pull all artifacts from this node after execution
@@ -573,7 +592,7 @@ func (h *FlowExecutionHandler) runAction(ctx context.Context, execID string, act
 		wg.Add(1)
 		go func(node Node) {
 			defer wg.Done()
-			result := h.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir, userUUID, namespaceName)
+			result := h.executeOnNode(jobCtx, execID, node, action, streamLogger, inputVars, withConfig, artifactDir, userUUID, namespaceName, action.On)
 			resChan <- result
 		}(node)
 	}

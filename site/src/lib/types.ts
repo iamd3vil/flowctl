@@ -469,6 +469,22 @@ export interface ExecutorConfigResponse {
   [key: string]: any;
 }
 
+export type ExecutorCapability =
+  | 'remote_execution'
+  | 'environment_variables'
+  | 'file_transfer'
+  | 'streaming_output'
+  | 'node_dispatch';
+
+export interface ExecutorInfo {
+  name: string;
+  capabilities: ExecutorCapability[];
+}
+
+export interface ExecutorsListResponse {
+  executors: ExecutorInfo[];
+}
+
 // Error types
 export interface FlowInputValidationError {
   field: string;
