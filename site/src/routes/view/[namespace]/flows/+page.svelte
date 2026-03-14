@@ -205,6 +205,10 @@
         goto(`/view/${page.params.namespace}/flows/create`);
     };
 
+    const handleDuplicateFlow = (row: FlowTableRow) => {
+        goto(`/view/${page.params.namespace}/flows/create?duplicate_from=${row.slug}`);
+    };
+
     checkPermissions();
 
     const navigateToGroup = (prefix: string) => {
@@ -356,6 +360,14 @@
                     }
                 },
                 className: "text-link",
+            });
+        }
+
+        if (permissions.canCreate) {
+            actionsList.push({
+                label: "Duplicate",
+                onClick: (row: FlowTableRow) => handleDuplicateFlow(row),
+                visible: (row: FlowTableRow) => row._kind === 'flow',
             });
         }
 

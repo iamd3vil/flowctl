@@ -19,6 +19,7 @@
     } from "$lib/types.js";
     import { goto } from "$app/navigation";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
+    import { IconInfoCircle } from "@tabler/icons-svelte";
 
     let { data }: { data: PageData } = $props();
     const namespace = $page.params.namespace as string;
@@ -70,9 +71,35 @@
         { id: "secrets", label: "Secrets" },
     ];
 
-    onMount(() => {
-        // Add first action by default
-        addAction();
+    async function loadExecutorConfigs(actions: any[]) {
+        const executorTypes = [...new Set(actions.map((a) => a.executor).filter(Boolean))];
+        for (const executor of executorTypes) {
+            try {
+                const config = await apiClient.executors.getConfig(executor);
+                if (config.$defs && config.$ref) {
+                    const refPath = config.$ref.replace("#/$defs/", "");
+                    executorConfigs[executor] = config.$defs[refPath] || config;
+                } else {
+                    executorConfigs[executor] = config;
+                }
+            } catch (error) {
+                handleInlineError(error, `Error loading config for executor ${executor}`);
+            }
+        }
+    }
+
+    onMount(async () => {
+        if (data.prefillFlow) {
+            flow.metadata = data.prefillFlow.metadata;
+            flow.inputs = data.prefillFlow.inputs;
+            flow.actions = data.prefillFlow.actions;
+            flow.notifications = data.prefillFlow.notifications;
+            if (flow.actions.length > 0) {
+                await loadExecutorConfigs(flow.actions);
+            }
+        } else {
+            addAction();
+        }
     });
 
     function addInput() {
@@ -151,7 +178,7 @@
                         }),
                     ),
                 actions: flow.actions
-                    .filter((a) => a.name && a.id)
+                    .filter((a) => a.name)
                     .map(
                         (action): FlowActionReq => ({
                             name: action.name,
@@ -228,6 +255,13 @@
                         Define a new workflow
                     </p>
                 </div>
+
+                {#if data.prefillFlow}
+                    <div class="mb-6 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                        <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>Secrets are not copied. You will need to re-add any secrets under the <strong>Secrets</strong> tab after creating this flow.</span>
+                    </div>
+                {/if}
 
                 <!-- Main Card -->
                 <div class="bg-card rounded-lg border border-input">

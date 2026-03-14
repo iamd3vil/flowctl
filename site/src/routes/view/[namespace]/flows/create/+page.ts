@@ -3,8 +3,8 @@ import { permissionChecker } from '$lib/utils/permissions';
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ parent }) => {
-  const { user, namespaceId } = await parent();
+export const load: PageLoad = async ({ parent, url }) => {
+  const { user, namespaceId, namespace } = await parent();
   
   // Check create permissions
   try {
@@ -25,10 +25,13 @@ export const load: PageLoad = async ({ parent }) => {
     });
   }
   
+  const duplicateFrom = url.searchParams.get('duplicate_from');
+
   try {
-    const [executorData, messengerSchemas] = await Promise.all([
+    const [executorData, messengerSchemas, duplicateConfig] = await Promise.all([
       apiClient.executors.list(),
       apiClient.messengers.list(),
+      duplicateFrom ? apiClient.flows.getConfig(namespace, duplicateFrom).catch(() => null) : Promise.resolve(null),
     ]);
 
     const availableExecutors = executorData.executors.map(info => ({
@@ -47,10 +50,50 @@ export const load: PageLoad = async ({ parent }) => {
       }
     }
 
+    let prefillFlow = null;
+    if (duplicateConfig) {
+      prefillFlow = {
+        metadata: {
+          id: '',
+          name: duplicateConfig.metadata.name ? duplicateConfig.metadata.name + ' copy' : '',
+          description: duplicateConfig.metadata.description || '',
+          prefix: duplicateConfig.metadata.prefix || '',
+          schedules: duplicateConfig.metadata.schedules || [],
+          namespace,
+          allow_overlap: duplicateConfig.metadata.allow_overlap || false,
+          user_schedulable: duplicateConfig.metadata.user_schedulable || false,
+        },
+        inputs: (duplicateConfig.inputs || []).map((input: any) => ({
+          ...input,
+          optionsText: input.options ? input.options.join('\n') : '',
+          maxFileSizeMB: input.max_file_size ? input.max_file_size / 1024 / 1024 : undefined,
+        })),
+        actions: (duplicateConfig.actions || []).map((action: any, index: number) => ({
+          tempId: Date.now() + index,
+          ...action,
+          variables: action.variables
+            ? action.variables.map((varObj: any) => {
+                const [key, value] = Object.entries(varObj)[0];
+                return { name: key, value };
+              })
+            : [],
+          artifacts: action.artifacts || [],
+          selectedNodes: action.on || [],
+          collapsed: false,
+        })),
+        notifications: (duplicateConfig.notify || []).map((n: any) => ({
+          channel: n.channel || '',
+          events: n.events || [],
+          config: n.config || {},
+        })),
+      };
+    }
+
     return {
       availableExecutors,
       availableMessengers: Object.keys(messengerSchemas),
       messengerConfigs,
+      prefillFlow,
     };
   } catch (loadError) {
     console.error('Error loading executors/messengers:', loadError);
