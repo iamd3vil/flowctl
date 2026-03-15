@@ -3,6 +3,8 @@
   import type { FlowInput } from '$lib/types';
   import { ApiError } from '$lib/apiClient';
   import { handleInlineError, showSuccess } from '$lib/utils/errorHandling';
+  import { getTimezones } from '$lib/utils/timezone';
+  import { DateTime } from 'luxon';
   import { IconClock, IconPlayerPlay } from '@tabler/icons-svelte';
   import FlowInputFields from '$lib/components/shared/FlowInputFields.svelte';
 
@@ -24,6 +26,9 @@
   let errors = $state<Record<string, string>>({});
   let scheduleEnabled = $state(false);
   let scheduledAt = $state('');
+  let scheduledTimezone = $state(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  const timezones = getTimezones();
 
   const mergedInputs = $derived(
     inputs.map(input => {
@@ -34,17 +39,9 @@
     })
   );
 
-  // Get minimum datetime (now + 1 minute) in local time format for datetime-local input
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 1);
-    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  };
-
-  // Convert local datetime to RFC3339 format
-  const toRFC3339 = (localDateTime: string): string => {
-    const date = new Date(localDateTime);
-    return date.toISOString();
+  // Convert datetime-local string + IANA timezone to RFC3339
+  const toRFC3339 = (localDateTime: string, timezone: string): string => {
+    return DateTime.fromISO(localDateTime, { zone: timezone }).toISO() ?? localDateTime;
   };
 
   const submit = async (event: SubmitEvent) => {
@@ -58,7 +55,12 @@
     // Build URL with scheduled_at query param if scheduling is enabled
     let url = `/api/v1/${namespace}/trigger/${flowId}`;
     if (scheduleEnabled && scheduledAt) {
-      const scheduledAtRFC3339 = toRFC3339(scheduledAt);
+      const scheduledAtRFC3339 = toRFC3339(scheduledAt, scheduledTimezone);
+      if (new Date(scheduledAtRFC3339) <= new Date()) {
+        errors = { general: 'Scheduled time must be in the future' };
+        loading = false;
+        return;
+      }
       url += `?scheduled_at=${encodeURIComponent(scheduledAtRFC3339)}`;
     }
 
@@ -140,20 +142,39 @@
       </div>
 
       {#if scheduleEnabled}
-        <div class="mt-4">
-          <label for="scheduled_at" class="block text-sm font-medium text-foreground mb-2">
-            Run at
-            <span class="text-red-500">*</span>
-          </label>
-          <input
-            type="datetime-local"
-            id="scheduled_at"
-            bind:value={scheduledAt}
-            min={getMinDateTime()}
-            required={scheduleEnabled}
-            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-          <p class="text-sm text-muted-foreground mt-1">The flow will be queued and executed at the specified time</p>
+        <div class="mt-4 space-y-3">
+          <div>
+            <label for="scheduled_at" class="block text-sm font-medium text-foreground mb-2">
+              Run at
+              <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              id="scheduled_at"
+              bind:value={scheduledAt}
+              required={scheduleEnabled}
+              class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label for="scheduled_timezone" class="block text-sm font-medium text-foreground mb-2">
+              Timezone
+            </label>
+            <input
+              type="text"
+              id="scheduled_timezone"
+              list="timezone-list"
+              bind:value={scheduledTimezone}
+              class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Search or select timezone..."
+            />
+            <datalist id="timezone-list">
+              {#each timezones as tz}
+                <option value={tz.tzCode}>{tz.label}</option>
+              {/each}
+            </datalist>
+          </div>
+          <p class="text-sm text-muted-foreground">The flow will be queued and executed at the specified time</p>
         </div>
       {/if}
     </div>

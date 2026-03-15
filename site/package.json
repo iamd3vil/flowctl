@@ -36,6 +36,7 @@
     "@tabler/icons-svelte": "^3.34.1",
     "casbin.js": "^1.0.1",
     "codemirror": "^6.0.2",
-    "cron-parser": "^5.4.0"
+    "cron-parser": "^5.4.0",
+    "luxon": "^3.7.2"
   }
 }
