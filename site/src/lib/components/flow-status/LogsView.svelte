@@ -1,6 +1,11 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import { formatTime } from "$lib/utils";
+    import Convert from 'ansi-to-html';
+
+    const convert = new Convert({ escapeXML: true });
+    const containsAnsi = (text: string) => text.includes('\x1b[');
+    const ansiToHtml = (text: string) => convert.toHtml(text);
 
     type LogMessage = {
         action_id: string;
@@ -15,6 +20,8 @@
         nodeId: string;
         nodeColor: string;
         value: string;
+        html: string;
+        hasAnsi: boolean;
     };
 
     type Props = {
@@ -119,11 +126,14 @@
         for (const msg of messages) {
             const lines = msg.value.split("\n").filter((line) => line.trim() !== "");
             for (const line of lines) {
+                const hasAnsi = containsAnsi(line);
                 result.push({
                     timestamp: msg.timestamp ? formatTime(msg.timestamp) : null,
                     nodeId: msg.node_id,
                     nodeColor: getNodeColor(msg.node_id),
                     value: line,
+                    hasAnsi,
+                    html: hasAnsi ? ansiToHtml(line) : '',
                 });
             }
         }
@@ -131,6 +141,11 @@
     });
 
     const processedRawLogs = $derived(formatLogsWithLineNumbers(logs));
+    const rawLogsHasAnsi = $derived(containsAnsi(processedRawLogs));
+    const processedRawLogsHtml = $derived.by(() => {
+        if (!rawLogsHasAnsi) return '';
+        return processedRawLogs.split('\n').map(line => ansiToHtml(line)).join('\n');
+    });
     const cursorClasses = $derived(getCursorClasses());
 
     const totalHeight = $derived(processedLogs.length * ITEM_HEIGHT);
@@ -197,14 +212,14 @@
                 <div style="position: absolute; top: 0; left: 0; width: 100%; transform: translateY({offsetY}px);">
                     {#each visibleLogs as logMsg, i (startIndex + i)}
                         <div class="whitespace-nowrap" style="height: {ITEM_HEIGHT}px; line-height: {ITEM_HEIGHT}px;">
-                            {#if showTimestamp && logMsg.timestamp}<span class="text-muted-foreground">[{logMsg.timestamp}]</span>{/if}{#if logMsg.nodeId}<span class="font-semibold {logMsg.nodeColor}">[{logMsg.nodeId}]</span>{/if}{logMsg.value}
+                            {#if showTimestamp && logMsg.timestamp}<span class="text-muted-foreground">[{logMsg.timestamp}]</span>{/if}{#if logMsg.nodeId}<span class="font-semibold {logMsg.nodeColor}">[{logMsg.nodeId}]</span>{/if}{#if logMsg.hasAnsi}{@html logMsg.html}{:else}{logMsg.value}{/if}
                         </div>
                     {/each}
                 </div>
             </div>
         {:else if logs.length > 0}
             <div class="whitespace-pre">
-                {processedRawLogs}
+                {#if rawLogsHasAnsi}{@html processedRawLogsHtml}{:else}{processedRawLogs}{/if}
                 {#if isRunning && showCursor}
                     <div class="inline-block">
                         <span class={cursorClasses.cursor}>█</span>
