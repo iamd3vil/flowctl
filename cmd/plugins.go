@@ -9,15 +9,10 @@ import (
 	"github.com/cvhariharan/flowctl/executors/flow"
 	"github.com/cvhariharan/flowctl/executors/script"
 	"github.com/cvhariharan/flowctl/internal/core"
-	qsshclient "github.com/cvhariharan/flowctl/remoteclients/qssh"
-	sshclient "github.com/cvhariharan/flowctl/remoteclients/ssh"
 	"github.com/cvhariharan/flowctl/sdk/executor"
 	sdkplugin "github.com/cvhariharan/flowctl/sdk/plugin"
-	"github.com/cvhariharan/flowctl/sdk/remoteclient"
 	goplugin "github.com/hashicorp/go-plugin"
 )
-
-var remoteClients = make(map[string]remoteclient.NewRemoteClientFunc)
 
 // pluginClients holds active go-plugin clients for external plugins (for cleanup)
 var pluginClients []*goplugin.Client
@@ -59,13 +54,6 @@ func registerPlugins(pluginDir string, signingKey []byte) map[string]string {
 		for k, v := range externalKeys {
 			executorKeys[k] = v
 		}
-	}
-
-	remoteClients["ssh"] = sshclient.NewRemoteClient
-	remoteClients["qssh"] = qsshclient.NewRemoteClient
-
-	for name, newClient := range remoteClients {
-		remoteclient.Register(name, newClient)
 	}
 
 	return executorKeys

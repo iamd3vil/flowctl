@@ -1,4 +1,4 @@
-package qssh
+package remoteclient
 
 import (
 	"context"
@@ -8,18 +8,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cvhariharan/flowctl/sdk/remoteclient"
 	"github.com/cvhariharan/qssh"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
 type qsshClient struct {
-	sshClient *ssh.Client
-	conn      *qssh.QSSHConnection
+	client *ssh.Client
+	conn   *qssh.QSSHConnection
 }
 
-func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient, error) {
+func newQSSHClient(config NodeConfig) (RemoteClient, error) {
 	var qconfig qssh.Config
 
 	switch config.Auth.Method {
@@ -40,13 +39,13 @@ func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient,
 		return nil, fmt.Errorf("failed to dial %s:%d: %w", config.Hostname, config.Port, err)
 	}
 	return &qsshClient{
-		sshClient: client,
-		conn:      conn,
+		client: client,
+		conn:   conn,
 	}, nil
 }
 
 func (q *qsshClient) RunCommand(ctx context.Context, command string, stdout, stderr io.Writer) error {
-	session, err := q.sshClient.NewSession()
+	session, err := q.client.NewSession()
 	if err != nil {
 		return fmt.Errorf("could not create session: %w", err)
 	}
@@ -109,7 +108,7 @@ func (q *qsshClient) Download(ctx context.Context, remotePath, localPath string)
 
 // downloadFile implements the actual SFTP download
 func (q *qsshClient) downloadFile(remotePath, localPath string) error {
-	sftpClient, err := sftp.NewClient(q.sshClient)
+	sftpClient, err := sftp.NewClient(q.client)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)
 	}
@@ -170,7 +169,7 @@ func (q *qsshClient) Upload(ctx context.Context, localPath, remotePath string) e
 
 // uploadFile implements the actual SFTP upload
 func (q *qsshClient) uploadFile(localPath, remotePath string) error {
-	sftpClient, err := sftp.NewClient(q.sshClient)
+	sftpClient, err := sftp.NewClient(q.client)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)
 	}
@@ -209,7 +208,7 @@ func (q *qsshClient) uploadFile(localPath, remotePath string) error {
 
 func (q *qsshClient) Dial(network, address string) (net.Conn, error) {
 	// Use SSH client's Dial method for port forwarding
-	conn, err := q.sshClient.Dial(network, address)
+	conn, err := q.client.Dial(network, address)
 	if err != nil {
 		return nil, fmt.Errorf("could not dial %s://%s: %w", network, address, err)
 	}
@@ -217,7 +216,7 @@ func (q *qsshClient) Dial(network, address string) (net.Conn, error) {
 }
 
 func (q *qsshClient) Close() error {
-	if err := q.sshClient.Close(); err != nil {
+	if err := q.client.Close(); err != nil {
 		return err
 	}
 	return q.conn.Close()

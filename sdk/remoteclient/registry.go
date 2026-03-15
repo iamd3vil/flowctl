@@ -2,7 +2,6 @@ package remoteclient
 
 import (
 	"fmt"
-	"sync"
 )
 
 // NodeConfig contains the configuration needed to connect to a remote node
@@ -22,25 +21,13 @@ type NodeAuth struct {
 // NewRemoteClientFunc defines the signature for creating a new RemoteClient.
 type NewRemoteClientFunc func(config NodeConfig) (RemoteClient, error)
 
-var (
-	registry = make(map[string]NewRemoteClientFunc)
-	mu       sync.RWMutex
-)
-
-// Register registers a remote client new func for the given protocol name.
-func Register(protocolName string, factory NewRemoteClientFunc) {
-	mu.Lock()
-	defer mu.Unlock()
-	if _, exists := registry[protocolName]; exists {
-		panic(fmt.Sprintf("remote client for protocol '%s' is already registered", protocolName))
-	}
-	registry[protocolName] = factory
+var registry = map[string]NewRemoteClientFunc{
+	"ssh":  newSSHClient,
+	"qssh": newQSSHClient,
 }
 
 // GetClient is called by executors to get a client for a specific protocol.
 func GetClient(protocolName string, config NodeConfig) (RemoteClient, error) {
-	mu.RLock()
-	defer mu.RUnlock()
 	factory, ok := registry[protocolName]
 	if !ok {
 		return nil, fmt.Errorf("remote client for protocol '%s' is not registered", protocolName)

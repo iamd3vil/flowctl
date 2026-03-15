@@ -1,4 +1,4 @@
-package ssh
+package remoteclient
 
 import (
 	"context"
@@ -8,19 +8,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cvhariharan/flowctl/sdk/remoteclient"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
-// sshClient is an implementation of RemoteClient using the native SSH library.
-type sshClient struct {
+// sshClientImpl is an implementation of RemoteClient using the native SSH library.
+type sshClientImpl struct {
 	client *ssh.Client
 }
 
-// NewRemoteClient creates a new client for interacting with a remote node based on the
+// newSSHClient creates a new client for interacting with a remote node based on the
 // provided node configuration.
-func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient, error) {
+func newSSHClient(config NodeConfig) (RemoteClient, error) {
 	var authMethod ssh.AuthMethod
 	var err error
 
@@ -49,11 +48,11 @@ func NewRemoteClient(config remoteclient.NodeConfig) (remoteclient.RemoteClient,
 		return nil, fmt.Errorf("failed to create ssh client: %w", err)
 	}
 
-	return &sshClient{client: client}, nil
+	return &sshClientImpl{client: client}, nil
 }
 
 // Close closes the SSH client connection
-func (c *sshClient) Close() error {
+func (c *sshClientImpl) Close() error {
 	if c.client != nil {
 		return c.client.Close()
 	}
@@ -61,12 +60,12 @@ func (c *sshClient) Close() error {
 }
 
 // Dial opens a connection to the given network and address on the remote machine.
-func (c *sshClient) Dial(network, address string) (net.Conn, error) {
+func (c *sshClientImpl) Dial(network, address string) (net.Conn, error) {
 	return c.client.Dial(network, address)
 }
 
 // RunCommand executes a shell command on the remote host
-func (c *sshClient) RunCommand(ctx context.Context, command string, stdout, stderr io.Writer) error {
+func (c *sshClientImpl) RunCommand(ctx context.Context, command string, stdout, stderr io.Writer) error {
 	session, err := c.client.NewSession()
 	if err != nil {
 		return fmt.Errorf("failed to create SSH session: %w", err)
@@ -100,7 +99,7 @@ func (c *sshClient) RunCommand(ctx context.Context, command string, stdout, stde
 }
 
 // Download copies a file from the remote path to a local path with context cancellation support.
-func (c *sshClient) Download(ctx context.Context, remotePath, localPath string) error {
+func (c *sshClientImpl) Download(ctx context.Context, remotePath, localPath string) error {
 	// Create a channel to receive the result
 	type result struct {
 		err error
@@ -126,7 +125,7 @@ func (c *sshClient) Download(ctx context.Context, remotePath, localPath string) 
 }
 
 // Upload copies a file from the local path to a remote path with context cancellation support.
-func (c *sshClient) Upload(ctx context.Context, localPath, remotePath string) error {
+func (c *sshClientImpl) Upload(ctx context.Context, localPath, remotePath string) error {
 	// Create a channel to receive the result
 	type result struct {
 		err error
@@ -152,7 +151,7 @@ func (c *sshClient) Upload(ctx context.Context, localPath, remotePath string) er
 }
 
 // downloadFile implements SFTP download using native SSH
-func (c *sshClient) downloadFile(remotePath, localPath string) error {
+func (c *sshClientImpl) downloadFile(remotePath, localPath string) error {
 	sftpClient, err := sftp.NewClient(c.client)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)
@@ -188,7 +187,7 @@ func (c *sshClient) downloadFile(remotePath, localPath string) error {
 }
 
 // uploadFile implements SFTP upload using native SSH
-func (c *sshClient) uploadFile(localPath, remotePath string) error {
+func (c *sshClientImpl) uploadFile(localPath, remotePath string) error {
 	sftpClient, err := sftp.NewClient(c.client)
 	if err != nil {
 		return fmt.Errorf("could not create SFTP client: %w", err)
