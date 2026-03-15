@@ -1,0 +1,137 @@
+---
+title: Writing Executor Plugins
+description: Build custom executor plugins for flowctl using the Go SDK
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## Overview
+
+Executor plugins let you extend flowctl with custom execution logic. A plugin is a standalone Go binary that flowctl loads at startup and communicates with over gRPC using [go-plugin](https://github.com/hashicorp/go-plugin).
+
+Plugins implement the same `ExecutorPlugin` interface as built-in executors, so they support all executor features including remote nodes, streaming output, and artifacts.
+
+## How Plugins Work
+
+Flowctl spawns each plugin binary as a child process on startup. Communication happens over a local gRPC connection. The plugin process lives for the lifetime of the flowctl server. If a plugin crashes, flowctl logs the error; it does not restart the plugin automatically.
+
+
+## Implementing a Plugin
+
+#### 1. Implement `ExecutorPlugin`
+
+Your plugin must implement the `executor.ExecutorPlugin` interface from `github.com/cvhariharan/flowctl/sdk/executor`:
+
+```go
+package executor
+
+type ExecutorPlugin interface {
+    GetName() string
+    GetSchema() interface{}
+    GetCapabilities() Capability
+    New(name string, node Node, execID string) (Executor, error)
+}
+```
+
+`GetName()` returns the executor name used in flow YAML (e.g. `"my-plugin"`).
+
+`GetSchema()` returns a JSON Schema object describing the `with` config for your executor. Flowctl uses this to render a form in the UI. Return `nil` if you have no config.
+
+`GetCapabilities()` returns a bitmask of capabilities your executor supports:
+
+| Constant | Description |
+| --- | --- |
+| `executor.RemoteExecution` | Can run on remote nodes |
+| `executor.EnvironmentVariables` | Supports env var injection |
+| `executor.FileTransfer` | Supports artifact transfer |
+| `executor.StreamingOutput` | Streams stdout/stderr in real time |
+| `executor.NodeDispatch` | Handles node dispatch internally |
+
+`New(name, node, execID)` creates a new `Executor` instance for a single action execution.
+
+### 2. Implement `Executor`
+
+`New` returns an `executor.Executor`:
+
+```go
+type Executor interface {
+    Execute(ctx context.Context, execCtx ExecutionContext) (outputs map[string]string, err error)
+    GetArtifactsDir() string
+    Close() error
+}
+```
+
+`Execute` runs the action.
+
+`GetArtifactsDir()` returns a directory path where the executor will write artifacts. Flowctl transfers top-level files from this directory after execution.
+
+`Close()` is called after execution completes. Release any resources here.
+
+For a real implementation to reference, see the [script executor](https://github.com/cvhariharan/flowctl/blob/master/executors/script/executor.go) or the [docker executor](https://github.com/cvhariharan/flowctl/blob/master/executors/docker/executor.go) in the flowctl repository.
+
+### 3. Serve the Plugin
+
+In `main()`, serve your implementation using the `sdkplugin` package:
+
+```go
+package main
+
+import (
+    sdkplugin "github.com/cvhariharan/flowctl/sdk/plugin"
+    goplugin "github.com/hashicorp/go-plugin"
+)
+
+func main() {
+    goplugin.Serve(&goplugin.ServeConfig{
+        HandshakeConfig: sdkplugin.HandshakeConfig,
+        GRPCServer:      goplugin.DefaultGRPCServer,
+        Plugins: map[string]goplugin.Plugin{
+            "executor": &sdkplugin.GRPCExecutorPlugin{Impl: &MyPlugin{}},
+        },
+    })
+}
+```
+
+`sdkplugin.HandshakeConfig` contains the protocol version and magic cookie that flowctl uses to verify the binary is a valid plugin. Do not change these values.
+
+## Installation
+
+Place compiled plugin binaries in the directory configured by `plugin_dir` in `config.toml`:
+
+```toml
+[app]
+plugin_dir = "/opt/flowctl/plugins"
+```
+
+Restart flowctl. It loads all binaries in the directory on startup. Check the server logs to confirm the plugin loaded successfully.
+
+<Aside type="note">
+  Plugin names must be unique across all loaded plugins and must not conflict
+  with built-in executor names: `docker`, `script`, `flow`.
+</Aside>
+
+## ExecutionContext Reference
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `WithConfig` | `[]byte` | Raw YAML bytes from the action's `with` block |
+| `Inputs` | `map[string]any` | Flow input values |
+| `Stdout` | `io.Writer` | Stream for standard output logs |
+| `Stderr` | `io.Writer` | Stream for standard error logs |
+| `UserUUID` | `string` | UUID of the user who triggered the flow |
+| `NamespaceName` | `string` | Human-readable namespace name |
+| `APIKey` | `string` | API key for authenticating calls back to the flowctl server |
+| `APIBaseURL` | `string` | Base URL of the flowctl server |
+| `Nodes` | `[]Node` | Target nodes for this action (populated when `on` is set in the flow) |
+
+## Capabilities Reference
+
+Declare the capabilities your executor actually supports. Flowctl uses these to determine routing and UI behavior.
+
+```go
+func (p *MyPlugin) GetCapabilities() executor.Capability {
+    return executor.RemoteExecution | executor.StreamingOutput | executor.FileTransfer
+}
+```
+
+A plugin that declares `NodeDispatch` receives all target nodes in `ExecutionContext.Nodes` and is responsible for dispatching work to them. Plugins without `NodeDispatch` are called once per node by flowctl.

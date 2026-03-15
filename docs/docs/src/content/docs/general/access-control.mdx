@@ -174,8 +174,43 @@ The initial admin user configured in `config.toml` can authenticate using userna
 All non-admin users authenticate via SSO using OIDC. Configure OIDC in your `config.toml`:
 
 ```toml
-[app.oidc]
-  client_id = "your-client-id"
-  client_secret = "your-client-secret"
-  issuer = "https://your-oidc-provider.com/"
+[[oidc]]
+name = "oidc"
+client_id = "your-client-id"
+client_secret = "your-client-secret"
+issuer = "https://your-oidc-provider.com/"
 ```
+
+### Auto-Creating Users on Login
+
+By default, a user must already exist in flowctl before they can log in via OIDC. Enable `auto_create_users` on an OIDC provider to create accounts automatically on first login.
+
+```toml
+[[oidc]]
+name = "oidc"
+client_id = "your-client-id"
+client_secret = "your-client-secret"
+issuer = "https://your-oidc-provider.com/"
+
+auto_create_users.enabled = true
+auto_create_users.namespace = "default"
+auto_create_users.role = "user"
+auto_create_users.groups = ["developers"]
+auto_create_users.allowed_domains = ["example.com"]
+```
+
+**Options:**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `enabled` | bool | Enable auto user creation. Default: `false`. |
+| `namespace` | string | Namespace to add the new user to. Default: `"default"`. |
+| `role` | string | Namespace role assigned to the new user: `user`, `reviewer`, or `admin`. Default: `"user"`. |
+| `groups` | array | List of existing group names to add the new user to. |
+| `allowed_domains` | array | If set, only email addresses from these domains can create accounts. Leave empty to allow any domain. |
+
+<Aside type="caution">
+  If `allowed_domains` is empty, any user who can authenticate with your OIDC
+  provider will have an account created automatically. Set it to restrict
+  sign-ups to your organisation's domain.
+</Aside>

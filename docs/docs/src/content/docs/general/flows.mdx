@@ -113,6 +113,12 @@ Once enabled, go to a flow's **Schedule** tab and click **Add** to create a sche
   values. File inputs aren't supported.
 </Aside>
 
+### Scheduling a Flow for Later
+
+When triggering a flow manually you can defer execution by enabling the **Run Later** toggle. Choose a date, time, and timezone. The flow is queued and starts at the specified time.
+
+The timezone selector defaults to your browser's local timezone. You can search for any IANA timezone (e.g. `America/New_York`, `Europe/Berlin`).
+
 ## Inputs
 
 Inputs define parameters that users provide when triggering a flow. Flowctl supports multiple input types with validation.
@@ -655,6 +661,15 @@ notify:
       - on_success
       - on_failure
 ```
+
+## Duplicating a Flow
+
+To create a copy of an existing flow, open the flow list, click the **...** menu on any flow, and select **Duplicate**. The create form opens pre-filled with the original flow's metadata, inputs, actions, and notifications.
+
+<Aside type="caution">
+  Secrets are not copied. Re-add any secrets under the **Secrets** tab after the
+  duplicated flow is created.
+</Aside>
 
 ## Next Steps
 

@@ -67,6 +67,7 @@ The `config.toml` file controls all aspects of flowctl's behavior. Here's a comp
   http_tls_cert = "server_cert.pem"
   http_tls_key = "server_key.pem"
   max_file_upload_size = 104857600
+  plugin_dir = "/opt/flowctl/plugins"
 ```
 
 - **`admin_username`** (required): Admin user account username.
@@ -78,6 +79,7 @@ The `config.toml` file controls all aspects of flowctl's behavior. Here's a comp
 - **`http_tls_cert`** (required if `use_tls` is true): Path to TLS certificate file.
 - **`http_tls_key`** (required if `use_tls` is true): Path to TLS key file.
 - **`max_file_upload_size`** (required): Maximum file upload size in bytes (default: 104857600 = 100MB).
+- **`plugin_dir`** (optional): Directory to load external executor plugin binaries from. See [Writing Executor Plugins](/docs/advanced/executor-plugins).
 
 ### Database Settings
 
@@ -211,6 +213,11 @@ Configure webhook settings to enable webhook notifications for flow events. Webh
   token_url = ""
   redirect_url = ""
   label = "Sign in with OIDC"
+  auto_create_users.enabled = false
+  auto_create_users.namespace = "default"
+  auto_create_users.role = "user"
+  auto_create_users.groups = []
+  auto_create_users.allowed_domains = ["example.com"]
 ```
 
 <Aside>
@@ -228,6 +235,11 @@ Configure OpenID Connect for single sign-on. Multiple OIDC providers can be conf
 - **`token_url`** (optional): Token URL of the OIDC provider.
 - **`redirect_url`** (optional): Callback URL for OIDC authentication.
 - **`label`** (optional): Label for the SSO button.
+- **`auto_create_users.enabled`** (optional): Automatically create a flowctl account for users logging in for the first time (default: `false`). See [Auto-Creating Users on Login](/docs/general/access-control#auto-creating-users-on-login).
+- **`auto_create_users.namespace`** (optional): Namespace to add new users to (default: `"default"`).
+- **`auto_create_users.role`** (optional): Namespace role for new users: `user`, `reviewer`, or `admin` (default: `"user"`).
+- **`auto_create_users.groups`** (optional): List of existing group names to add new users to.
+- **`auto_create_users.allowed_domains`** (optional): Restrict auto-creation to specific email domains. Leave empty to allow any domain.
 
 ### Metrics
 
