@@ -129,15 +129,24 @@ type KeystoreConfig struct {
 	KeeperURL string `koanf:"keeper_url" validate:"required"`
 }
 
+type OIDCAutoCreateConfig struct {
+	Enabled        bool     `koanf:"enabled"`
+	Namespace      string   `koanf:"namespace"`
+	Role           string   `koanf:"role"`
+	Groups         []string `koanf:"groups"`
+	AllowedDomains []string `koanf:"allowed_domains"`
+}
+
 type OIDCConfig struct {
-	Name         string `koanf:"name" validate:"required,alpha"`
-	Issuer       string `koanf:"issuer" validate:"required,url"`
-	AuthURL      string `koanf:"auth_url" validate:"omitempty,url"`
-	TokenURL     string `koanf:"token_url" validate:"omitempty,url"`
-	RedirectURL  string `koanf:"redirect_url" validate:"omitempty,url"`
-	ClientID     string `koanf:"client_id" validate:"required"`
-	ClientSecret string `koanf:"client_secret" validate:"required"`
-	Label        string `koanf:"label"`
+	Name            string               `koanf:"name" validate:"required,alpha"`
+	Issuer          string               `koanf:"issuer" validate:"required,url"`
+	AuthURL         string               `koanf:"auth_url" validate:"omitempty,url"`
+	TokenURL        string               `koanf:"token_url" validate:"omitempty,url"`
+	RedirectURL     string               `koanf:"redirect_url" validate:"omitempty,url"`
+	ClientID        string               `koanf:"client_id" validate:"required"`
+	ClientSecret    string               `koanf:"client_secret" validate:"required"`
+	Label           string               `koanf:"label"`
+	AutoCreateUsers OIDCAutoCreateConfig `koanf:"auto_create_users"`
 }
 
 type MessengersConfig struct {

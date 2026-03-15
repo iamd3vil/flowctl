@@ -68,6 +68,12 @@ redirect_url = ""
 token_url = ""
 # (optional) Sign in label
 label = ""
+# (optional) Auto create users
+# auto_create_users.enabled = false
+# auto_create_users.namespace = "default"
+# auto_create_users.role = "user"
+# auto_create_users.groups = []
+# auto_create_users.allowed_domains = ["example.com"]
 
 # Multiple OIDC providers support
 # [[oidc]]

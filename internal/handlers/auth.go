@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/cvhariharan/flowctl/internal/config"
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/labstack/echo/v4"
 	"github.com/zerodha/simplesessions/v3"
@@ -292,7 +294,10 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 
 	user, err := h.co.GetUserByUsernameWithGroups(c.Request().Context(), claims.Email)
 	if err != nil {
-		return wrapError(ErrForbidden, "user does not exist in flowctl", err, nil)
+		user, err = h.autoCreateOIDCUser(c.Request().Context(), sessionState.Provider, claims.Email, claims.Name)
+		if err != nil {
+			return wrapError(ErrForbidden, err.Error(), err, nil)
+		}
 	}
 
 	sess.Set("method", "oidc")
@@ -318,6 +323,72 @@ func (h *Handler) HandleAuthCallback(c echo.Context) error {
 	}
 
 	return c.Redirect(http.StatusTemporaryRedirect, redirectAfterLogin)
+}
+
+func (h *Handler) autoCreateOIDCUser(ctx context.Context, provider, email, claimsName string) (models.UserWithGroups, error) {
+	var autoCreate config.OIDCAutoCreateConfig
+	for _, oidcCfg := range h.config.OIDC {
+		if oidcCfg.Name == provider {
+			autoCreate = oidcCfg.AutoCreateUsers
+			break
+		}
+	}
+
+	if !autoCreate.Enabled {
+		return models.UserWithGroups{}, fmt.Errorf("auto create users is not enabled for provider: %s", provider)
+	}
+
+	if len(autoCreate.AllowedDomains) > 0 {
+		emailParts := strings.SplitN(email, "@", 2)
+		if len(emailParts) != 2 {
+			return models.UserWithGroups{}, fmt.Errorf("invalid email address: %s", email)
+		}
+		domain := emailParts[1]
+		allowed := false
+		for _, d := range autoCreate.AllowedDomains {
+			if strings.EqualFold(domain, d) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return models.UserWithGroups{}, fmt.Errorf("email domain %q is not allowed for provider: %s", domain, provider)
+		}
+	}
+
+	name := claimsName
+	if name == "" {
+		name = strings.Split(email, "@")[0]
+	}
+
+	var groupIDs []string
+	for _, groupName := range autoCreate.Groups {
+		g, err := h.co.GetGroupByName(ctx, groupName)
+		if err == nil {
+			groupIDs = append(groupIDs, g.ID)
+		}
+	}
+
+	user, err := h.co.CreateUser(ctx, name, email, models.OIDCLoginType, models.StandardUserRole, groupIDs)
+	if err != nil {
+		return models.UserWithGroups{}, fmt.Errorf("could not create user: %w", err)
+	}
+
+	if autoCreate.Namespace != "" || autoCreate.Role != "" {
+		namespace := autoCreate.Namespace
+		if namespace == "" {
+			namespace = "default"
+		}
+		role := models.NamespaceRole(autoCreate.Role)
+		if role == "" {
+			role = models.NamespaceRoleUser
+		}
+		if ns, err := h.co.GetNamespaceByName(ctx, namespace); err == nil {
+			h.co.AssignNamespaceRole(ctx, user.ID, "user", ns.ID, role)
+		}
+	}
+
+	return user, nil
 }
 
 func (h *Handler) HandleLogout(c echo.Context) error {
