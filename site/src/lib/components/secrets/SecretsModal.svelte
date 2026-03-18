@@ -2,7 +2,6 @@
 	import { handleInlineError } from '$lib/utils/errorHandling';
 	import { autofocus } from '$lib/utils/autofocus';
 	import type { FlowSecretReq, FlowSecretUpdateReq, FlowSecretResp } from '$lib/types';
-	import { IconEye, IconEyeOff } from '@tabler/icons-svelte';
 
 	interface Props {
 		isEditMode?: boolean;
@@ -26,7 +25,6 @@
 	});
 
 	let loading = $state(false);
-	let showValue = $state(false);
 
 	// Initialize form data when secretData changes
 	$effect(() => {
@@ -83,7 +81,7 @@
 			<h2 class="text-xl font-semibold mb-4 text-foreground">
 				{isEditMode ? 'Edit Secret' : 'Add New Secret'}
 			</h2>
-			
+
 			<form onsubmit={handleSubmit} class="space-y-4">
 				<!-- Secret Key -->
 				<div>
@@ -110,29 +108,14 @@
 					<label for="value" class="block text-sm font-medium text-foreground mb-1">
 						Value <span class="text-red-500">*</span>
 					</label>
-					<div class="relative">
-						<input
-							type={showValue ? 'text' : 'password'}
-							id="value"
-							bind:value={formData.value}
-							required
-							disabled={loading}
-							class="w-full px-3 py-2 pr-10 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-							placeholder={isEditMode ? 'Enter new value to update' : 'Enter secret value'}
-						/>
-						<button
-							type="button"
-							onclick={() => showValue = !showValue}
-							class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-							title={showValue ? 'Hide value' : 'Show value'}
-						>
-							{#if showValue}
-								<IconEyeOff size={20} />
-							{:else}
-								<IconEye size={20} />
-							{/if}
-						</button>
-					</div>
+					<textarea
+						id="value"
+						bind:value={formData.value}
+						required
+						disabled={loading}
+						class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none h-32 font-mono text-xs"
+						placeholder={isEditMode ? 'Enter new value to update' : 'Enter value'}
+					></textarea>
 					{#if isEditMode}
 						<p class="mt-1 text-xs text-muted-foreground">Enter a new value to update. Previous value is not shown for security.</p>
 					{/if}

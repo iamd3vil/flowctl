@@ -804,7 +804,7 @@ func convertFlowActionsToActionsReq(actions []models.Action) []FlowActionReq {
 type FlowSecretReq struct {
 	FlowID      string `param:"flowID" validate:"required"`
 	Key         string `json:"key" validate:"required,min=1,max=150,alphanum_underscore"`
-	Value       string `json:"value" validate:"required,max=255"`
+	Value       string `json:"value" validate:"required"`
 	Description string `json:"description" validate:"max=255"`
 }
 
@@ -822,7 +822,7 @@ type FlowSecretGetReq struct {
 
 type FlowSecretUpdateReq struct {
 	FlowSecretGetReq
-	Value       string `json:"value" validate:"required,max=255"`
+	Value       string `json:"value" validate:"required"`
 	Description string `json:"description" validate:"max=255"`
 }
 
@@ -842,7 +842,7 @@ func coreFlowSecretToFlowSecretResp(secret models.FlowSecret) FlowSecretResp {
 
 type NamespaceSecretReq struct {
 	Key         string `json:"key" validate:"required,min=1,max=150,alphanum_underscore"`
-	Value       string `json:"value" validate:"required,max=255"`
+	Value       string `json:"value" validate:"required"`
 	Description string `json:"description" validate:"max=255"`
 }
 
@@ -860,7 +860,7 @@ type NamespaceSecretGetReq struct {
 
 type NamespaceSecretUpdateReq struct {
 	NamespaceSecretGetReq
-	Value       string `json:"value" validate:"required,max=255"`
+	Value       string `json:"value" validate:"required"`
 	Description string `json:"description" validate:"max=255"`
 }
 
