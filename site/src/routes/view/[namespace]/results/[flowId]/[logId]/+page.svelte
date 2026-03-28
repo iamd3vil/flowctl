@@ -740,6 +740,8 @@
                                         autoScroll={true}
                                         showCursor={true}
                                         filterByActionId={selectedActionId}
+                                        {logId}
+                                        {namespace}
                                     />
                                 </div>
                             </div>

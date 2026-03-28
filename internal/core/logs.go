@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"time"
 
@@ -44,6 +45,24 @@ func (c *Core) getActionRetries(ctx context.Context, execID string, namespaceID 
 	}
 
 	return actionRetries
+}
+
+// DownloadLogs writes the raw log files for the given execID to w.
+// Returns an error if the execution is still running or does not belong to the namespace.
+func (c *Core) DownloadLogs(ctx context.Context, execID string, namespaceID string, w io.Writer) error {
+	exec, err := c.GetExecutionSummaryByExecID(ctx, execID, namespaceID)
+	if err != nil {
+		return fmt.Errorf("could not get execution: %w", err)
+	}
+
+	switch exec.Status {
+	case models.ExecutionStatusCompleted, models.ExecutionStatusErrored, models.ExecutionStatusCancelled:
+		// ok to download
+	default:
+		return fmt.Errorf("execution %s is still running, download is only available for completed executions", execID)
+	}
+
+	return c.LogManager.GetRawLogs(ctx, execID, w)
 }
 
 // StreamLogs reads values from a stream from the beginning and returns a channel to which

@@ -35,6 +35,8 @@
         theme?: "dark" | "light";
         fontSize?: "xs" | "sm" | "base";
         filterByActionId?: string;
+        logId?: string;
+        namespace?: string;
     };
 
     let {
@@ -48,7 +50,21 @@
         theme = "dark",
         fontSize = "sm",
         filterByActionId,
+        logId,
+        namespace,
     }: Props = $props();
+
+    const canDownload = $derived(!isRunning && !!logId && !!namespace);
+
+    const downloadLogs = () => {
+        if (!logId || !namespace) return;
+        const a = document.createElement("a");
+        a.href = `/api/v1/${namespace}/logs/${logId}/download`;
+        a.download = `${logId}.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
 
     let showTimestamp = $state(false);
     let scrollContainer: HTMLDivElement | undefined;
@@ -189,16 +205,33 @@
 </script>
 
 <div class="flex flex-col space-y-3">
-    {#if logMessages && logMessages.length > 0}
-        <div class="flex gap-4 text-sm flex-shrink-0">
-            <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                    type="checkbox"
-                    bind:checked={showTimestamp}
-                    class="rounded border-input text-primary-600 focus:ring-primary-500"
-                />
-                <span class="text-foreground">Show Timestamp</span>
-            </label>
+    {#if (logMessages && logMessages.length > 0) || canDownload}
+        <div class="flex items-center justify-between gap-4 text-sm flex-shrink-0">
+            <div class="flex gap-4">
+                {#if logMessages && logMessages.length > 0}
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            bind:checked={showTimestamp}
+                            class="rounded border-input text-primary-600 focus:ring-primary-500"
+                        />
+                        <span class="text-foreground">Show Timestamp</span>
+                    </label>
+                {/if}
+            </div>
+            {#if canDownload}
+                <button
+                    onclick={downloadLogs}
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors cursor-pointer"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download
+                </button>
+            {/if}
         </div>
     {/if}
 

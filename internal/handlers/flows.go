@@ -271,6 +271,35 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 	}
 }
 
+func (h *Handler) HandleLogDownload(c echo.Context) error {
+	namespace, ok := c.Get("namespace").(string)
+	if !ok {
+		return wrapError(ErrRequiredFieldMissing, "could not get namespace", nil, nil)
+	}
+
+	var req LogStreamingReq
+	if err := c.Bind(&req); err != nil {
+		return wrapError(ErrValidationFailed, "invalid request", err, nil)
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		return wrapError(ErrValidationFailed, fmt.Sprintf("request validation failed: %s", formatValidationErrors(err)), err, nil)
+	}
+
+	logID := req.LogID
+
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
+	c.Response().Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.log"`, logID))
+	c.Response().WriteHeader(http.StatusOK)
+
+	if err := h.co.DownloadLogs(c.Request().Context(), logID, namespace, c.Response()); err != nil {
+		h.logger.Error("log download error", "logID", logID, "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (h *Handler) handleLogStreaming(msg models.StreamMessage, w http.ResponseWriter) error {
 	var response FlowLogResp
 

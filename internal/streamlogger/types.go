@@ -26,6 +26,7 @@ type LogManager interface {
 	NewLogger(id string) (Logger, error)
 	LoggerExists(execID string) bool
 	StreamLogs(ctx context.Context, execID string, actionRetries map[string]int32) (<-chan string, error)
+	GetRawLogs(ctx context.Context, execID string, w io.Writer) error
 	Run(ctx context.Context, logger *slog.Logger) error
 }
 

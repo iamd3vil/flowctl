@@ -153,37 +153,40 @@ func (f *FileLogManager) StreamLogs(ctx context.Context, execID string, actionRe
 	return logCh, nil
 }
 
+// getLogFiles returns the sorted list of log file names for the given execID.
+func (f *FileLogManager) getLogFiles(execID string) ([]string, error) {
+	entries, err := os.ReadDir(f.cfg.LogDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read log directory: %w", err)
+	}
+
+	prefix := execID + "."
+	var logFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), prefix) {
+			logFiles = append(logFiles, entry.Name())
+		}
+	}
+
+	sort.Slice(logFiles, func(i, j int) bool {
+		return extractFileIndex(logFiles[i]) < extractFileIndex(logFiles[j])
+	})
+
+	return logFiles, nil
+}
+
 // streamAllLogs streams log lines from all log files for the given exec ID.
 // This is used for executions that are not currently running.
 // It filters logs to show only the highest retry attempt for each action.
 func (f *FileLogManager) streamAllLogs(ctx context.Context, execID string, actionRetries map[string]int32, logCh chan<- string) error {
-	entries, err := os.ReadDir(f.cfg.LogDir)
+	logFiles, err := f.getLogFiles(execID)
 	if err != nil {
-		return fmt.Errorf("failed to read log directory: %w", err)
-	}
-
-	var logFiles []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		filename := entry.Name()
-		if strings.HasPrefix(filename, execID+".") {
-			logFiles = append(logFiles, filename)
-		}
+		return err
 	}
 
 	if len(logFiles) == 0 {
 		return nil
 	}
-
-	// Sort files by index
-	sort.Slice(logFiles, func(i, j int) bool {
-		indexI := extractFileIndex(logFiles[i])
-		indexJ := extractFileIndex(logFiles[j])
-		return indexI < indexJ
-	})
 
 	// Stream from each file in order with retry filtering
 	for _, filename := range logFiles {
@@ -309,6 +312,42 @@ func (f *FileLogManager) followActiveFile(ctx context.Context, filePath string, 
 			}
 		}
 	}
+}
+
+// GetRawLogs writes all raw log file segments for the given execID to w, in order.
+// Returns an error if the logger for this execID is still active (execution still running).
+func (f *FileLogManager) GetRawLogs(ctx context.Context, execID string, w io.Writer) error {
+	if f.LoggerExists(execID) {
+		return fmt.Errorf("execution %s is still running", execID)
+	}
+
+	logFiles, err := f.getLogFiles(execID)
+	if err != nil {
+		return err
+	}
+
+	if len(logFiles) == 0 {
+		return nil
+	}
+
+	for _, filename := range logFiles {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			file, err := os.Open(filepath.Join(f.cfg.LogDir, filename))
+			if err != nil {
+				return fmt.Errorf("failed to open log file %s: %w", filename, err)
+			}
+			_, copyErr := io.Copy(w, file)
+			file.Close()
+			if copyErr != nil {
+				return fmt.Errorf("failed to read log file %s: %w", filename, copyErr)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Run starts the scan loop.
