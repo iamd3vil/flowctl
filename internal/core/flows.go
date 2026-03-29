@@ -2,22 +2,27 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/cvhariharan/flowctl/internal/core/models"
 	"github.com/cvhariharan/flowctl/internal/repo"
 	"github.com/cvhariharan/flowctl/internal/scheduler"
+	"github.com/expr-lang/expr"
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
@@ -1370,4 +1375,198 @@ func (c *Core) DeleteSchedule(ctx context.Context, scheduleUUID, userUUID, names
 	}
 
 	return nil
+}
+
+// PopulateRemoteOptions fetches remote options for all select inputs in the flow
+// that have RemoteOptions configured and populates flow.Inputs[i].Options.
+// namespaceID is used to look up flow secrets for header interpolation.
+// inputVals can be nil when called at display time.
+// Returns a map of inputName → fetch error for any inputs that failed; successful
+// inputs are already populated in place. Callers decide how to handle each error.
+func (c *Core) PopulateRemoteOptions(ctx context.Context, flow *models.Flow, namespaceID string, inputVals map[string]interface{}) map[string]error {
+	errs := make(map[string]error)
+	for i, input := range flow.Inputs {
+		if input.Type != models.INPUT_TYPE_SELECT || input.RemoteOptions == nil {
+			continue
+		}
+		secrets, err := c.GetMergedSecretsForFlow(ctx, flow.Meta.ID, namespaceID)
+		if err != nil {
+			secrets = make(map[string]string)
+		}
+		opts, err := c.ResolveRemoteOptions(ctx, *input.RemoteOptions, secrets, inputVals, nil)
+		if err != nil {
+			errs[input.Name] = err
+			continue
+		}
+		flow.Inputs[i].Options = opts
+	}
+	return errs
+}
+
+// ResolveRemoteOptions fetches the list of options for a select input from the
+// configured remote URL. The API must return {"options": ["a", "b", ...]}.
+// secrets is used for {{ expression }} interpolation in header values.
+// inputVals and outputs can be nil when called at /inputs time.
+func (c *Core) ResolveRemoteOptions(ctx context.Context, ro models.RemoteOptions, secrets map[string]string, inputVals map[string]interface{}, outputs map[string]interface{}) ([]string, error) {
+	method := ro.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, ro.URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not build remote options request: %w", err)
+	}
+
+	for k, v := range ro.Headers {
+		interpolated, err := interpolateRemoteHeader(v, secrets, inputVals, outputs)
+		if err != nil {
+			return nil, fmt.Errorf("could not interpolate header %q: %w", k, err)
+		}
+		req.Header.Set(k, interpolated)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("remote options request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("remote options request returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not read remote options response: %w", err)
+	}
+
+	var result struct {
+		Options []string `json:"options"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("could not parse remote options response: %w", err)
+	}
+
+	return result.Options, nil
+}
+
+// interpolateRemoteHeader evaluates {{ expression }} placeholders in a header
+// value using expr-lang. The available env keys are secrets, inputs, outputs.
+func interpolateRemoteHeader(value string, secrets map[string]string, inputs map[string]interface{}, outputs map[string]interface{}) (string, error) {
+	re := regexp.MustCompile(`{{\s*([^}]+)\s*}}`)
+
+	if inputs == nil {
+		inputs = make(map[string]interface{})
+	}
+	if outputs == nil {
+		outputs = make(map[string]interface{})
+	}
+
+	var evalErr error
+	result := re.ReplaceAllStringFunc(value, func(match string) string {
+		if evalErr != nil {
+			return ""
+		}
+		sub := re.FindStringSubmatch(match)
+		if len(sub) < 2 {
+			return match
+		}
+		exprStr := strings.TrimSpace(sub[1])
+
+		env := map[string]interface{}{
+			"secrets": secrets,
+			"inputs":  inputs,
+			"outputs": outputs,
+		}
+
+		program, err := expr.Compile(exprStr, expr.Env(env))
+		if err != nil {
+			evalErr = fmt.Errorf("failed to compile header expression %q: %w", exprStr, err)
+			return ""
+		}
+
+		out, err := expr.Run(program, env)
+		if err != nil {
+			evalErr = fmt.Errorf("failed to evaluate header expression %q: %w", exprStr, err)
+			return ""
+		}
+
+		if out == nil {
+			return ""
+		}
+		return fmt.Sprintf("%v", out)
+	})
+
+	if evalErr != nil {
+		return "", evalErr
+	}
+	return result, nil
+}
+
+type remoteOptionsCacheEntry struct {
+	options   map[string][]string
+	expiresAt time.Time
+}
+
+const remoteOptionsCacheTTL = 5 * time.Minute
+
+// StoreRemoteOptionsCache stores a resolved options map (inputName → options) under
+// a new random key and returns that key. The entry expires after remoteOptionsCacheTTL.
+func (c *Core) StoreRemoteOptionsCache(options map[string][]string) string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	id := hex.EncodeToString(b)
+	c.remoteOptionsCacheMu.Lock()
+	c.remoteOptionsCache[id] = remoteOptionsCacheEntry{
+		options:   options,
+		expiresAt: time.Now().Add(remoteOptionsCacheTTL),
+	}
+	c.remoteOptionsCacheMu.Unlock()
+	return id
+}
+
+// LookupRemoteOptionsCache returns the cached options map for the given ID,
+// or nil if the entry is missing or has expired.
+func (c *Core) LookupRemoteOptionsCache(id string) map[string][]string {
+	c.remoteOptionsCacheMu.RLock()
+	entry, ok := c.remoteOptionsCache[id]
+	c.remoteOptionsCacheMu.RUnlock()
+	if !ok || time.Now().After(entry.expiresAt) {
+		return nil
+	}
+	return entry.options
+}
+
+// PrepareAndValidateInputs resolves remote select options (from cache or by
+// re-fetching) and validates the submitted inputs against the flow definition.
+// optionsRequestID is the ID returned by a prior GetFlowInputs call; pass an
+// empty string to always re-fetch. namespaceID is used to decrypt flow secrets.
+func (c *Core) PrepareAndValidateInputs(ctx context.Context, flow *models.Flow, namespaceID string, inputs map[string]interface{}, optionsRequestID string) *models.FlowValidationError {
+	if optionsRequestID != "" {
+		if cached := c.LookupRemoteOptionsCache(optionsRequestID); cached != nil {
+			for i, input := range flow.Inputs {
+				if input.Type == models.INPUT_TYPE_SELECT && input.RemoteOptions != nil {
+					if opts, ok := cached[input.Name]; ok {
+						flow.Inputs[i].Options = opts
+					}
+				}
+			}
+		} else {
+			// Cache miss — re-fetch
+			if errs := c.PopulateRemoteOptions(ctx, flow, namespaceID, inputs); len(errs) > 0 {
+				for name, err := range errs {
+					return &models.FlowValidationError{FieldName: name, Msg: "could not fetch remote options", Err: err}
+				}
+			}
+		}
+	} else {
+		if errs := c.PopulateRemoteOptions(ctx, flow, namespaceID, inputs); len(errs) > 0 {
+			for name, err := range errs {
+				return &models.FlowValidationError{FieldName: name, Msg: "could not fetch remote options", Err: err}
+			}
+		}
+	}
+
+	return flow.ValidateInput(inputs)
 }

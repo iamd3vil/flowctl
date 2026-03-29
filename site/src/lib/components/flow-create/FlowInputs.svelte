@@ -29,6 +29,8 @@
         if (input.type !== "select") {
             input.options = [];
             input.optionsText = "";
+            input.useRemoteOptions = false;
+            input.remote_options = undefined;
         }
         if (input.type === "file") {
             input.default = "";
@@ -43,6 +45,44 @@
         input.options = input.optionsText
             .split("\n")
             .filter((opt: string) => opt.trim());
+    }
+
+    function toggleRemoteOptions(input: any) {
+        input.useRemoteOptions = !input.useRemoteOptions;
+        if (input.useRemoteOptions) {
+            input.remote_options = input.remote_options ?? { url: "", method: "GET", headers: {} };
+            input.options = [];
+            input.optionsText = "";
+        } else {
+            input.remote_options = undefined;
+        }
+    }
+
+    function addRemoteHeader(input: any) {
+        if (!input.remote_options.headers) {
+            input.remote_options.headers = {};
+        }
+        // Use a temporary array to track header key/value pairs for the UI
+        if (!input.remoteHeaders) {
+            input.remoteHeaders = [];
+        }
+        input.remoteHeaders = [...input.remoteHeaders, { key: "", value: "" }];
+    }
+
+    function removeRemoteHeader(input: any, index: number) {
+        input.remoteHeaders.splice(index, 1);
+        input.remoteHeaders = [...input.remoteHeaders];
+        syncHeaders(input);
+    }
+
+    function syncHeaders(input: any) {
+        const headers: Record<string, string> = {};
+        for (const h of (input.remoteHeaders ?? [])) {
+            if (h.key.trim()) {
+                headers[h.key.trim()] = h.value;
+            }
+        }
+        input.remote_options.headers = headers;
     }
 </script>
 
@@ -182,17 +222,111 @@
                 </div>
 
                 {#if input.type === "select"}
-                    <div class="mt-4 p-3 bg-muted rounded-md">
-                        <label
-                            class="block text-sm font-medium text-foreground mb-2"
-                            >Options (one per line)</label
-                        >
-                        <textarea
-                            bind:value={input.optionsText}
-                            oninput={() => updateOptions(input)}
-                            class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono h-20"
-                            placeholder="option1&#10;option2&#10;option3"
-                        ></textarea>
+                    <div class="mt-4 p-3 bg-muted rounded-md space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-foreground">Options Source</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-muted-foreground">Static</span>
+                                <button
+                                    type="button"
+                                    onclick={() => toggleRemoteOptions(input)}
+                                    class="relative inline-flex h-5 w-9 cursor-pointer rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 {input.useRemoteOptions ? 'bg-primary-500' : 'bg-muted-foreground/30'}"
+                                    role="switch"
+                                    aria-checked={input.useRemoteOptions ?? false}
+                                >
+                                    <span
+                                        class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 {input.useRemoteOptions ? 'translate-x-4' : 'translate-x-0.5'}"
+                                    ></span>
+                                </button>
+                                <span class="text-sm text-muted-foreground">Remote API</span>
+                            </div>
+                        </div>
+
+                        {#if input.useRemoteOptions}
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <div class="col-span-1">
+                                        <label class="block text-xs font-medium text-foreground mb-1">Method</label>
+                                        <select
+                                            bind:value={input.remote_options.method}
+                                            class="w-full px-2 py-1.5 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                        >
+                                            <option value="GET">GET</option>
+                                            <option value="POST">POST</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-span-3">
+                                        <label class="block text-xs font-medium text-foreground mb-1">URL *</label>
+                                        <input
+                                            type="url"
+                                            bind:value={input.remote_options.url}
+                                            class="w-full px-2 py-1.5 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono"
+                                            placeholder="https://api.example.com/options"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-xs font-medium text-foreground">Headers</label>
+                                        <button
+                                            type="button"
+                                            onclick={() => addRemoteHeader(input)}
+                                            class="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                                        >
+                                            + Add Header
+                                        </button>
+                                    </div>
+                                    {#if input.remoteHeaders && input.remoteHeaders.length > 0}
+                                        <div class="space-y-1.5">
+                                            {#each input.remoteHeaders as header, hi (hi)}
+                                                <div class="flex gap-2 items-center">
+                                                    <input
+                                                        type="text"
+                                                        bind:value={header.key}
+                                                        oninput={() => syncHeaders(input)}
+                                                        class="flex-1 px-2 py-1.5 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-xs font-mono"
+                                                        placeholder="Header name"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        bind:value={header.value}
+                                                        oninput={() => syncHeaders(input)}
+                                                        class="flex-1 px-2 py-1.5 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-xs font-mono"
+                                                        placeholder="Value or {'{{ secrets.KEY }}'}"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onclick={() => removeRemoteHeader(input, hi)}
+                                                        class="text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
+                                                    >
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    {:else}
+                                        <p class="text-xs text-muted-foreground">No headers. Use <code class="font-mono bg-card px-1 rounded">{'{{ secrets.KEY }}'}</code> for interpolation.</p>
+                                    {/if}
+                                </div>
+                            </div>
+                        {:else}
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-foreground mb-2"
+                                    >Options (one per line)</label
+                                >
+                                <textarea
+                                    bind:value={input.optionsText}
+                                    oninput={() => updateOptions(input)}
+                                    class="w-full px-3 py-2 text-foreground bg-card border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-mono h-20"
+                                    placeholder="option1&#10;option2&#10;option3"
+                                ></textarea>
+                            </div>
+                        {/if}
                     </div>
                 {/if}
 

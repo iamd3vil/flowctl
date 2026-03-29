@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -28,16 +29,23 @@ const (
 	INPUT_TYPE_SELECT   InputType = "select"
 )
 
+type RemoteOptions struct {
+	URL     string            `yaml:"url" huml:"url" json:"url"`
+	Method  string            `yaml:"method,omitempty" huml:"method" json:"method,omitempty"`
+	Headers map[string]string `yaml:"headers,omitempty" huml:"headers" json:"headers,omitempty"`
+}
+
 type Input struct {
-	Name        string    `yaml:"name" huml:"name" json:"name" validate:"required,alphanum_underscore"`
-	Type        InputType `yaml:"type" huml:"type" json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
-	Label       string    `yaml:"label" huml:"label" json:"label"`
-	Description string    `yaml:"description" huml:"description" json:"description"`
-	Validation  string    `yaml:"validation" huml:"validation" json:"validation"`
-	Required    bool      `yaml:"required" huml:"required" json:"required"`
-	Default     string    `yaml:"default" huml:"default" json:"default"`
-	Options     []string  `yaml:"options" huml:"options" json:"options"`
-	MaxFileSize int64     `yaml:"max_file_size" huml:"max_file_size" json:"max_file_size"`
+	Name          string         `yaml:"name" huml:"name" json:"name" validate:"required,alphanum_underscore"`
+	Type          InputType      `yaml:"type" huml:"type" json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
+	Label         string         `yaml:"label" huml:"label" json:"label"`
+	Description   string         `yaml:"description" huml:"description" json:"description"`
+	Validation    string         `yaml:"validation" huml:"validation" json:"validation"`
+	Required      bool           `yaml:"required" huml:"required" json:"required"`
+	Default       string         `yaml:"default" huml:"default" json:"default"`
+	Options       []string       `yaml:"options" huml:"options" json:"options"`
+	MaxFileSize   int64          `yaml:"max_file_size" huml:"max_file_size" json:"max_file_size"`
+	RemoteOptions *RemoteOptions `yaml:"remote_options,omitempty" huml:"remote_options" json:"remote_options,omitempty"`
 }
 
 // type Schedule struct {
@@ -223,6 +231,19 @@ func (f Flow) Validate() error {
 	// Reject reserved prefix values that collide with Casbin domain sentinels
 	if f.Meta.Prefix == "_" {
 		return fmt.Errorf("prefix %q is reserved and cannot be used", f.Meta.Prefix)
+	}
+
+	// Validate remote_options URLs
+	for _, input := range f.Inputs {
+		if input.RemoteOptions != nil {
+			if input.RemoteOptions.URL == "" {
+				return fmt.Errorf("input %s: remote_options.url is required", input.Name)
+			}
+			u, err := url.Parse(input.RemoteOptions.URL)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+				return fmt.Errorf("input %s: remote_options.url must be a valid http or https URL", input.Name)
+			}
+		}
 	}
 
 	return validate.Struct(f)

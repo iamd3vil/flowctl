@@ -38,6 +38,7 @@ export const load: PageLoad = async ({ params, parent, url }) => {
 
     return {
       flowInputs: flowInputs.inputs,
+      optionsRequestId: flowInputs.options_request_id,
       flowMeta,
       namespaceId,
       rerunFromExecId,

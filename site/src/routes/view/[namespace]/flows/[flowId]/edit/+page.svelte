@@ -129,6 +129,10 @@
                 maxFileSizeMB: input.max_file_size
                     ? input.max_file_size / 1024 / 1024
                     : undefined,
+                useRemoteOptions: !!input.remote_options,
+                remoteHeaders: input.remote_options?.headers
+                    ? Object.entries(input.remote_options.headers).map(([key, value]) => ({ key, value }))
+                    : [],
             }));
 
             // Transform actions
@@ -233,10 +237,20 @@
                             required: input.required || false,
                             default: input.default || undefined,
                             options:
-                                input.type === "select" && input.optionsText
+                                input.type === "select" && !input.useRemoteOptions && input.optionsText
                                     ? input.optionsText
                                           .split("\n")
                                           .filter((o: string) => o.trim())
+                                    : undefined,
+                            remote_options:
+                                input.type === "select" && input.useRemoteOptions && input.remote_options?.url
+                                    ? {
+                                          url: input.remote_options.url,
+                                          method: input.remote_options.method || undefined,
+                                          headers: Object.keys(input.remote_options.headers ?? {}).length > 0
+                                              ? input.remote_options.headers
+                                              : undefined,
+                                      }
                                     : undefined,
                             max_file_size: input.max_file_size || undefined,
                         }),

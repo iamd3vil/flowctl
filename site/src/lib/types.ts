@@ -123,6 +123,7 @@ export interface FlowInput {
 
 export interface FlowInputsResp {
   inputs: FlowInput[];
+  options_request_id?: string;
 }
 
 export interface FlowMeta {
@@ -514,6 +515,12 @@ export interface FlowMetaReq {
   allow_overlap?: boolean;
 }
 
+export interface RemoteOptionsReq {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+}
+
 export interface FlowInputReq {
   name: string;
   type:
@@ -530,6 +537,7 @@ export interface FlowInputReq {
   required?: boolean;
   default?: string;
   options?: string[];
+  remote_options?: RemoteOptionsReq;
   max_file_size?: number;
 }
 

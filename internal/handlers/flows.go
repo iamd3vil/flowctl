@@ -16,8 +16,22 @@ import (
 )
 
 const (
-	tempDirName = "/tmp"
+	tempDirName           = "/tmp"
+	optionsRequestIDHeader = "X-Options-Request-ID"
 )
+
+// populateRemoteOptions calls core.PopulateRemoteOptions and handles errors.
+// strict=false logs errors and falls back to static options; strict=true returns an HTTP error.
+func (h *Handler) populateRemoteOptions(c echo.Context, flow *models.Flow, namespace string, inputVals map[string]interface{}, strict bool) error {
+	errs := h.co.PopulateRemoteOptions(c.Request().Context(), flow, namespace, inputVals)
+	for inputName, err := range errs {
+		if strict {
+			return wrapError(ErrOperationFailed, fmt.Sprintf("could not fetch remote options for input %s", inputName), err, nil)
+		}
+		h.logger.Warn("failed to fetch remote options, using static fallback", "input", inputName, "error", err)
+	}
+	return nil
+}
 
 // convertRequestInputs converts request values from strings to their appropriate types based on flow input definitions
 func convertRequestInputs(req map[string]interface{}, flow models.Flow) error {
@@ -180,7 +194,8 @@ func (h *Handler) HandleFlowTrigger(c echo.Context) error {
 		return wrapError(ErrInvalidInput, "input conversion error", err, nil)
 	}
 
-	if err := f.ValidateInput(req); err != nil {
+	optionsRequestID := c.Request().Header.Get(optionsRequestIDHeader)
+	if err := h.co.PrepareAndValidateInputs(c.Request().Context(), &f, namespace, req, optionsRequestID); err != nil {
 		return wrapError(ErrValidationFailed, "", err, FlowInputValidationError{
 			FieldName:  err.FieldName,
 			ErrMessage: err.Msg,
@@ -548,9 +563,26 @@ func (h *Handler) HandleGetFlowInputs(c echo.Context) error {
 
 	h.logger.Debug("flow input", "input", fmt.Sprintf("%+v", flow.Inputs))
 
+	if err := h.populateRemoteOptions(c, &flow, namespace, nil, false); err != nil {
+		return err
+	}
+
+	// Cache resolved options so HandleFlowTrigger can validate without re-fetching.
+	var optionsRequestID string
+	resolved := make(map[string][]string)
+	for _, input := range flow.Inputs {
+		if input.Type == models.INPUT_TYPE_SELECT && input.RemoteOptions != nil {
+			resolved[input.Name] = input.Options
+		}
+	}
+	if len(resolved) > 0 {
+		optionsRequestID = h.co.StoreRemoteOptionsCache(resolved)
+	}
+
 	inputs := coreFlowInputsToInputs(flow.Inputs)
 	return c.JSON(http.StatusOK, FlowInputsResp{
-		Inputs: inputs,
+		Inputs:           inputs,
+		OptionsRequestID: optionsRequestID,
 	})
 }
 

@@ -300,6 +300,7 @@
                 namespace={namespace!}
                 flowId={flowId!}
                 executionInput={data.executionInput}
+                optionsRequestId={data.optionsRequestId}
                 onScheduled={refreshScheduledExecutions}
             />
             <FlowActionsSummary actions={data.flowMeta?.actions || []} />

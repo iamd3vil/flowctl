@@ -13,12 +13,14 @@
     namespace,
     flowId,
     executionInput = null,
+    optionsRequestId = undefined,
     onScheduled
   }: {
     inputs: FlowInput[],
     namespace: string,
     flowId: string,
     executionInput?: Record<string, any> | null,
+    optionsRequestId?: string,
     onScheduled?: () => void
   } = $props();
 
@@ -64,11 +66,17 @@
       url += `?scheduled_at=${encodeURIComponent(scheduledAtRFC3339)}`;
     }
 
+    const headers: Record<string, string> = {};
+    if (optionsRequestId) {
+      headers['X-Options-Request-ID'] = optionsRequestId;
+    }
+
     try {
       const response = await fetch(url, {
         method: 'POST',
         body: formData,
         credentials: 'include',
+        headers,
       });
 
       if (!response.ok) {

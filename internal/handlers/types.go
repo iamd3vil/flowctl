@@ -396,7 +396,8 @@ type FlowInput struct {
 }
 
 type FlowInputsResp struct {
-	Inputs []FlowInput `json:"inputs"`
+	Inputs           []FlowInput `json:"inputs"`
+	OptionsRequestID string      `json:"options_request_id,omitempty"`
 }
 
 func coreFlowInputToInput(input models.Input) FlowInput {
@@ -671,16 +672,23 @@ type FlowCreateReq struct {
 	Notifications []Notify        `json:"notify" validate:"omitempty,dive"`
 }
 
+type RemoteOptionsReq struct {
+	URL     string            `json:"url" validate:"required,url"`
+	Method  string            `json:"method,omitempty" validate:"omitempty,oneof=GET POST"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
 type FlowInputReq struct {
-	Name        string   `json:"name" validate:"required,alphanum_underscore,min=1,max=150"`
-	Type        string   `json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
-	Label       string   `json:"label" validate:"omitempty,max=255"`
-	Description string   `json:"description" validate:"max=255"`
-	Validation  string   `json:"validation"`
-	Required    bool     `json:"required"`
-	Default     string   `json:"default"`
-	Options     []string `json:"options"`
-	MaxFileSize int64    `json:"max_file_size"`
+	Name          string             `json:"name" validate:"required,alphanum_underscore,min=1,max=150"`
+	Type          string             `json:"type" validate:"required,oneof=string number password file datetime checkbox select"`
+	Label         string             `json:"label" validate:"omitempty,max=255"`
+	Description   string             `json:"description" validate:"max=255"`
+	Validation    string             `json:"validation"`
+	Required      bool               `json:"required"`
+	Default       string             `json:"default"`
+	Options       []string           `json:"options"`
+	MaxFileSize   int64              `json:"max_file_size"`
+	RemoteOptions *RemoteOptionsReq  `json:"remote_options,omitempty" validate:"omitempty"`
 }
 
 type FlowActionReq struct {
@@ -724,16 +732,25 @@ type FlowUpdateReq struct {
 func convertFlowInputsReqToInputs(inputsReq []FlowInputReq) []models.Input {
 	inputs := make([]models.Input, len(inputsReq))
 	for i, input := range inputsReq {
+		var remoteOpts *models.RemoteOptions
+		if input.RemoteOptions != nil {
+			remoteOpts = &models.RemoteOptions{
+				URL:     input.RemoteOptions.URL,
+				Method:  input.RemoteOptions.Method,
+				Headers: input.RemoteOptions.Headers,
+			}
+		}
 		inputs[i] = models.Input{
-			Name:        input.Name,
-			Type:        models.InputType(input.Type),
-			Label:       input.Label,
-			Description: input.Description,
-			Validation:  input.Validation,
-			Required:    input.Required,
-			Default:     input.Default,
-			Options:     input.Options,
-			MaxFileSize: input.MaxFileSize,
+			Name:          input.Name,
+			Type:          models.InputType(input.Type),
+			Label:         input.Label,
+			Description:   input.Description,
+			Validation:    input.Validation,
+			Required:      input.Required,
+			Default:       input.Default,
+			Options:       input.Options,
+			MaxFileSize:   input.MaxFileSize,
+			RemoteOptions: remoteOpts,
 		}
 	}
 	return inputs
@@ -765,16 +782,25 @@ func convertFlowActionsReqToActions(actionsReq []FlowActionReq) []models.Action 
 func convertFlowInputsToInputsReq(inputs []models.Input) []FlowInputReq {
 	inputsReq := make([]FlowInputReq, len(inputs))
 	for i, input := range inputs {
+		var remoteOpts *RemoteOptionsReq
+		if input.RemoteOptions != nil {
+			remoteOpts = &RemoteOptionsReq{
+				URL:     input.RemoteOptions.URL,
+				Method:  input.RemoteOptions.Method,
+				Headers: input.RemoteOptions.Headers,
+			}
+		}
 		inputsReq[i] = FlowInputReq{
-			Name:        input.Name,
-			Type:        string(input.Type),
-			Label:       input.Label,
-			Description: input.Description,
-			Validation:  input.Validation,
-			Required:    input.Required,
-			Default:     input.Default,
-			Options:     input.Options,
-			MaxFileSize: input.MaxFileSize,
+			Name:          input.Name,
+			Type:          string(input.Type),
+			Label:         input.Label,
+			Description:   input.Description,
+			Validation:    input.Validation,
+			Required:      input.Required,
+			Default:       input.Default,
+			Options:       input.Options,
+			MaxFileSize:   input.MaxFileSize,
+			RemoteOptions: remoteOpts,
 		}
 	}
 	return inputsReq

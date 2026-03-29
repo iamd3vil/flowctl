@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 
@@ -30,17 +31,23 @@ type Core struct {
 	enforcer *casbin.Enforcer
 
 	flowDirectory string
+	httpClient    *http.Client
+
+	remoteOptionsCache   map[string]remoteOptionsCacheEntry
+	remoteOptionsCacheMu sync.RWMutex
 }
 
 func NewCore(flowsDirectory string, s repo.Store, sch scheduler.TaskScheduler, keeper *secrets.Keeper, enforcer *casbin.Enforcer) (*Core, error) {
 	c := &Core{
-		store:         s,
-		scheduler:     sch,
-		flowDirectory: flowsDirectory,
-		flows:         make(map[string]models.Flow),
-		logMap:        make(map[string]string),
-		keeper:        keeper,
-		enforcer:      enforcer,
+		store:              s,
+		scheduler:          sch,
+		flowDirectory:      flowsDirectory,
+		flows:              make(map[string]models.Flow),
+		logMap:             make(map[string]string),
+		keeper:             keeper,
+		enforcer:           enforcer,
+		httpClient:         &http.Client{Timeout: 10 * time.Second},
+		remoteOptionsCache: make(map[string]remoteOptionsCacheEntry),
 	}
 
 	if err := c.LoadFlows(context.Background()); err != nil {
