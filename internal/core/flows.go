@@ -451,10 +451,15 @@ func (c *Core) CancelFlowExecution(ctx context.Context, execID string, namespace
 	return c.scheduler.CancelTask(ctx, execID)
 }
 
-func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, namespaceID string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
+func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, namespaceID string, callerID string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	callerUUID, err := uuid.Parse(callerID)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("invalid caller UUID: %w", err)
 	}
 
 	execs, err := c.store.GetExecutionsByFlowPaginated(ctx, repo.GetExecutionsByFlowPaginatedParams{
@@ -462,6 +467,7 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 		Uuid:   namespaceUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),
+		Uuid_2: callerUUID,
 	})
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("could not get paginated executions for %s: %w", f.Meta.ID, err)
@@ -500,10 +506,15 @@ func (c *Core) GetExecutionSummaryPaginated(ctx context.Context, f models.Flow, 
 	return m, pageCount, totalCount, nil
 }
 
-func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID string, filter string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
+func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID string, callerID string, filter string, limit, offset int) ([]models.ExecutionSummary, int64, int64, error) {
 	namespaceUUID, err := uuid.Parse(namespaceID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("invalid namespace UUID: %w", err)
+	}
+
+	callerUUID, err := uuid.Parse(callerID)
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("invalid caller UUID: %w", err)
 	}
 
 	execs, err := c.store.SearchExecutionsPaginated(ctx, repo.SearchExecutionsPaginatedParams{
@@ -511,6 +522,7 @@ func (c *Core) GetAllExecutionSummaryPaginated(ctx context.Context, namespaceID 
 		Column2: filter,
 		Limit:   int32(limit),
 		Offset:  int32(offset),
+		Uuid_2:  callerUUID,
 	})
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("could not get all paginated executions: %w", err)

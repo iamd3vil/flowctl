@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 )
 
 const (
-	tempDirName           = "/tmp"
 	optionsRequestIDHeader = "X-Options-Request-ID"
 )
 
@@ -235,6 +235,24 @@ func (h *Handler) HandleLogStreaming(c echo.Context) error {
 
 	logID := req.LogID
 
+	execSummary, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID, namespace)
+	if err != nil {
+		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
+	}
+
+	streamUser, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
+	restricted, err := h.isUserOnly(c.Request().Context(), streamUser.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not determine user role", err, nil)
+	}
+	if restricted && execSummary.TriggeredByID != streamUser.ID {
+		return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+	}
+
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
@@ -302,6 +320,24 @@ func (h *Handler) HandleLogDownload(c echo.Context) error {
 	}
 
 	logID := req.LogID
+
+	execSummary, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), logID, namespace)
+	if err != nil {
+		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
+	}
+
+	downloadUser, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
+	restricted, err := h.isUserOnly(c.Request().Context(), downloadUser.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not determine user role", err, nil)
+	}
+	if restricted && execSummary.TriggeredByID != downloadUser.ID {
+		return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+	}
 
 	c.Response().Header().Set("Content-Type", "application/octet-stream")
 	c.Response().Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.log"`, logID))
@@ -447,6 +483,19 @@ func (h *Handler) HandleGetExecutionSummary(c echo.Context) error {
 		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
 	}
 
+	userInfo, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
+	restricted, err := h.isUserOnly(c.Request().Context(), userInfo.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not determine user role", err, nil)
+	}
+	if restricted && execSummary.TriggeredByID != userInfo.ID {
+		return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+	}
+
 	response := coreExecutionSummaryToExecutionSummary(execSummary)
 	return c.JSON(http.StatusOK, response)
 }
@@ -479,12 +528,17 @@ func (h *Handler) HandleExecutionsPagination(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
+	userInfo, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
 	flow, err := h.co.GetFlowByID(flowID, namespace)
 	if err != nil {
 		return wrapError(ErrResourceNotFound, "flow not found", err, nil)
 	}
 
-	executions, pageCount, totalCount, err := h.co.GetExecutionSummaryPaginated(c.Request().Context(), flow, namespace, req.Count, req.Count*req.Page)
+	executions, pageCount, totalCount, err := h.co.GetExecutionSummaryPaginated(c.Request().Context(), flow, namespace, userInfo.ID, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not get paginated executions", err, nil)
 	}
@@ -524,7 +578,12 @@ func (h *Handler) HandleAllExecutionsPagination(c echo.Context) error {
 		req.Count = CountPerPage
 	}
 
-	executions, pageCount, totalCount, err := h.co.GetAllExecutionSummaryPaginated(c.Request().Context(), namespace, req.Filter, req.Count, req.Count*req.Page)
+	userInfo, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
+	executions, pageCount, totalCount, err := h.co.GetAllExecutionSummaryPaginated(c.Request().Context(), namespace, userInfo.ID, req.Filter, req.Count, req.Count*req.Page)
 	if err != nil {
 		return wrapError(ErrOperationFailed, "could not get all paginated executions", err, nil)
 	}
@@ -797,10 +856,22 @@ func (h *Handler) HandleCancelExecution(c echo.Context) error {
 		return wrapError(ErrRequiredFieldMissing, "execution ID is required", nil, nil)
 	}
 
-	// Verify the execution exists and user has permission to cancel it
-	_, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), execID, namespace)
+	execSummary, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), execID, namespace)
 	if err != nil {
 		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
+	}
+
+	cancelUser, err := h.getUserInfo(c)
+	if err != nil {
+		return wrapError(ErrForbidden, "could not get user info", err, nil)
+	}
+
+	restricted, err := h.isUserOnly(c.Request().Context(), cancelUser.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not determine user role", err, nil)
+	}
+	if restricted && execSummary.TriggeredByID != cancelUser.ID {
+		return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
 	}
 
 	err = h.co.CancelFlowExecution(c.Request().Context(), execID, namespace)
@@ -830,10 +901,51 @@ func (h *Handler) HandleRetryExecution(c echo.Context) error {
 		return wrapError(ErrAuthenticationFailed, "could not get user details", err, nil)
 	}
 
+	execSummary, err := h.co.GetExecutionSummaryByExecID(c.Request().Context(), execID, namespace)
+	if err != nil {
+		return wrapError(ErrResourceNotFound, "execution not found", err, nil)
+	}
+
+	restricted, err := h.isUserOnly(c.Request().Context(), user.ID, namespace)
+	if err != nil {
+		return wrapError(ErrOperationFailed, "could not determine user role", err, nil)
+	}
+	if restricted && execSummary.TriggeredByID != user.ID {
+		return wrapError(ErrForbidden, "insufficient permissions", nil, nil)
+	}
+
 	err = h.co.RetryFlowExecution(c.Request().Context(), execID, user.ID, namespace)
 	if err != nil {
 		return wrapError(ErrOperationFailed, err.Error(), err, nil)
 	}
 
 	return c.NoContent(http.StatusCreated)
+}
+
+var namespaceRoleWeight = map[models.NamespaceRole]int{
+	models.NamespaceRoleUser:     1,
+	models.NamespaceRoleReviewer: 2,
+	models.NamespaceRoleAdmin:    3,
+}
+
+// isUserOnly returns true if the caller's effective namespace role is user.
+// It takes the highest role across all memberships (direct and group) to handle cases
+// where a user has multiple roles in the same namespace.
+func (h *Handler) isUserOnly(ctx context.Context, userID, namespaceID string) (bool, error) {
+	namespaces, err := h.co.GetUserNamespaces(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	best := 0
+	for _, ns := range namespaces {
+		if ns.Namespace.ID == namespaceID {
+			if w := namespaceRoleWeight[ns.Role]; w > best {
+				best = w
+			}
+		}
+	}
+	if best == 0 {
+		return true, nil // no role found — treat as restricted
+	}
+	return best == namespaceRoleWeight[models.NamespaceRoleUser], nil
 }

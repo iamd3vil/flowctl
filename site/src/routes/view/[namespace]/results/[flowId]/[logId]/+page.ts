@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import { apiClient } from '$lib/apiClient';
+import { apiClient, ApiError } from '$lib/apiClient';
 import { permissionChecker } from '$lib/utils/permissions';
 
 export const load: PageLoad = async ({ params, parent }) => {
@@ -41,6 +41,12 @@ export const load: PageLoad = async ({ params, parent }) => {
       executionSummary
     };
   } catch (err) {
-    error(500, 'Failed to load flow status data');
+    if (err instanceof ApiError) {
+      error(err.status, {
+        message: err.data?.error || 'An error occurred',
+        code: err.data?.code
+      });
+    }
+    error(500, { message: 'Failed to load flow status data', code: 'INTERNAL_ERROR' });
   }
 };

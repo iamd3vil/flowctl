@@ -634,6 +634,24 @@ const getExecutionsByFlowPaginated = `-- name: GetExecutionsByFlowPaginated :man
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ),
+user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $5 AND n.uuid = $2
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $5) AND n.uuid = $2
+),
 latest_versions AS (
     SELECT exec_id, MAX(version) as max_version
     FROM execution_log el
@@ -656,6 +674,11 @@ filtered AS (
       AND f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
       AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
+      AND (
+        el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
+        OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+      )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -680,6 +703,7 @@ type GetExecutionsByFlowPaginatedParams struct {
 	Uuid   uuid.UUID `db:"uuid" json:"uuid"`
 	Limit  int32     `db:"limit" json:"limit"`
 	Offset int32     `db:"offset" json:"offset"`
+	Uuid_2 uuid.UUID `db:"uuid_2" json:"uuid_2"`
 }
 
 type GetExecutionsByFlowPaginatedRow struct {
@@ -716,6 +740,7 @@ func (q *Queries) GetExecutionsByFlowPaginated(ctx context.Context, arg GetExecu
 		arg.Uuid,
 		arg.Limit,
 		arg.Offset,
+		arg.Uuid_2,
 	)
 	if err != nil {
 		return nil, err
@@ -973,6 +998,24 @@ const searchExecutionsPaginated = `-- name: SearchExecutionsPaginated :many
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $1
 ),
+user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $5 AND n.uuid = $1
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $5) AND n.uuid = $1
+),
 latest_versions AS (
     SELECT exec_id, MAX(version) as max_version
     FROM execution_log el
@@ -993,6 +1036,11 @@ filtered AS (
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
       AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
+      AND (
+        el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
+        OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+      )
       AND (
         $2 = '' OR
         f.name ILIKE '%' || $2 || '%' OR
@@ -1025,6 +1073,7 @@ type SearchExecutionsPaginatedParams struct {
 	Column2 interface{} `db:"column_2" json:"column_2"`
 	Limit   int32       `db:"limit" json:"limit"`
 	Offset  int32       `db:"offset" json:"offset"`
+	Uuid_2  uuid.UUID   `db:"uuid_2" json:"uuid_2"`
 }
 
 type SearchExecutionsPaginatedRow struct {
@@ -1061,6 +1110,7 @@ func (q *Queries) SearchExecutionsPaginated(ctx context.Context, arg SearchExecu
 		arg.Column2,
 		arg.Limit,
 		arg.Offset,
+		arg.Uuid_2,
 	)
 	if err != nil {
 		return nil, err

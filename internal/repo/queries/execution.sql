@@ -199,6 +199,24 @@ WHERE execution_log.exec_id = $1
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $2
 ),
+user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $5 AND n.uuid = $2
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $5) AND n.uuid = $2
+),
 latest_versions AS (
     SELECT exec_id, MAX(version) as max_version
     FROM execution_log el
@@ -221,6 +239,11 @@ filtered AS (
       AND f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
       AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
+      AND (
+        el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
+        OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+      )
 ),
 total AS (
     SELECT COUNT(*) AS total_count FROM filtered
@@ -285,6 +308,24 @@ FROM paged p, page_count pc, total t;
 WITH namespace_lookup AS (
     SELECT id FROM namespaces WHERE namespaces.uuid = $1
 ),
+user_namespaces AS (
+    -- Direct user membership
+    SELECT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN users u ON nm.user_id = u.id
+    WHERE u.uuid = $5 AND n.uuid = $1
+
+    UNION
+
+    -- Group membership
+    SELECT DISTINCT n.uuid, n.name, nm.role
+    FROM namespaces n
+    JOIN namespace_members nm ON n.id = nm.namespace_id
+    JOIN groups g ON nm.group_id = g.id
+    JOIN group_memberships gm ON g.id = gm.group_id
+    WHERE gm.user_id = (SELECT id FROM users WHERE users.uuid = $5) AND n.uuid = $1
+),
 latest_versions AS (
     SELECT exec_id, MAX(version) as max_version
     FROM execution_log el
@@ -305,6 +346,11 @@ filtered AS (
     WHERE f.namespace_id = (SELECT id FROM namespace_lookup)
       AND f.is_active = TRUE
       AND (el.scheduled_at IS NULL OR el.scheduled_at <= NOW())
+      AND (
+        el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
+        OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+      )
       AND (
         $2 = '' OR
         f.name ILIKE '%' || $2 || '%' OR
