@@ -18,7 +18,7 @@
     import { permissionChecker } from "$lib/utils/permissions";
     import { formatDateTime, getStartTime } from "$lib/utils";
     import { apiClient } from "$lib/apiClient";
-    import { IconPencil } from "@tabler/icons-svelte";
+    import { IconPencil, IconEye } from "@tabler/icons-svelte";
 
     let { data }: { data: PageData } = $props();
 
@@ -30,6 +30,7 @@
     let historyTotalCount = $state(0);
     let historyPageCount = $state(0);
     let canUpdateFlow = $state(false);
+    let canViewFlowConfig = $state(false);
     let scheduledExecutions = $state<ScheduledExecution[]>(
         data.flowMeta?.scheduled_executions || [],
     );
@@ -40,10 +41,11 @@
     let rerunFromExecId = $derived(data.rerunFromExecId);
     let showRerunBanner = $state(!!rerunFromExecId);
 
-    // Check update permission on mount
-    permissionChecker(data.user!, "flow", data.namespaceId, ["update"], "_").then(
+    // Check update and view_config permissions on mount
+    permissionChecker(data.user!, "flow", data.namespaceId, ["update", "view_config"], "_").then(
         (permissions) => {
             canUpdateFlow = permissions.canUpdate;
+            canViewFlowConfig = permissions.canViewConfig;
         },
     );
 
@@ -220,7 +222,17 @@
                       variant: "primary" as const,
                   },
               ]
-            : []),
+            : canViewFlowConfig
+              ? [
+                    {
+                        icon: IconEye,
+                        label: "View Config",
+                        onClick: () =>
+                            goto(`/view/${namespace}/flows/${flowId}/edit`),
+                        variant: "secondary" as const,
+                    },
+                ]
+              : []),
     ]}
 />
 

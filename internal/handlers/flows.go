@@ -924,8 +924,9 @@ func (h *Handler) HandleRetryExecution(c echo.Context) error {
 
 var namespaceRoleWeight = map[models.NamespaceRole]int{
 	models.NamespaceRoleUser:     1,
-	models.NamespaceRoleReviewer: 2,
-	models.NamespaceRoleAdmin:    3,
+	models.NamespaceRoleOperator: 2,
+	models.NamespaceRoleReviewer: 3,
+	models.NamespaceRoleAdmin:    4,
 }
 
 // isUserOnly returns true if the caller's effective namespace role is user.

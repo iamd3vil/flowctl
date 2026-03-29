@@ -5,6 +5,8 @@
     switch (role) {
       case 'user':
         return 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-300';
+      case 'operator':
+        return 'bg-info-100 text-info-800 dark:bg-info-900/30 dark:text-info-300';
       case 'reviewer':
         return 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300';
       case 'admin':

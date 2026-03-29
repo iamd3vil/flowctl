@@ -362,7 +362,7 @@ func startServer(db *sqlx.DB, co *core.Core, metricsManager *metrics.Manager, lo
 
 	namespaceGroup.GET("/flows/:flowID/inputs", h.HandleGetFlowInputs, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/meta", h.HandleGetFlowMeta, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionView))
-	namespaceGroup.GET("/flows/:flowID/config", h.HandleGetFlowConfig, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionCreate))
+	namespaceGroup.GET("/flows/:flowID/config", h.HandleGetFlowConfig, h.AuthorizeNamespaceAction(models.ResourceFlow, models.RBACActionViewConfig))
 
 	namespaceGroup.GET("/flows/:flowID/secrets", h.HandleListFlowSecrets, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))
 	namespaceGroup.GET("/flows/:flowID/secrets/:secretID", h.HandleGetFlowSecret, h.AuthorizeNamespaceAction(models.ResourceFlowSecret, models.RBACActionView))

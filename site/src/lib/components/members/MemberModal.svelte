@@ -45,7 +45,7 @@
       // Pre-populate form with existing member data
       memberForm.subject_type = memberData.subject_type as 'user' | 'group';
       memberForm.subject_id = memberData.subject_id;
-      memberForm.role = memberData.role as 'user' | 'reviewer' | 'admin';
+      memberForm.role = memberData.role as 'user' | 'operator' | 'reviewer' | 'admin';
 
       // Create a selectedSubject object for the UserGroupSelector
       selectedSubject = {
@@ -239,16 +239,17 @@
               disabled={loading}
             >
               <option value="user">User - Can view and trigger flows</option>
+              <option value="operator">Operator - Can view and trigger accessible flows and see all executions</option>
               <option value="reviewer">Reviewer - Can approve flows and view all content</option>
               <option value="admin">Admin - Full access to namespace management</option>
             </select>
           </div>
 
-          <!-- Prefix Access (edit mode, user role only) -->
-          {#if isEditMode && memberData && memberData.role === 'user' && memberForm.role === 'user'}
+          <!-- Prefix Access (edit mode, user/operator role only) -->
+          {#if isEditMode && memberData && ['user', 'operator'].includes(memberData.role) && ['user', 'operator'].includes(memberForm.role)}
             <div class="mb-4">
               <p class="text-xs text-muted-foreground mb-2">
-                Users can only see ungrouped flows by default. Grant access to specific groups below.
+                {memberForm.role === 'operator' ? 'Operators' : 'Users'} can only see ungrouped flows by default. Grant access to specific groups below.
               </p>
 
               <!-- Current prefixes -->

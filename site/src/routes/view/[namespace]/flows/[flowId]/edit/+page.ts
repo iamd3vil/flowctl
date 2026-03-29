@@ -5,16 +5,18 @@ import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
   const { user, namespaceId } = await parent();
-  
-  // Check update permissions
+
+  // Check update and view_config permissions
+  let readonly = false;
   try {
-    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['update'], '_');
-    if (!permissions.canUpdate) {
+    const permissions = await permissionChecker(user!, 'flow', namespaceId, ['update', 'view_config'], '_');
+    if (!permissions.canUpdate && !permissions.canViewConfig) {
       error(403, {
-        message: 'You do not have permission to edit flows in this namespace',
+        message: 'You do not have permission to view the flow configuration in this namespace',
         code: 'INSUFFICIENT_PERMISSIONS'
       });
     }
+    readonly = !permissions.canUpdate;
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err) {
       throw err; // Re-throw SvelteKit errors
@@ -51,6 +53,7 @@ export const load: PageLoad = async ({ parent }) => {
       availableExecutors,
       availableMessengers: Object.keys(messengerSchemas),
       messengerConfigs,
+      readonly,
     };
   } catch (loadError) {
     console.error('Error loading executors/messengers:', loadError);
@@ -58,6 +61,7 @@ export const load: PageLoad = async ({ parent }) => {
       availableExecutors: [],
       availableMessengers: [],
       messengerConfigs: {},
+      readonly,
     };
   }
 };

@@ -5,6 +5,7 @@ export interface ResourcePermissions {
   canUpdate: boolean;
   canDelete: boolean;
   canRead: boolean;
+  canViewConfig: boolean;
 }
 
 export interface User {
@@ -12,7 +13,7 @@ export interface User {
   groups?: string[];
 }
 
-export type PermissionAction = 'create' | 'view' | 'update' | 'delete';
+export type PermissionAction = 'create' | 'view' | 'update' | 'delete' | 'view_config';
 
 const CACHE_PREFIX = 'permissions:';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -101,7 +102,8 @@ export async function permissionChecker(
     canCreate: false,
     canRead: false,
     canUpdate: false,
-    canDelete: false
+    canDelete: false,
+    canViewConfig: false,
   };
 
   try {
@@ -139,6 +141,9 @@ export async function permissionChecker(
           break;
         case 'delete':
           permissions.canDelete = allowed;
+          break;
+        case 'view_config':
+          permissions.canViewConfig = allowed;
           break;
       }
     }

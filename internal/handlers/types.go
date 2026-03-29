@@ -562,11 +562,11 @@ func coreUserInfoToUserProfile(u models.UserInfo) UserProfileResponse {
 type NamespaceMemberReq struct {
 	SubjectID   string `json:"subject_id" validate:"required,uuid4"`
 	SubjectType string `json:"subject_type" validate:"required,oneof=user group"`
-	Role        string `json:"role" validate:"required,oneof=user reviewer admin"`
+	Role        string `json:"role" validate:"required,oneof=user operator reviewer admin"`
 }
 
 type UpdateNamespaceMemberReq struct {
-	Role string `json:"role" validate:"required,oneof=user reviewer admin"`
+	Role string `json:"role" validate:"required,oneof=user operator reviewer admin"`
 }
 
 type NamespaceMemberResp struct {

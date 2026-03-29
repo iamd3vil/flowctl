@@ -41,6 +41,17 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:user", "/*", string(models.ResourceExecution), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:user", "/*", string(models.ResourceExecution), string(models.RBACActionUpdate))
 
+	// Operator role policies — same flow visibility as user (ungrouped + explicit prefix grants)
+	c.enforcer.AddPolicy("role:operator", "/:ns/_", string(models.ResourceFlow), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:operator", "/:ns/_", string(models.ResourceFlow), string(models.RBACActionExecute))
+	// Operator can view ALL executions (not restricted like user)
+	c.enforcer.AddPolicy("role:operator", "/*", string(models.ResourceExecution), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:operator", "/*", string(models.ResourceExecution), string(models.RBACActionUpdate))
+	c.enforcer.AddPolicy("role:operator", "/*", string(models.ResourceMember), string(models.RBACActionView))
+	c.enforcer.AddPolicy("role:operator", "/*", string(models.ResourceNamespace), string(models.RBACActionView))
+	// Operator can view the full flow config/definition (read-only)
+	c.enforcer.AddPolicy("role:operator", "/*", string(models.ResourceFlow), string(models.RBACActionViewConfig))
+
 	// Reviewer role policies
 	c.enforcer.AddPolicy("role:reviewer", "/*", string(models.ResourceFlow), string(models.RBACActionView))
 	c.enforcer.AddPolicy("role:reviewer", "/*", string(models.ResourceFlow), string(models.RBACActionExecute))
@@ -79,6 +90,8 @@ func (c *Core) InitializeRBACPolicies() error {
 	c.enforcer.AddPolicy("role:admin", "/*", string(models.ResourceNamespaceSecret), string(models.RBACActionCreate))
 	c.enforcer.AddPolicy("role:admin", "/*", string(models.ResourceNamespaceSecret), string(models.RBACActionUpdate))
 	c.enforcer.AddPolicy("role:admin", "/*", string(models.ResourceNamespaceSecret), string(models.RBACActionDelete))
+	// Admin can view flow config (does not inherit from operator, so must be explicit)
+	c.enforcer.AddPolicy("role:admin", "/*", string(models.ResourceFlow), string(models.RBACActionViewConfig))
 
 	// Synchronize user/group role assignments from database
 	if err := c.SynchronizePolicies(context.Background()); err != nil {
@@ -91,6 +104,7 @@ func (c *Core) InitializeRBACPolicies() error {
 	}
 
 	// Role hierarchy
+	c.enforcer.AddGroupingPolicy("role:operator", "role:user", "/*")
 	c.enforcer.AddGroupingPolicy("role:reviewer", "role:user", "/*")
 	c.enforcer.AddGroupingPolicy("role:admin", "role:reviewer", "/*")
 
@@ -287,8 +301,8 @@ func (c *Core) UpdateNamespaceMember(ctx context.Context, membershipID, namespac
 	c.enforcer.RemoveFilteredGroupingPolicy(0, subjectID, "", domain)
 	c.enforcer.AddGroupingPolicy(subjectID, fmt.Sprintf("role:%s", role), domain)
 
-	// If downgraded from admin/reviewer to user, revoke all prefix access
-	if (oldMember.Role == "admin" || oldMember.Role == "reviewer") && string(role) == "user" {
+	// If downgraded from admin/reviewer/operator to user, revoke all prefix access
+	if (oldMember.Role == "admin" || oldMember.Role == "reviewer" || oldMember.Role == "operator") && string(role) == "user" {
 		err = c.store.RevokeAllMemberPrefixAccess(ctx, repo.RevokeAllMemberPrefixAccessParams{
 			Uuid:   namespaceUUID,
 			Uuid_2: membershipUUID,

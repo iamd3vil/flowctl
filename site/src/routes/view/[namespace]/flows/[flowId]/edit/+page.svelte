@@ -23,6 +23,7 @@
     let { data }: { data: PageData } = $props();
     const namespace = $page.params.namespace as string;
     const flowId = $page.params.flowId as string;
+    const readonly = data.readonly ?? false;
 
     // Flow state
     let flow = $state({
@@ -69,7 +70,7 @@
         { id: "inputs", label: "Inputs" },
         { id: "actions", label: "Actions" },
         { id: "notifications", label: "Notifications" },
-        { id: "secrets", label: "Secrets" }, // Always enabled in edit mode
+        ...(!readonly ? [{ id: "secrets", label: "Secrets" }] : []),
     ];
 
     onMount(async () => {
@@ -304,7 +305,7 @@
 </script>
 
 <svelte:head>
-    <title>Edit Flow - {flow.metadata.name || "Loading..."} | Flowctl</title>
+    <title>{readonly ? "View" : "Edit"} Flow - {flow.metadata.name || "Loading..."} | Flowctl</title>
 </svelte:head>
 
 <div class="flex h-screen bg-muted">
@@ -318,7 +319,7 @@
                     label: flow.metadata.name || "Loading...",
                     url: `/view/${namespace}/flows/${flowId}`,
                 },
-                { label: "Edit" },
+                { label: readonly ? "View Config" : "Edit" },
             ]}
         />
 
@@ -343,11 +344,12 @@
                     <!-- Page Title -->
                     <div class="mb-8">
                         <h1 class="text-2xl font-bold text-foreground">
-                            Edit Flow
+                            {readonly ? "View Flow Config" : "Edit Flow"}
                         </h1>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Update workflow configuration for {flow.metadata
-                                .name}
+                            {readonly
+                                ? `Viewing read-only configuration for ${flow.metadata.name}`
+                                : `Update workflow configuration for ${flow.metadata.name}`}
                         </p>
                     </div>
 
@@ -360,39 +362,45 @@
 
                         <!-- Tab Content -->
                         <form bind:this={formElement} class="p-6">
-                            {#if activeTab === "metadata"}
-                                <FlowMetadata
-                                    bind:metadata={flow.metadata}
-                                    {namespace}
-                                    inputs={flow.inputs}
-                                    updatemode={true}
-                                />
-                            {:else if activeTab === "inputs"}
-                                <FlowInputs
-                                    bind:inputs={flow.inputs}
-                                    {addInput}
-                                />
-                            {:else if activeTab === "actions"}
-                                <FlowActions
-                                    {namespace}
-                                    bind:actions={flow.actions}
-                                    {addAction}
-                                    {availableExecutors}
-                                    bind:executorConfigs
-                                />
-                            {:else if activeTab === "notifications"}
-                                <FlowNotifications
-                                    bind:notifications={flow.notifications}
-                                    {addNotification}
-                                    {availableMessengers}
-                                    {messengerConfigs}
-                                />
-                            {:else if activeTab === "secrets"}
-                                <SecretsTab {namespace} {flowId} />
-                            {/if}
+                            <fieldset disabled={readonly} class="contents">
+                                {#if activeTab === "metadata"}
+                                    <FlowMetadata
+                                        bind:metadata={flow.metadata}
+                                        {namespace}
+                                        inputs={flow.inputs}
+                                        updatemode={true}
+                                        disabled={readonly}
+                                    />
+                                {:else if activeTab === "inputs"}
+                                    <FlowInputs
+                                        bind:inputs={flow.inputs}
+                                        {addInput}
+                                        disabled={readonly}
+                                    />
+                                {:else if activeTab === "actions"}
+                                    <FlowActions
+                                        {namespace}
+                                        bind:actions={flow.actions}
+                                        {addAction}
+                                        {availableExecutors}
+                                        bind:executorConfigs
+                                        disabled={readonly}
+                                    />
+                                {:else if activeTab === "notifications"}
+                                    <FlowNotifications
+                                        bind:notifications={flow.notifications}
+                                        {addNotification}
+                                        {availableMessengers}
+                                        {messengerConfigs}
+                                        disabled={readonly}
+                                    />
+                                {:else if activeTab === "secrets"}
+                                    <SecretsTab {namespace} {flowId} />
+                                {/if}
+                            </fieldset>
                         </form>
 
-                        <!-- Action Buttons (only show on non-secrets tabs) -->
+                        <!-- Action Buttons -->
                         {#if activeTab !== "secrets"}
                             <div
                                 class="px-6 py-4 bg-muted border-t border-border flex justify-end gap-3"
@@ -405,20 +413,22 @@
                                         )}
                                     class="px-6 py-2 cursor-pointer text-sm font-medium text-foreground bg-card border border-input rounded-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400"
                                 >
-                                    Cancel
+                                    {readonly ? "Back" : "Cancel"}
                                 </button>
-                                <button
-                                    type="button"
-                                    onclick={() => {
-                                        if (formElement?.reportValidity()) {
-                                            updateFlow();
-                                        }
-                                    }}
-                                    disabled={saving}
-                                    class="px-6 py-2 cursor-pointer text-sm font-medium text-white bg-primary-500 border border-transparent rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {saving ? "Updating..." : "Update"}
-                                </button>
+                                {#if !readonly}
+                                    <button
+                                        type="button"
+                                        onclick={() => {
+                                            if (formElement?.reportValidity()) {
+                                                updateFlow();
+                                            }
+                                        }}
+                                        disabled={saving}
+                                        class="px-6 py-2 cursor-pointer text-sm font-medium text-white bg-primary-500 border border-transparent rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {saving ? "Updating..." : "Update"}
+                                    </button>
+                                {/if}
                             </div>
                         {/if}
                     </div>

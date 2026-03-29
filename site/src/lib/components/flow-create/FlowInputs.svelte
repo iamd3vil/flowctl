@@ -2,9 +2,11 @@
     let {
         inputs = $bindable(),
         addInput,
+        disabled = false,
     }: {
         inputs: any[];
         addInput: () => void;
+        disabled?: boolean;
     } = $props();
 
     // Keep max_file_size in sync with maxFileSizeMB for file inputs
@@ -90,17 +92,20 @@
 <div>
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-base font-medium text-foreground">Flow Inputs</h3>
-        <button
-            onclick={addInput}
-            class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
-        >
-            + Add Input
-        </button>
+        {#if !disabled}
+            <button
+                onclick={addInput}
+                class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
+            >
+                + Add Input
+            </button>
+        {/if}
     </div>
 
     <div class="space-y-4">
         {#each inputs as input, index (index)}
             <div class="border border-border rounded-lg p-4 relative">
+                {#if !disabled}
                 <button
                     onclick={() => removeInput(index)}
                     class="absolute top-4 right-4 text-muted-foreground hover:text-danger-600 cursor-pointer"
@@ -119,6 +124,7 @@
                         />
                     </svg>
                 </button>
+                {/if}
 
                 <div class="grid grid-cols-3 gap-4">
                     <div>
@@ -365,12 +371,14 @@
                     />
                 </svg>
                 <p>No inputs defined yet</p>
-                <button
-                    onclick={addInput}
-                    class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                >
-                    Add your first input
-                </button>
+                {#if !disabled}
+                    <button
+                        onclick={addInput}
+                        class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                    >
+                        Add your first input
+                    </button>
+                {/if}
             </div>
         {/if}
     </div>

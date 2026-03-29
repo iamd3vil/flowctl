@@ -14,12 +14,14 @@
         addAction,
         availableExecutors,
         executorConfigs = $bindable(),
+        disabled = false,
     }: {
         namespace: string;
         actions: any[];
         addAction: () => void;
         availableExecutors: Array<{ name: string; capabilities: string[] }>;
         executorConfigs: Record<string, any>;
+        disabled?: boolean;
     } = $props();
     let draggedIndex: number | null = null;
 
@@ -157,12 +159,14 @@
 <div>
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-base font-medium text-foreground">Flow Actions</h3>
-        <button
-            onclick={handleAddAction}
-            class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
-        >
-            + Add Action
-        </button>
+        {#if !disabled}
+            <button
+                onclick={handleAddAction}
+                class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
+            >
+                + Add Action
+            </button>
+        {/if}
     </div>
 
     <div class="space-y-4">
@@ -225,42 +229,44 @@
                                 />
                             </svg>
                         </button>
-                        <button
-                            onclick={() => duplicateAction(index)}
-                            class="text-muted-foreground hover:text-primary-600 cursor-pointer"
-                        >
-                            <svg
-                                class="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                        {#if !disabled}
+                            <button
+                                onclick={() => duplicateAction(index)}
+                                class="text-muted-foreground hover:text-primary-600 cursor-pointer"
                             >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                />
-                            </svg>
-                        </button>
-                        <button
-                            onclick={() => removeAction(index)}
-                            class="text-muted-foreground hover:text-danger-600 cursor-pointer"
-                        >
-                            <svg
-                                class="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                </svg>
+                            </button>
+                            <button
+                                onclick={() => removeAction(index)}
+                                class="text-muted-foreground hover:text-danger-600 cursor-pointer"
                             >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                            </svg>
-                        </button>
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                            </button>
+                        {/if}
                     </div>
                 </div>
 
@@ -319,6 +325,7 @@
                                     {namespace}
                                     bind:selectedNodes={action.selectedNodes}
                                     placeholder="Search nodes..."
+                                    {disabled}
                                 />
                             </div>
                             {/if}
@@ -720,12 +727,14 @@
                     />
                 </svg>
                 <p>No actions defined yet</p>
-                <button
-                    onclick={handleAddAction}
-                    class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                >
-                    Add your first action
-                </button>
+                {#if !disabled}
+                    <button
+                        onclick={handleAddAction}
+                        class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                    >
+                        Add your first action
+                    </button>
+                {/if}
             </div>
         {/if}
     </div>

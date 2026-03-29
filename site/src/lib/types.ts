@@ -244,7 +244,7 @@ export interface NamespacesPaginateResponse
 export interface NamespaceMemberReq {
   subject_id: string;
   subject_type: "user" | "group";
-  role: "user" | "reviewer" | "admin";
+  role: "user" | "operator" | "reviewer" | "admin";
 }
 
 export interface NamespaceMemberResp {

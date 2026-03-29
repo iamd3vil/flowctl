@@ -91,6 +91,7 @@
   }
 
   async function handleFocus() {
+    if (disabled) return;
     await searchNodes(searchQuery);
     showDropdown = true;
   }
@@ -125,9 +126,11 @@
   }
 
 
-  // Load nodes when component mounts
+  // Load nodes when component mounts (skip if disabled — no permission to list nodes)
   onMount(() => {
-    searchNodes();
+    if (!disabled) {
+      searchNodes();
+    }
   });
 
   // Close dropdown when clicking outside

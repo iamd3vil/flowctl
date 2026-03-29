@@ -242,7 +242,7 @@ filtered AS (
       AND (
         el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
         OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
-        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer', 'operator'))
       )
 ),
 total AS (
@@ -349,7 +349,7 @@ filtered AS (
       AND (
         el.triggered_by = (SELECT id FROM users WHERE users.uuid = $5)
         OR EXISTS (SELECT id FROM users WHERE users.uuid = $5 AND users.role = 'superuser')
-        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer'))
+        OR EXISTS (SELECT uuid FROM user_namespaces WHERE role IN ('admin', 'reviewer', 'operator'))
       )
       AND (
         $2 = '' OR

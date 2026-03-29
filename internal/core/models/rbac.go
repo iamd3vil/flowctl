@@ -4,6 +4,7 @@ type NamespaceRole string
 
 const (
 	NamespaceRoleUser     NamespaceRole = "user"
+	NamespaceRoleOperator NamespaceRole = "operator"
 	NamespaceRoleReviewer NamespaceRole = "reviewer"
 	NamespaceRoleAdmin    NamespaceRole = "admin"
 )
@@ -25,12 +26,13 @@ const (
 type RBACAction string
 
 const (
-	RBACActionView    RBACAction = "view"
-	RBACActionExecute RBACAction = "execute"
-	RBACActionApprove RBACAction = "approve"
-	RBACActionUpdate  RBACAction = "update"
-	RBACActionDelete  RBACAction = "delete"
-	RBACActionCreate  RBACAction = "create"
+	RBACActionView       RBACAction = "view"
+	RBACActionViewConfig RBACAction = "view_config"
+	RBACActionExecute    RBACAction = "execute"
+	RBACActionApprove    RBACAction = "approve"
+	RBACActionUpdate     RBACAction = "update"
+	RBACActionDelete     RBACAction = "delete"
+	RBACActionCreate     RBACAction = "create"
 )
 
 type NamespaceWithRole struct {
@@ -74,7 +76,7 @@ func ValidResource(r Resource) bool {
 // ValidRBACAction checks if the given action is a known RBAC action.
 func ValidRBACAction(a RBACAction) bool {
 	switch a {
-	case RBACActionView, RBACActionExecute, RBACActionApprove,
+	case RBACActionView, RBACActionViewConfig, RBACActionExecute, RBACActionApprove,
 		RBACActionUpdate, RBACActionDelete, RBACActionCreate:
 		return true
 	default:

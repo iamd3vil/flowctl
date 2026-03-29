@@ -6,11 +6,13 @@
         addNotification,
         availableMessengers,
         messengerConfigs,
+        disabled = false,
     }: {
         notifications: any[];
         addNotification: () => void;
         availableMessengers: string[];
         messengerConfigs: Record<string, any>;
+        disabled?: boolean;
     } = $props();
 
     function removeNotification(index: number) {
@@ -69,35 +71,39 @@
                 Configure notifications for flow execution events
             </p>
         </div>
-        <button
-            onclick={addNotification}
-            class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
-        >
-            + Add Notification
-        </button>
+        {#if !disabled}
+            <button
+                onclick={addNotification}
+                class="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 cursor-pointer"
+            >
+                + Add Notification
+            </button>
+        {/if}
     </div>
 
     <div class="space-y-4">
         {#each notifications as notification, index (index)}
             <div class="border border-border rounded-lg p-4 relative">
-                <button
-                    onclick={() => removeNotification(index)}
-                    class="absolute top-4 right-4 text-muted-foreground hover:text-danger-600 cursor-pointer"
-                >
-                    <svg
-                        class="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                {#if !disabled}
+                    <button
+                        onclick={() => removeNotification(index)}
+                        class="absolute top-4 right-4 text-muted-foreground hover:text-danger-600 cursor-pointer"
                     >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12"
-                        />
-                    </svg>
-                </button>
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                {/if}
 
                 <div class="space-y-4">
                     <!-- Channel -->
@@ -228,12 +234,14 @@
                     />
                 </svg>
                 <p>No notifications configured yet</p>
-                <button
-                    onclick={addNotification}
-                    class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                >
-                    Add your first notification
-                </button>
+                {#if !disabled}
+                    <button
+                        onclick={addNotification}
+                        class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                    >
+                        Add your first notification
+                    </button>
+                {/if}
             </div>
         {/if}
     </div>

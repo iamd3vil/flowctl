@@ -9,6 +9,7 @@
         namespace,
         inputs = [],
         updatemode = false,
+        disabled = false,
     }: {
         metadata: {
             id: string;
@@ -23,6 +24,7 @@
         namespace: string;
         inputs?: any[];
         updatemode?: boolean;
+        disabled?: boolean;
     } = $props();
 
     let hasFileInputs = $derived(
@@ -202,13 +204,15 @@
                         >(optional)</span
                     >
                 </label>
-                <button
-                    type="button"
-                    onclick={addSchedule}
-                    class="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                >
-                    + Add Schedule
-                </button>
+                {#if !disabled}
+                    <button
+                        type="button"
+                        onclick={addSchedule}
+                        class="text-xs text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                    >
+                        + Add Schedule
+                    </button>
+                {/if}
             </div>
 
             <div class="space-y-4">
@@ -275,25 +279,27 @@
                                     </datalist>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onclick={() => removeSchedule(index)}
-                                class="mt-6 text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
-                            >
-                                <svg
-                                    class="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                            {#if !disabled}
+                                <button
+                                    type="button"
+                                    onclick={() => removeSchedule(index)}
+                                    class="mt-6 text-muted-foreground hover:text-danger-600 cursor-pointer flex-shrink-0"
                                 >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
+                                    <svg
+                                        class="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+                            {/if}
                         </div>
                     </div>
                 {/each}
@@ -318,13 +324,15 @@
                         <p class="text-sm text-muted-foreground mb-2">
                             No schedules defined
                         </p>
-                        <button
-                            type="button"
-                            onclick={addSchedule}
-                            class="text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
-                        >
-                            Add your first schedule
-                        </button>
+                        {#if !disabled}
+                            <button
+                                type="button"
+                                onclick={addSchedule}
+                                class="text-sm text-primary-600 hover:text-primary-700 font-medium cursor-pointer"
+                            >
+                                Add your first schedule
+                            </button>
+                        {/if}
                     </div>
                 {/if}
             </div>
