@@ -18,6 +18,7 @@
     import { permissionChecker } from "$lib/utils/permissions";
     import { formatDateTime, getStartTime } from "$lib/utils";
     import { apiClient } from "$lib/apiClient";
+    import { buildFlowBreadcrumbs } from "$lib/utils/flowBreadcrumbs.js";
     import { IconPencil, IconEye } from "@tabler/icons-svelte";
 
     let { data }: { data: PageData } = $props();
@@ -199,6 +200,14 @@
         { id: "schedule", label: "Schedule" },
         { id: "history", label: "History" },
     ];
+
+    const breadcrumbs = $derived(
+        buildFlowBreadcrumbs(
+            namespace!,
+            data.flowMeta?.meta?.name || "Loading...",
+            data.flowMeta?.meta?.prefix || "",
+        ),
+    );
 </script>
 
 <svelte:head>
@@ -206,11 +215,7 @@
 </svelte:head>
 
 <Header
-    breadcrumbs={[
-        { label: namespace!, url: `/view/${namespace}/flows` },
-        { label: "Flows", url: `/view/${namespace}/flows` },
-        { label: data.flowMeta?.meta?.name || "Loading..." },
-    ]}
+    {breadcrumbs}
     actions={[
         ...(canUpdateFlow
             ? [
