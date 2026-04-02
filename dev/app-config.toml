@@ -5,8 +5,10 @@ flows_directory = "flows"
 http_tls_cert = "server_cert.pem"
 http_tls_key = "server_key.pem"
 root_url = "http://localhost:7000"
+address = ":7000"
 secure_cookie_key = "tf0Hd_W6Hu5oHExXv8zZ6Q=="
 use_tls = false
+max_file_upload_size = 104857600
 
 [keystore]
   keeper_url = "base64key://2M-MkchieLohxn0jlmSfbuh4KE4EZz9tWrhcY9DZ8bE="
@@ -18,7 +20,8 @@ use_tls = false
   retention_time = "0s"
   scan_interval = "1h0m0s"
 
-[oidc]
+[[oidc]]
+  name = "dex"
   client_id = "flowctl"
   client_secret = "secret"
   issuer = "http://dex:5556/dex"
@@ -30,6 +33,13 @@ use_tls = false
   backend = ""
   cron_sync_interval = "5m0s"
   workers = 20
+  flow_execution_timeout = "1h"
+
+[messengers.email]
+  enabled = false
+  port = 587
+  from_address = "flowctl@example.com"
+  max_conns = 10
 
 [db]
   dbname = "flowctl"

@@ -19,6 +19,7 @@
     } from "$lib/types.js";
     import { goto } from "$app/navigation";
     import { handleInlineError, showSuccess } from "$lib/utils/errorHandling";
+    import { buildFlowBreadcrumbs } from "$lib/utils/flowBreadcrumbs.js";
 
     let { data }: { data: PageData } = $props();
     const namespace = $page.params.namespace as string;
@@ -72,6 +73,18 @@
         { id: "notifications", label: "Notifications" },
         ...(!readonly ? [{ id: "secrets", label: "Secrets" }] : []),
     ];
+
+    const breadcrumbs = $derived(
+        buildFlowBreadcrumbs(
+            namespace,
+            flow.metadata.name || "Loading...",
+            flow.metadata.prefix || "",
+            {
+                flowUrl: `/view/${namespace}/flows/${flowId}`,
+                trailingLabel: readonly ? "View Config" : "Edit",
+            },
+        ),
+    );
 
     onMount(async () => {
         await loadFlowConfig();
@@ -312,15 +325,7 @@
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
         <Header
-            breadcrumbs={[
-                { label: namespace, url: `/view/${namespace}/flows` },
-                { label: "Flows", url: `/view/${namespace}/flows` },
-                {
-                    label: flow.metadata.name || "Loading...",
-                    url: `/view/${namespace}/flows/${flowId}`,
-                },
-                { label: readonly ? "View Config" : "Edit" },
-            ]}
+            {breadcrumbs}
         />
 
         <!-- Page Content -->
